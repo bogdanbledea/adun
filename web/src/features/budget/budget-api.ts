@@ -30,6 +30,11 @@ export interface Month {
   totals: Totals
 }
 
+/** Empty until its first entry. */
+export interface Template {
+  categories: Category[]
+}
+
 export interface EntryFields {
   monthKey: string
   categoryName: string
@@ -40,7 +45,8 @@ export interface EntryFields {
 
 /** An entry as answered after a change. */
 export interface SavedEntry extends Entry {
-  monthKey: string
+  /** null: the template. */
+  monthKey: string | null
   categoryName: string
 }
 
@@ -52,6 +58,9 @@ export const budgetApi = {
   addEntry: (fields: EntryFields) => api<SavedEntry>('/api/entries', { method: 'POST', body: fields }),
   updateEntry: (id: string, fields: Partial<EntryFields>) =>
     api<SavedEntry>(`/api/entries/${id}`, { method: 'PATCH', body: fields }),
+  template: (signal?: AbortSignal) => api<Template>('/api/template', { signal }),
+  addTemplateEntry: (fields: Omit<EntryFields, 'monthKey'>) =>
+    api<SavedEntry>('/api/template/entries', { method: 'POST', body: fields }),
   deleteEntry: (id: string) => api(`/api/entries/${id}`, { method: 'DELETE' }),
   // Whole lists in their new order: a month's categories, a category's entries.
   reorderCategories: (ids: string[]) => api('/api/categories/order', { method: 'PUT', body: { ids } }),

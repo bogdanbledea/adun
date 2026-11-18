@@ -17,6 +17,7 @@ export const ro = {
   'nav.food': 'Mâncare',
   'nav.reminders': 'Scadențe',
   'nav.accountMenu': 'Meniu cont',
+  'nav.template': 'Șablon buget',
   'nav.settings': 'Setări',
   'nav.privacy': 'Confidențialitate',
   'nav.signOutEverywhere': 'Ieși de pe toate dispozitivele',
@@ -179,6 +180,21 @@ export const ro = {
   'budget.deleteMonthEmpty': 'Luna nu are tranzacții. Bugetul ei se șterge.',
 
   // Settings
+  'template.title': 'Șablon buget',
+  'template.subtitle':
+    'Veniturile și cheltuielile care se repetă lunar. Pornește o lună nouă din șablon sau importă-l într-o lună existentă.',
+  'template.add': 'Adaugă în șablon',
+  'template.entries': 'Intrări în șablon',
+  'template.loadFailed': 'Șablonul nu a putut fi încărcat.',
+  'template.empty': 'Șablonul este gol',
+  'template.emptyText': 'Adaugă ce se repetă în fiecare lună: salariul, chiria, abonamentele.',
+  'template.addFirst': 'Adaugă prima intrare',
+  'template.addTitle': 'Adaugă în șablon',
+  'template.editTitle': 'Editează intrarea din șablon',
+  'template.dialogHint': 'Se copiază în fiecare lună pornită din șablon.',
+  'template.deleteEntry': 'Șterge din șablon',
+  'template.deleteEntryText': '„{description}” se șterge din șablon. Lunile create deja nu se schimbă.',
+
   'settings.title': 'Setări',
   'settings.subtitle': 'Contul tău, parola și ce s-a schimbat în el.',
   'settings.account': 'Cont',
@@ -223,7 +239,7 @@ export const ro = {
   'privacyPage.storedTitle': 'Ce se păstrează',
   'privacyPage.storedAccount': 'Contul: adresa de email, numele afișat, parola (doar ca hash Argon2, niciodată în clar) și data la care a fost creat.',
   'privacyPage.storedSessions': 'Sesiunile de autentificare: doar un hash al cookie-ului de sesiune, cu data expirării. O sesiune expiră după 30 de zile fără folosire.',
-  'privacyPage.storedBudget': 'Bugetul: lunile, categoriile și înregistrările lor (descriere, tip, sumă). Rămân până le ștergi tu sau ștergi contul.',
+  'privacyPage.storedBudget': 'Bugetul: lunile și șablonul, cu categoriile și înregistrările lor (descriere, tip, sumă). Rămân până le ștergi tu sau ștergi contul.',
   'privacyPage.storedActivity': 'Istoricul activității: ce s-a schimbat în cont și când, de exemplu numele, parola sau o înregistrare din buget (cu descrierea și suma ei). Se păstrează 365 de zile, apoi se șterge singur.',
   'privacyPage.storedNot': 'Aplicația nu se conectează la bancă și nu păstrează adresa IP sau browserul cu care te autentifici.',
   'privacyPage.whereTitle': 'Unde',

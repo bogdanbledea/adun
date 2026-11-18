@@ -11,16 +11,17 @@ import { budgetApi, type Entry, type EntryType, type SavedEntry } from './budget
 import { AmountPanel, CategoryPicker } from './EntryFields.tsx'
 import { monthLong } from './month-key.ts'
 
-/* Adds an entry to the month, or edits one. Editing can also move the entry
-   to another month of the strip; the server creates that month's budget if
-   it has none. The amount is read by parseAmount, so "12,50" and "12.50"
-   both work. */
+/* Adds an entry to the month or the template, or edits one. Editing a
+   month's entry can also move it to another month of the strip; the server
+   creates that month's budget if it has none. The amount is read by
+   parseAmount, so "12,50" and "12.50" both work. */
 
 interface EntryDialogProps {
-  monthKey: string
+  /** null: the template. */
+  monthKey: string | null
   /** The months the strip offers, for moving an entry. */
-  months: string[]
-  monthsWithBudget: ReadonlySet<string>
+  months?: string[]
+  monthsWithBudget?: ReadonlySet<string>
   /** The entry to edit, with its category; absent to add one. */
   entry?: Entry & { categoryName: string }
   /** Preselected category when adding from a category's + button. */
@@ -35,8 +36,8 @@ type Errors = Partial<Record<'amount' | 'description' | 'category', string>>
 
 export function EntryDialog({
   monthKey,
-  months,
-  monthsWithBudget,
+  months = [],
+  monthsWithBudget = new Set(),
   entry,
   categoryName,
   categoryNames,
@@ -50,13 +51,14 @@ export function EntryDialog({
   const [amount, setAmount] = useState(entry ? baniToInput(entry.amountBani, language) : '')
   const [description, setDescription] = useState(entry?.description ?? '')
   const [category, setCategory] = useState(entry?.categoryName ?? categoryName ?? '')
-  const [targetMonth, setTargetMonth] = useState(monthKey)
+  // The template has no month to move from.
+  const [targetMonth, setTargetMonth] = useState(monthKey ?? '')
   const [errors, setErrors] = useState<Errors>({})
   const [failure, setFailure] = useState<unknown>(null)
   const [saving, setSaving] = useState(false)
 
-  const moving = Boolean(entry) && targetMonth !== monthKey
-  const moveOptions = months.includes(monthKey) ? months : [monthKey, ...months]
+  const moving = Boolean(entry) && monthKey !== null && targetMonth !== monthKey
+  const moveOptions = monthKey === null || months.includes(monthKey) ? months : [monthKey, ...months]
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault()
@@ -68,11 +70,16 @@ export function EntryDialog({
     setErrors(found)
     if (amountBani === null || Object.keys(found).length > 0) return
 
-    const fields = { monthKey: targetMonth, categoryName: category.trim(), description: description.trim(), type, amountBani }
+    const common = { categoryName: category.trim(), description: description.trim(), type, amountBani }
     setSaving(true)
     setFailure(null)
     try {
-      onSaved(entry ? await budgetApi.updateEntry(entry.id, fields) : await budgetApi.addEntry(fields))
+      if (monthKey === null) {
+        onSaved(entry ? await budgetApi.updateEntry(entry.id, common) : await budgetApi.addTemplateEntry(common))
+      } else {
+        const fields = { ...common, monthKey: targetMonth }
+        onSaved(entry ? await budgetApi.updateEntry(entry.id, fields) : await budgetApi.addEntry(fields))
+      }
       onClose()
     } catch (error) {
       setFailure(error)
@@ -84,7 +91,15 @@ export function EntryDialog({
     <Dialog
       open
       onClose={onClose}
-      title={entry ? t('budget.editTitle') : t('budget.addTitle')}
+      title={
+        monthKey === null
+          ? entry
+            ? t('template.editTitle')
+            : t('template.addTitle')
+          : entry
+            ? t('budget.editTitle')
+            : t('budget.addTitle')
+      }
       footer={
         <>
           {entry && onDelete && (
@@ -103,7 +118,9 @@ export function EntryDialog({
       }
     >
       <form id={formId} noValidate onSubmit={(event) => void submit(event)} className="flex flex-col gap-5">
-        <p className="-mt-1 text-sm text-muted">{monthLong(monthKey, language)}</p>
+        <p className="-mt-1 text-sm text-muted">
+          {monthKey === null ? t('template.dialogHint') : monthLong(monthKey, language)}
+        </p>
         <AmountPanel type={type} amount={amount} error={errors.amount} onTypeChange={setType} onAmountChange={setAmount} />
         <Field
           label={t('budget.description')}
@@ -113,7 +130,7 @@ export function EntryDialog({
           onChange={(event) => { setDescription(event.target.value) }}
         />
         <CategoryPicker value={category} onChange={setCategory} suggestions={categoryNames} error={errors.category} />
-        {entry && (
+        {entry && monthKey !== null && (
           <div className="flex flex-col gap-2">
             <Select label={t('budget.month')} value={targetMonth} onChange={(event) => { setTargetMonth(event.target.value) }}>
               {moveOptions.map((option) => (

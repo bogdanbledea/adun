@@ -233,7 +233,7 @@ export function MonthView({ monthKey, months, monthsWithBudget, onMonthCreated, 
           categoryNames={categoryNames}
           onClose={() => { setOpen(null) }}
           onSaved={(saved) => {
-            if (saved.monthKey !== monthKey) {
+            if (saved.monthKey !== null && saved.monthKey !== monthKey) {
               onMonthCreated(saved.monthKey)
               setMessage({ tone: 'moved', description: saved.description, monthKey: saved.monthKey })
             } else {
