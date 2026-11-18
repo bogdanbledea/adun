@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { LOG_LEVELS, type LogLevel } from './lib/log.ts'
 
 /* Every environment variable the server reads, parsed once at startup. An
@@ -5,6 +6,8 @@ import { LOG_LEVELS, type LogLevel } from './lib/log.ts'
 
 export interface Config {
   production: boolean
+  // Absolute path of the folder that holds adun.sqlite.
+  dataDir: string
   port: number
   logLevel: LogLevel
 }
@@ -42,6 +45,7 @@ function logLevel(env: Env): LogLevel {
 export function loadConfig(env: Env): Config {
   return {
     production: env.NODE_ENV === 'production',
+    dataDir: path.resolve(read(env, 'ADUN_DATA_DIR') ?? 'data'),
     port: integer(env, 'PORT', 8080, 1, 65535),
     logLevel: logLevel(env),
   }

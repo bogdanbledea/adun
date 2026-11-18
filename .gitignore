@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Runtime data (SQLite database)
+data/
+
 # Local environment
 .env*
 !.env.example

@@ -10,7 +10,8 @@
     "start": "node src/index.ts",
     "check": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --test \"src/**/*.test.ts\""
+    "test": "node --test \"src/**/*.test.ts\"",
+    "migrate": "node src/cli/migrate.ts"
   },
   "dependencies": {
     "express": "5.3.0",

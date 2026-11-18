@@ -1,16 +1,19 @@
 import type { Server } from 'node:http'
+import { closeDatabase, type Database } from './db.ts'
 import type { Logger } from './lib/log.ts'
 
 export interface ShutdownDeps {
   server: Server
+  db: Database
   log: Logger
   // How long in-flight requests may take before their connections are cut.
   timeoutMs?: number
 }
 
 /* Graceful shutdown, on SIGTERM (docker stop) or SIGINT: stop accepting
-   connections and let requests already in progress finish. */
-export async function shutdown({ server, log, timeoutMs = 10_000 }: ShutdownDeps): Promise<void> {
+   connections, let requests already in progress finish, then checkpoint the
+   WAL into the database file and close it. */
+export async function shutdown({ server, db, log, timeoutMs = 10_000 }: ShutdownDeps): Promise<void> {
   const closed = new Promise<void>((resolve) => {
     // Stops listening and closes idle keep-alive connections; resolves once
     // the last active request has been answered.
@@ -33,5 +36,6 @@ export async function shutdown({ server, log, timeoutMs = 10_000 }: ShutdownDeps
     await closed
   }
 
+  closeDatabase(db)
   log.info('server.stopped')
 }

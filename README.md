@@ -43,17 +43,30 @@ Other scripts: `npm test`, `npm run check` (types) and `npm run lint`.
 The server reads these environment variables once at startup and refuses to
 start on an invalid value, naming the variable. Empty values count as unset.
 
-| Variable    | Default | Meaning                                     |
-| ----------- | ------- | ------------------------------------------- |
-| `NODE_ENV`  |         | `production` when deployed                  |
-| `PORT`      | `8080`  | Port the server listens on                  |
-| `LOG_LEVEL` | `info`  | `debug`, `info`, `warn` or `error`          |
+| Variable        | Default  | Meaning                                  |
+| --------------- | -------- | ---------------------------------------- |
+| `NODE_ENV`      |          | `production` when deployed               |
+| `ADUN_DATA_DIR` | `./data` | Folder that holds the database           |
+| `PORT`          | `8080`   | Port the server listens on               |
+| `LOG_LEVEL`     | `info`   | `debug`, `info`, `warn` or `error`       |
 
 Logs go to stdout, one JSON object per line ([pino](https://getpino.io));
 `npm run dev` pipes them through `pino-pretty`. Each request is logged with
-an ID that is also sent back in the `X-Request-Id` header. On `SIGTERM` or `SIGINT` the
-server stops accepting connections and lets requests in progress finish (10
-seconds at most) before it exits.
+an ID that is also sent back in the `X-Request-Id` header.
+
+On `SIGTERM` or `SIGINT` the server stops accepting connections, lets
+requests in progress finish (10 seconds at most), then closes the database
+and exits.
+
+## Data
+
+Everything is kept in one SQLite file, `adun.sqlite`, in `ADUN_DATA_DIR`. The
+folder is created readable by its owner only (`0700`, files `0600`). After a
+clean stop the file alone is a complete copy of the data.
+
+The schema is built from the numbered SQL files in `server/migrations/`. The
+server applies any pending ones at startup; `npm run migrate` applies them
+without starting it.
 
 ## License
 

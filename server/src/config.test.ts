@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import path from 'node:path'
 import { test } from 'node:test'
 import { ConfigError, loadConfig } from './config.ts'
 
@@ -10,16 +11,23 @@ function rejects(env: Record<string, string>, variable: string) {
 }
 
 test('development defaults', () => {
-  assert.deepEqual(loadConfig({}), { production: false, port: 8080, logLevel: 'info' })
+  assert.deepEqual(loadConfig({}), {
+    production: false,
+    dataDir: path.resolve('data'),
+    port: 8080,
+    logLevel: 'info',
+  })
 })
 
 test('reads every variable', () => {
-  const config = loadConfig({ NODE_ENV: 'production', PORT: '3000', LOG_LEVEL: 'warn' })
-  assert.deepEqual(config, { production: true, port: 3000, logLevel: 'warn' })
+  const config = loadConfig({ NODE_ENV: 'production', ADUN_DATA_DIR: '/data', PORT: '3000', LOG_LEVEL: 'warn' })
+  assert.deepEqual(config, { production: true, dataDir: '/data', port: 3000, logLevel: 'warn' })
 })
 
 test('empty values count as unset', () => {
-  assert.equal(loadConfig({ PORT: '', LOG_LEVEL: ' ' }).port, 8080)
+  const config = loadConfig({ PORT: '', LOG_LEVEL: ' ', ADUN_DATA_DIR: '' })
+  assert.equal(config.port, 8080)
+  assert.equal(config.dataDir, path.resolve('data'))
 })
 
 test('refuses invalid values and names the variable', () => {

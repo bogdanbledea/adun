@@ -1,23 +1,37 @@
 import assert from 'node:assert/strict'
 import type { AddressInfo } from 'node:net'
 import { after, beforeEach, test } from 'node:test'
+import { tempDatabase } from '../test/helpers.ts'
 import { createApp } from './app.ts'
-import { createLogger } from './lib/log.ts'
+import { createLogger, silentLogger, type Logger } from './lib/log.ts'
+import type { Database } from './db.ts'
 
 const lines: Record<string, unknown>[] = []
 const log = createLogger('info', { write: (line) => lines.push(JSON.parse(line) as Record<string, unknown>) })
 
-const server = createApp({ log }).listen(0)
-const { port } = server.address() as AddressInfo
-const baseUrl = `http://localhost:${String(port)}`
+function start(db: Database, logger: Logger) {
+  const server = createApp({ db, log: logger }).listen(0)
+  after(() => server.close())
+  return `http://localhost:${String((server.address() as AddressInfo).port)}`
+}
 
-after(() => server.close())
+const baseUrl = start(tempDatabase().db, log)
+
 beforeEach(() => { lines.length = 0 })
 
-test('GET /health answers ok', async () => {
+test('GET /health answers ok when the database is readable', async () => {
   const res = await fetch(`${baseUrl}/health`)
   assert.equal(res.status, 200)
   assert.deepEqual(await res.json(), { status: 'ok' })
+})
+
+test('GET /health answers 503 when the database is not', async () => {
+  const { db } = tempDatabase()
+  const url = start(db, silentLogger)
+  db.close()
+  const res = await fetch(`${url}/health`)
+  assert.equal(res.status, 503)
+  assert.deepEqual(await res.json(), { status: 'unavailable' })
 })
 
 test('responses do not name the framework', async () => {

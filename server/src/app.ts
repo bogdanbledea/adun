@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import express from 'express'
 import { pinoHttp } from 'pino-http'
+import type { Database } from './db.ts'
 import type { Logger } from './lib/log.ts'
 
 export interface AppDeps {
+  db: Database
   log: Logger
 }
 
-export function createApp({ log }: AppDeps): express.Express {
+export function createApp({ db, log }: AppDeps): express.Express {
   const app = express()
   app.disable('x-powered-by')
 
@@ -36,8 +38,14 @@ export function createApp({ log }: AppDeps): express.Express {
     }),
   )
 
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok' })
+  app.get('/health', (req, res) => {
+    try {
+      db.prepare('SELECT 1').get()
+      res.json({ status: 'ok' })
+    } catch (error) {
+      req.log.error({ err: error }, 'health.database_unavailable')
+      res.status(503).json({ status: 'unavailable' })
+    }
   })
 
   return app
