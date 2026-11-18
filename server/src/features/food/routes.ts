@@ -26,6 +26,8 @@ const sourcesBody = z.object({
     )
     .min(1)
     .max(food.MAX_SOURCES),
+  // Left out, the month keeps its start; a new budget starts by the rule.
+  periodStart: z.iso.date().optional(),
 })
 
 const purchaseParams = z.object({ id: z.uuid() })
@@ -64,6 +66,11 @@ export function foodRoutes({ db, config }: Deps): Router {
   const router = Router()
   router.use(requireAuth(db, config))
 
+  router.get('/current', (req, res) => {
+    const { today } = validate(todayQuery, req.query)
+    res.json({ monthKey: food.currentMonth(db, currentSession(res).userId, today) })
+  })
+
   router.get('/:monthKey', (req, res) => {
     const params = validate(monthParams, req.params)
     const { today } = validate(todayQuery, req.query)
@@ -73,8 +80,8 @@ export function foodRoutes({ db, config }: Deps): Router {
   router.put('/:monthKey/sources', (req, res) => {
     const params = validate(monthParams, req.params)
     const { today } = validate(todayQuery, req.query)
-    const { sources } = validate(sourcesBody, req.body)
-    res.json(food.saveSources(db, currentSession(res).userId, params.monthKey, { sources, today }))
+    const body = validate(sourcesBody, req.body)
+    res.json(food.saveSources(db, currentSession(res).userId, params.monthKey, { ...body, today }))
   })
 
   router.delete('/:monthKey', (req, res) => {

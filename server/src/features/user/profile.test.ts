@@ -20,7 +20,7 @@ describe('PATCH /api/user/me', () => {
     const res = await update({ displayName: 'Ana Ionescu' })
     assert.equal(res.status, 200)
     const user = (await res.json()) as Record<string, unknown>
-    assert.deepEqual(Object.keys(user).sort(), ['createdAt', 'displayName', 'email', 'id'])
+    assert.deepEqual(Object.keys(user).sort(), ['createdAt', 'displayName', 'email', 'foodPaydayWorkingDay', 'foodPeriodRule', 'id'])
     assert.equal(user.displayName, 'Ana Ionescu')
     assert.equal(nameOf('ana@example.com'), 'Ana Ionescu')
   })

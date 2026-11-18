@@ -3,6 +3,8 @@ import { transaction, type Database } from '../../db.ts'
 import { badRequest, conflict, notFound } from '../../http/errors.ts'
 import { addDays, addMonths } from '../../lib/dates.ts'
 import { logActivity } from '../activity/service.ts'
+import { findUser } from '../user/repository.ts'
+import { checkStart, currentCandidates, currentFoodMonth, ruleStart, type PeriodRule } from './period.ts'
 import * as repo from './repository.ts'
 import { planWeeks } from './weeks.ts'
 
@@ -11,8 +13,12 @@ import { planWeeks } from './weeks.ts'
      vouchers), their names different ignoring case, 0 to 1,000,000 lei
      each. The total is their sum and is never stored.
    - A month's money runs from its start to the day before the next month's
-     start. A budget keeps the start it opened with; a month without one
-     starts on the 1st.
+     start (period.ts). A budget keeps the start it opened with, so a later
+     change of rule or calendar leaves it alone; a month without one starts
+     by the user's rule. The start can be moved by hand within the limits
+     checkStart sets, and never so that a purchase of this month or the
+     previous one falls outside its period.
+   - The current month is the one whose period holds the client's date.
    - The first save of the sources creates the budget. It stores the
      client's date as the day its weekly plan starts from, or the period's
      first day when that date is outside the period (a month set up after
@@ -36,17 +42,35 @@ export const budgetNotFound = () => notFound('food_budget_not_found', 'This mont
 /** "Kaufland" and "kaufland" are the same name. */
 export const sameName = (name: string) => name.toLocaleLowerCase('ro-RO')
 
-function startOf(db: Database, userId: string, monthKey: string): string {
-  return repo.findBudget(db, userId, monthKey)?.periodStart ?? `${monthKey}-01`
+/** The user's pay-period rule. */
+export function periodRule(db: Database, userId: string): PeriodRule {
+  const user = findUser(db, userId)
+  if (!user) throw notFound()
+  return { rule: user.foodPeriodRule, paydayWorkingDay: user.foodPaydayWorkingDay }
 }
 
-export function periodOf(db: Database, userId: string, monthKey: string): Period {
-  return { start: startOf(db, userId, monthKey), end: addDays(startOf(db, userId, addMonths(monthKey, 1)), -1) }
+/** Each month's start: stored, else by the rule. */
+function startsOf(db: Database, userId: string, monthKeys: string[], rule: PeriodRule): Map<string, string> {
+  const stored = repo.storedStarts(db, userId, monthKeys)
+  return new Map(monthKeys.map((key) => [key, stored.get(key) ?? ruleStart(key, rule)]))
+}
+
+export function periodOf(db: Database, userId: string, monthKey: string, rule = periodRule(db, userId)): Period {
+  const next = addMonths(monthKey, 1)
+  const starts = startsOf(db, userId, [monthKey, next], rule)
+  return { start: starts.get(monthKey) as string, end: addDays(starts.get(next) as string, -1) }
+}
+
+/** The month whose period holds `today`. */
+export function currentMonth(db: Database, userId: string, today: string): string {
+  return currentFoodMonth(today, startsOf(db, userId, currentCandidates(today), periodRule(db, userId)))
 }
 
 export function monthState(db: Database, userId: string, monthKey: string, today: string) {
-  const period = periodOf(db, userId, monthKey)
-  const common = { monthKey, period }
+  const rule = periodRule(db, userId)
+  const period = periodOf(db, userId, monthKey, rule)
+  // The rule's start, which a start moved by hand can go back to.
+  const common = { monthKey, period: { ...period, ruleStart: ruleStart(monthKey, rule), rule: rule.rule } }
 
   const budget = repo.findBudget(db, userId, monthKey)
   if (!budget) {
@@ -105,14 +129,21 @@ export interface SourceInput {
   amountBani: number
 }
 
+const START_PROBLEMS = {
+  out_of_range: () => badRequest('food_period_out_of_range', 'The period must start near the start of the month.'),
+  before_previous: () => badRequest('food_period_before_previous', 'The period would start before the previous month’s.'),
+  after_next: () => badRequest('food_period_after_next', 'The period would start after the next month’s.'),
+}
+
 /** Saves the month's sources as one list, creating the budget on the first
     save: rows with an ID are changed, rows without are added, and rows left
-    out are removed unless something was paid from them. */
+    out are removed unless something was paid from them. `periodStart` moves
+    the month's start; left out, the start stays. */
 export function saveSources(
   db: Database,
   userId: string,
   monthKey: string,
-  { sources, today }: { sources: SourceInput[]; today: string },
+  { sources, periodStart, today }: { sources: SourceInput[]; periodStart?: string; today: string },
 ): MonthState {
   const names = sources.map((s) => sameName(s.name))
   if (new Set(names).size !== names.length) throw badRequest('food_duplicate_source', 'Two sources have the same name.')
@@ -121,12 +152,33 @@ export function saveSources(
 
   return transaction(db, () => {
     const now = new Date().toISOString()
+    const rule = periodRule(db, userId)
     let budget = repo.findBudget(db, userId, monthKey)
+    const period = periodOf(db, userId, monthKey, rule)
+    const start = periodStart ?? period.start
+
+    if (start !== period.start) {
+      const previousMonthKey = addMonths(monthKey, -1)
+      const problem = checkStart(monthKey, start, {
+        previousStart: startsOf(db, userId, [previousMonthKey], rule).get(previousMonthKey) as string,
+        nextStart: addDays(period.end, 1),
+      })
+      if (problem) throw START_PROBLEMS[problem]()
+      // Moving a start also moves the previous month's end.
+      if (repo.hasPurchasesOutside(db, userId, { monthKey, previousMonthKey }, start)) {
+        throw conflict(
+          'food_purchases_outside_period',
+          'Some purchases would fall outside their period. Change their dates first.',
+        )
+      }
+    }
+
     if (!budget) {
-      const period = periodOf(db, userId, monthKey)
-      const planFrom = today >= period.start && today <= period.end ? today : period.start
-      budget = { id: randomUUID(), monthKey, periodStart: period.start, planFrom }
+      const planFrom = today >= start && today <= period.end ? today : start
+      budget = { id: randomUUID(), monthKey, periodStart: start, planFrom }
       repo.insertBudget(db, { ...budget, userId, now })
+    } else if (budget.periodStart !== start) {
+      repo.setPeriodStart(db, userId, budget.id, start)
     }
 
     const existing = repo.listSources(db, userId, budget.id)

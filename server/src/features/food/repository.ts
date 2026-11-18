@@ -87,6 +87,21 @@ export function insertBudget(
   ).run(budget.id, budget.userId, budget.monthKey, budget.periodStart, budget.planFrom, budget.now)
 }
 
+/** Stored starts of the given months; months without a budget are missing. */
+export function storedStarts(db: Database, userId: string, monthKeys: string[]): Map<string, string> {
+  const rows = db
+    .prepare(
+      `SELECT month_key, period_start FROM food_budgets
+       WHERE user_id = ? AND month_key IN (SELECT value FROM json_each(?))`,
+    )
+    .all(userId, JSON.stringify(monthKeys))
+  return new Map(rows.map((row) => [row.month_key as string, row.period_start as string]))
+}
+
+export function setPeriodStart(db: Database, userId: string, budgetId: string, periodStart: string): void {
+  db.prepare('UPDATE food_budgets SET period_start = ? WHERE id = ? AND user_id = ?').run(periodStart, budgetId, userId)
+}
+
 /** Its sources and purchases go with it (ON DELETE CASCADE). */
 export function deleteBudget(db: Database, userId: string, budgetId: string): void {
   db.prepare('DELETE FROM food_budgets WHERE id = ? AND user_id = ?').run(budgetId, userId)
@@ -195,6 +210,26 @@ export function updatePurchase(db: Database, userId: string, id: string, fields:
 
 export function deletePurchase(db: Database, userId: string, id: string): void {
   db.prepare(`DELETE FROM food_purchases WHERE id = ? AND ${OWN_BUDGET}`).run(id, userId)
+}
+
+/** Whether moving `monthKey`'s start to `start` would leave a purchase
+    outside its period: one of this month's before it, or one of the previous
+    month's on or after it. */
+export function hasPurchasesOutside(
+  db: Database,
+  userId: string,
+  months: { monthKey: string; previousMonthKey: string },
+  start: string,
+): boolean {
+  const row = db
+    .prepare(
+      `SELECT 1 FROM food_purchases p JOIN food_budgets b ON b.id = p.budget_id
+       WHERE b.user_id = ?
+         AND ((b.month_key = ? AND p.spent_on < ?) OR (b.month_key = ? AND p.spent_on >= ?))
+       LIMIT 1`,
+    )
+    .get(userId, months.monthKey, start, months.previousMonthKey, start)
+  return row !== undefined
 }
 
 /** Deletes every purchase of the budget and returns how many there were. */
