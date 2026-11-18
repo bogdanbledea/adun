@@ -188,6 +188,13 @@ export const ro = {
   'budget.amountInvalid': 'Scrie o sumă între 0 și 9.999.999.999, cu cel mult două zecimale.',
   'budget.descriptionRequired': 'Scrie o descriere.',
   'budget.categoryRequired': 'Alege sau scrie o categorie.',
+
+  // Quick expense
+  'budget.quickExpense': 'Adaugă cheltuială rapidă',
+  'budget.quickExpenseShort': 'Cheltuială',
+  'budget.addExpense': 'Adaugă cheltuiala',
+  'budget.commonCategories': 'Alimente|Transport|Locuință|Divertisment|Altele',
+
   'budget.deleteEntry': 'Șterge tranzacția',
   'budget.deleteEntryText': '„{description}” se șterge. Această acțiune nu poate fi anulată.',
   'budget.deleteMonth': 'Șterge luna',

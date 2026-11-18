@@ -175,6 +175,12 @@ export const en: Record<MessageKey, string> = {
   'budget.amountInvalid': 'Enter an amount from 0 to 9,999,999,999 with at most two decimals.',
   'budget.descriptionRequired': 'Enter a description.',
   'budget.categoryRequired': 'Pick or type a category.',
+
+  'budget.quickExpense': 'Add quick expense',
+  'budget.quickExpenseShort': 'Expense',
+  'budget.addExpense': 'Add expense',
+  'budget.commonCategories': 'Groceries|Transport|Housing|Entertainment|Other',
+
   'budget.deleteEntry': 'Delete transaction',
   'budget.deleteEntryText': '“{description}” will be deleted. This cannot be undone.',
   'budget.deleteMonth': 'Delete month',

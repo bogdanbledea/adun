@@ -1,4 +1,4 @@
-import { EllipsisVertical, Filter as FilterIcon, Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
+import { EllipsisVertical, Filter as FilterIcon, Plus, Trash2, TrendingDown, TrendingUp, Zap } from 'lucide-react'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { errorText } from '../../lib/api.ts'
@@ -18,6 +18,7 @@ import { EntryDialog } from './EntryDialog.tsx'
 import { ImportMenu } from './ImportMenu.tsx'
 import { monthKeyToParam, monthLong } from './month-key.ts'
 import { MonthSkeleton } from './MonthSkeleton.tsx'
+import { QuickAddDialog } from './QuickAddDialog.tsx'
 
 /* One month with a budget: the summary, the entries by category, and the
    dialogs that change them. After every change the month is read again from
@@ -26,7 +27,8 @@ import { MonthSkeleton } from './MonthSkeleton.tsx'
    previous month or the template, appended to their categories; the notice
    says how many came. An entry moved to another month leaves a notice with
    a link there. An instalment opens its plan; a month kept for its
-   instalments says so, with a link to the plans. */
+   instalments says so, with a link to the plans. A floating button adds an
+   expense in a few taps. */
 
 type Open =
   | { dialog: 'add'; categoryName?: string }
@@ -34,6 +36,7 @@ type Open =
   | { dialog: 'deleteEntry'; entry: Entry }
   | { dialog: 'deleteMonth' }
   | { dialog: 'plan'; entry: Entry & { categoryName: string } }
+  | { dialog: 'quickAdd' }
   | null
 
 type Message =
@@ -264,6 +267,17 @@ export function MonthView({
         )}
       </section>
 
+      <button
+        type="button"
+        onClick={() => { setOpen({ dialog: 'quickAdd' }) }}
+        aria-label={t('budget.quickExpense')}
+        title={t('budget.quickExpense')}
+        className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 flex min-h-12 items-center gap-2 rounded-full bg-expense px-5 font-semibold text-on-danger shadow-lg transition-opacity duration-150 hover:opacity-90 sm:right-6 sm:bottom-6"
+      >
+        <Zap aria-hidden="true" className="size-5" />
+        {t('budget.quickExpenseShort')}
+      </button>
+
       {(open?.dialog === 'add' || open?.dialog === 'edit') && (
         <EntryDialog
           monthKey={monthKey}
@@ -283,6 +297,16 @@ export function MonthView({
             void load()
           }}
           onDelete={(entry) => { setOpen({ dialog: 'deleteEntry', entry }) }}
+        />
+      )}
+      {open?.dialog === 'quickAdd' && (
+        <QuickAddDialog
+          monthKey={monthKey}
+          categoryNames={categoryNames}
+          monthsWithBudget={monthsWithBudget}
+          onClose={() => { setOpen(null) }}
+          onMonthCreated={onMonthCreated}
+          onSaved={(target) => { if (target === monthKey) void load() }}
         />
       )}
       <ConfirmDialog
