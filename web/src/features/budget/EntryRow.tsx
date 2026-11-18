@@ -111,7 +111,7 @@ export function EntryRow({ entry, onEdit, onDelete, onViewPlan }: EntryRowProps)
               event.stopPropagation()
               onDelete(entry)
             }}
-            className={cx(ROW_BUTTON, 'hover:text-danger')}
+            className={cx(ROW_BUTTON, 'hover:text-danger!')}
           >
             <Trash2 />
           </button>
