@@ -7,7 +7,8 @@ import { monthName } from './month-key.ts'
 
 /* The month's hero: what is left, how much of the income is spent, and
    income against expenses. Spending 85% of the income turns the bar gold,
-   more than all of it red. */
+   more than all of it red. On a phone the two totals put their label above
+   the amount, which would not fit beside it in half the card. */
 
 type Health = 'healthy' | 'tight' | 'over'
 
@@ -48,21 +49,21 @@ export function BudgetSummary({ monthKey, totals }: { monthKey: string; totals: 
         </div>
 
         <dl className="grid grid-cols-2 divide-x divide-line lg:block lg:divide-x-0 lg:divide-y">
-          <div className="flex items-center justify-between gap-2 p-3.5 sm:p-4">
+          <div className="flex flex-col gap-0.5 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:p-4">
             <dt className="flex items-center gap-2 text-sm text-muted">
               <TrendingUp aria-hidden="true" className="hidden size-4 text-income sm:block" />
               {t('budget.income')}
             </dt>
-            <dd className="text-right">
+            <dd className="sm:text-right">
               <Money bani={income} className="font-display text-lg font-semibold sm:text-xl" />
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-2 p-3.5 sm:p-4">
+          <div className="flex flex-col gap-0.5 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:p-4">
             <dt className="flex items-center gap-2 text-sm text-muted">
               <TrendingDown aria-hidden="true" className="hidden size-4 text-expense sm:block" />
               {t('budget.expenses')}
             </dt>
-            <dd className="text-right">
+            <dd className="sm:text-right">
               <Money bani={spent} className="font-display text-lg font-semibold sm:text-xl" />
             </dd>
           </div>
