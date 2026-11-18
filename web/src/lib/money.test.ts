@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { baniToInput, formatBani, formatLei, MAX_BANI, parseAmount } from './money.ts'
+import { baniToInput, formatLei, MAX_BANI, parseAmount } from './money.ts'
 
 describe('parseAmount', () => {
   test.each([
@@ -28,27 +28,23 @@ describe('parseAmount', () => {
   )
 })
 
-describe('formatBani', () => {
-  test('writes lei in the language’s style', () => {
-    expect(formatBani(123_450, 'ro')).toBe('1.234,50 lei')
-    expect(formatBani(123_450, 'en')).toBe('1,234.50 lei')
-    expect(formatBani(5, 'en')).toBe('0.05 lei')
-    expect(formatBani(-1250, 'ro')).toBe('-12,50 lei')
+describe('formatLei', () => {
+  test('writes the number in the language’s style, without the unit', () => {
+    expect(formatLei(123_450, 'ro')).toBe('1.234,50')
+    expect(formatLei(123_450, 'en')).toBe('1,234.50')
+    expect(formatLei(5, 'en')).toBe('0.05')
+    expect(formatLei(-1250, 'ro')).toBe('-12,50')
   })
 
   test('leaves the decimals out of whole lei, and keeps both otherwise', () => {
-    expect(formatBani(150_000, 'ro')).toBe('1.500 lei')
-    expect(formatBani(300_010, 'ro')).toBe('3.000,10 lei')
-    expect(formatBani(0, 'en')).toBe('0 lei')
-  })
-
-  test('formatLei leaves the unit out', () => {
-    expect(formatLei(123_450, 'ro')).toBe('1.234,50')
+    expect(formatLei(150_000, 'ro')).toBe('1.500')
+    expect(formatLei(300_010, 'ro')).toBe('3.000,10')
+    expect(formatLei(0, 'en')).toBe('0')
   })
 
   test('keeps every bani of the largest amount', () => {
-    expect(formatBani(MAX_BANI, 'en')).toBe('9,999,999,999 lei')
-    expect(formatBani(MAX_BANI - 1, 'en')).toBe('9,999,999,998.99 lei')
+    expect(formatLei(MAX_BANI, 'en')).toBe('9,999,999,999')
+    expect(formatLei(MAX_BANI - 1, 'en')).toBe('9,999,999,998.99')
   })
 })
 

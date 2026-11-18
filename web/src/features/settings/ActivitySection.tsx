@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { api, errorText } from '../../lib/api.ts'
 import { isMessageKey, useI18n, type Language, type Translate } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
+import { Money } from '../../ui/Money.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
-import { formatBani } from '../../lib/money.ts'
 import { monthLong } from '../budget/month-key.ts'
 import { SettingsSection } from './SettingsSection.tsx'
 
@@ -31,10 +31,20 @@ function labelOf(action: string, t: Translate): string {
   return isMessageKey(key) ? t(key) : action
 }
 
-/** "Chirie · Casă · 1.500,00 lei · Noiembrie 2026" for an entry; for a month its name, and where its
+/* A piece of the details line: text, or an amount, which goes through Money
+   so it is hidden with the others. */
+type Detail = string | { bani: number; income: boolean }
+
+// Leaves out what the entry did not record (and stray numbers in metadata).
+function present<T>(part: T | null | undefined): part is Extract<T, Detail> {
+  if (typeof part === 'string') return part !== ''
+  return typeof part === 'object' && part !== null
+}
+
+/** "Chirie · Casă · 1.500 lei · Noiembrie 2026" for an entry; for a month its name, and where its
     entries were copied from. A null monthKey is the template. */
-function detailsOf({ action, metadata }: ActivityEntry, t: Translate, language: Language): string | null {
-  if (!metadata) return null
+function detailsOf({ action, metadata }: ActivityEntry, t: Translate, language: Language): Detail[] {
+  if (!metadata) return []
   const month = (key: unknown) => (typeof key === 'string' ? monthLong(key, language) : key === null ? t('activity.template') : null)
   if (action.startsWith('month.')) {
     const { from, entries } = metadata
@@ -43,28 +53,24 @@ function detailsOf({ action, metadata }: ActivityEntry, t: Translate, language: 
       month(metadata.monthKey),
       source && t('activity.from', { source }),
       typeof entries === 'number' && from !== undefined ? t('activity.entries', { count: entries }) : null,
-    ]
-      .filter((part) => typeof part === 'string' && part !== '')
-      .join(' · ')
+    ].filter(present)
   }
   if (action.startsWith('plan.')) {
     const { name, installments, totalBani, deletedInstallments } = metadata
     return [
       name,
-      typeof totalBani === 'number' ? formatBani(totalBani, language) : null,
+      typeof totalBani === 'number' ? { bani: totalBani, income: false } : null,
       typeof installments === 'number' ? t('activity.installments', { count: installments }) : null,
       month(metadata.firstMonthKey),
       typeof deletedInstallments === 'number' ? t('activity.installments', { count: deletedInstallments }) : null,
-    ]
-      .filter((part) => typeof part === 'string' && part !== '')
-      .join(' · ')
+    ].filter(present)
   }
-  if (!action.startsWith('entry.')) return null
+  if (!action.startsWith('entry.')) return []
   const { description, category, type, amountBani } = metadata
-  const amount = typeof amountBani === 'number' ? `${type === 'income' ? '+' : ''}${formatBani(amountBani, language)}` : null
+  const amount = typeof amountBani === 'number' ? { bani: amountBani, income: type === 'income' } : null
   const where =
     action === 'entry.moved' ? `${month(metadata.fromMonthKey) ?? ''} → ${month(metadata.monthKey) ?? ''}` : month(metadata.monthKey)
-  return [description, category, amount, where].filter((part) => typeof part === 'string' && part !== '').join(' · ')
+  return [description, category, amount, where].filter(present)
 }
 
 /** "18 nov. 2026, 14:05", in the browser's time zone. */
@@ -156,7 +162,16 @@ export function ActivitySection() {
                 <li key={entry.id} className="flex items-baseline justify-between gap-3 border-t border-line py-2.5 first:border-t-0">
                   <span className="min-w-0">
                     {labelOf(entry.action, t)}
-                    {details && <span className="block text-sm break-words text-muted">{details}</span>}
+                    {details.length > 0 && (
+                      <span className="block text-sm break-words text-muted">
+                        {details.map((part, index) => (
+                          <Fragment key={index}>
+                            {index > 0 && ' · '}
+                            {typeof part === 'string' ? part : <>{part.income && '+'}<Money bani={part.bani} /></>}
+                          </Fragment>
+                        ))}
+                      </span>
+                    )}
                   </span>
                   <time dateTime={entry.createdAt} className="shrink-0 text-right text-xs text-muted">
                     {formatInstant(entry.createdAt, language)}

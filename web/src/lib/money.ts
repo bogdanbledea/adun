@@ -18,11 +18,6 @@ export function formatLei(bani: number, language: Language): string {
   return sign + number.format(Number(`${String(Math.trunc(abs / 100))}.${String(abs % 100).padStart(2, '0')}`))
 }
 
-/** "1.234,50 lei", for running text. */
-export function formatBani(bani: number, language: Language): string {
-  return `${formatLei(bani, language)} lei`
-}
-
 /** The amount as typed into a field: "1234" or "1234,50", no grouping. */
 export function baniToInput(bani: number, language: Language): string {
   const text = (bani / 100).toFixed(bani % 100 === 0 ? 0 : 2)
