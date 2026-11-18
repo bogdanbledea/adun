@@ -27,6 +27,20 @@ export const ro = {
   'page.notFoundTitle': 'Pagina nu există',
   'page.notFoundText': 'Adresa aceasta nu duce nicăieri în aplicație.',
   'page.backToBudget': 'Înapoi la buget',
+
+  // Errors, by the server's error code
+  'error.invalid_credentials': 'Email sau parolă incorecte.',
+  'error.registrations_disabled': 'Înregistrările noi sunt dezactivate.',
+  'error.weak_password': 'Parola trebuie să aibă 12–200 de caractere, cu litere mici și mari, o cifră și un simbol.',
+  'error.network_error': 'Serverul nu răspunde. Verifică conexiunea și încearcă din nou.',
+  'error.unauthorized': 'Sesiunea a expirat. Autentifică-te din nou.',
+  'error.forbidden': 'Nu ai acces la această acțiune.',
+  'error.not_found': 'Nu a fost găsit.',
+  'error.invalid_input': 'Datele trimise nu sunt valide.',
+  'error.rate_limited': 'Prea multe cereri. Încearcă din nou mai târziu.',
+  'error.payload_too_large': 'Cererea este prea mare.',
+  'error.internal_error': 'A apărut o eroare neașteptată.',
+  'error.unknown': 'Ceva nu a mers. Încearcă din nou.',
 }
 
 export type MessageKey = keyof typeof ro

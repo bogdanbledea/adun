@@ -15,6 +15,10 @@ const STORAGE_KEY = 'language'
 const dictionaries: Record<Language, Record<MessageKey, string>> = { ro, en }
 const mottos: Record<Language, readonly string[]> = { ro: roMottos, en: enMottos }
 
+export function isMessageKey(key: string): key is MessageKey {
+  return Object.hasOwn(ro, key)
+}
+
 /** Puts each value in place of its `{name}`; a name without a value stays as written. */
 export function fillParams(text: string, params?: Params): string {
   if (!params) return text
