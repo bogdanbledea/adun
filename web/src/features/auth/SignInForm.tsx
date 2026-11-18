@@ -1,0 +1,54 @@
+import { useState, type SubmitEvent } from 'react'
+import { api, errorText } from '../../lib/api.ts'
+import { useAuth, type AuthUser } from '../../lib/auth.tsx'
+import { useT } from '../../lib/i18n.tsx'
+import { Button } from '../../ui/Button.tsx'
+import { Field } from '../../ui/Field.tsx'
+import { Notice } from '../../ui/Notice.tsx'
+import { PasswordField } from './PasswordField.tsx'
+
+export function SignInForm() {
+  const t = useT()
+  const { signedIn } = useAuth()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (event: SubmitEvent) => {
+    event.preventDefault()
+    setError(null)
+    setBusy(true)
+    try {
+      const user = await api<AuthUser>('/api/auth/login', { method: 'POST', body: { email, password } })
+      signedIn(user)
+    } catch (err) {
+      setBusy(false)
+      setError(errorText(err, t))
+    }
+  }
+
+  return (
+    <form onSubmit={(event) => void submit(event)} className="mt-6 flex flex-col gap-4">
+      <Field
+        label={t('auth.email')}
+        type="email"
+        autoComplete="email"
+        required
+        value={email}
+        onChange={(event) => { setEmail(event.target.value) }}
+      />
+      <PasswordField
+        label={t('auth.password')}
+        autoComplete="current-password"
+        required
+        value={password}
+        onChange={(event) => { setPassword(event.target.value) }}
+      />
+      {error && <Notice tone="error">{error}</Notice>}
+      <Button type="submit" disabled={busy} className="mt-2 w-full">
+        {busy ? t('auth.signingIn') : t('auth.signIn')}
+      </Button>
+    </form>
+  )
+}

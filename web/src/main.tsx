@@ -5,6 +5,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { App } from './App.tsx'
+import { AuthProvider } from './lib/auth.tsx'
 import { I18nProvider } from './lib/i18n.tsx'
 import { ThemeProvider } from './lib/theme.tsx'
 
@@ -16,7 +17,9 @@ createRoot(root).render(
     <BrowserRouter>
       <ThemeProvider>
         <I18nProvider>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </I18nProvider>
       </ThemeProvider>
     </BrowserRouter>

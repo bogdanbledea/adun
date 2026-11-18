@@ -28,6 +28,23 @@ export const ro = {
   'page.notFoundText': 'Adresa aceasta nu duce nicăieri în aplicație.',
   'page.backToBudget': 'Înapoi la buget',
 
+  'common.loading': 'Se încarcă...',
+
+  // Signing in
+  'auth.kicker': 'Caietul digital al casei',
+  'auth.heroTitle': 'Intri. Notezi. Vezi clar ce rămâne.',
+  'auth.heroText': 'Bugetul lunii, cumpărăturile și scadențele tale rămân în același loc, fără conectare la bancă.',
+  'auth.featureBudget': 'Buget organizat pe lunile tale',
+  'auth.featureFood': 'Mâncare urmărită săptămână cu săptămână',
+  'auth.featureReminders': 'Scadențe anunțate din timp',
+  'auth.signInTitle': 'Autentificare',
+  'auth.email': 'Email',
+  'auth.password': 'Parolă',
+  'auth.showPassword': 'Arată parola',
+  'auth.hidePassword': 'Ascunde parola',
+  'auth.signIn': 'Intră în cont',
+  'auth.signingIn': 'Se verifică...',
+
   // Errors, by the server's error code
   'error.invalid_credentials': 'Email sau parolă incorecte.',
   'error.registrations_disabled': 'Înregistrările noi sunt dezactivate.',

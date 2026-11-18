@@ -22,6 +22,22 @@ export const en: Record<MessageKey, string> = {
   'page.notFoundText': 'This address does not lead anywhere in the app.',
   'page.backToBudget': 'Back to the budget',
 
+  'common.loading': 'Loading...',
+
+  'auth.kicker': "The household's digital notebook",
+  'auth.heroTitle': "Come in. Write it down. See what's left.",
+  'auth.heroText': 'Your monthly budget, groceries and due dates stay in one place, without connecting to your bank.',
+  'auth.featureBudget': 'A budget organised by your months',
+  'auth.featureFood': 'Food tracked week by week',
+  'auth.featureReminders': 'Due dates announced in advance',
+  'auth.signInTitle': 'Sign in',
+  'auth.email': 'Email',
+  'auth.password': 'Password',
+  'auth.showPassword': 'Show password',
+  'auth.hidePassword': 'Hide password',
+  'auth.signIn': 'Sign in',
+  'auth.signingIn': 'Checking...',
+
   'error.invalid_credentials': 'Wrong email or password.',
   'error.registrations_disabled': 'New sign-ups are turned off.',
   'error.weak_password': 'The password must be 12–200 characters long, with lower and upper case letters, a digit and a symbol.',
