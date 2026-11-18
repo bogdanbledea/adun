@@ -162,3 +162,71 @@ describe('reading plans', () => {
     assert.deepEqual(await (await send('GET', '/api/plans?month=2027-01', ion)).json(), [])
   })
 })
+
+describe('closing and deleting a plan', () => {
+  const planNamed = (name: string) =>
+    db.prepare('SELECT id FROM payment_plans WHERE name = ? AND user_id = ?').get(name, anaId)?.id as string
+  const installmentsOf = (id: string) =>
+    (db.prepare('SELECT count(*) AS n FROM entries WHERE plan_id = ?').get(id)?.n as number)
+
+  test('the purchase date can be set and cleared', async () => {
+    const id = planNamed('Phone')
+    const set = await send('PATCH', `/api/plans/${id}?month=2026-12`, ana, { purchaseDate: '2026-10-20' })
+    assert.equal(((await set.json()) as { purchaseDate: string }).purchaseDate, '2026-10-20')
+    const cleared = await send('PATCH', `/api/plans/${id}?month=2026-12`, ana, { purchaseDate: null })
+    assert.equal(((await cleared.json()) as { purchaseDate: null }).purchaseDate, null)
+    assert.equal((await send('PATCH', `/api/plans/${id}?month=2026-12`, ana, { purchaseDate: 'soon' })).status, 400)
+  })
+
+  test('an open plan cannot be deleted', async () => {
+    const res = await send('DELETE', `/api/plans/${planNamed('Phone')}`, ana)
+    assert.equal(res.status, 409)
+    assert.equal(await codeOf(res), 'plan_open')
+  })
+
+  test('closing deletes the instalments after the current month, and the categories they leave empty', async () => {
+    const id = planNamed('Phone')
+    const res = await send('POST', `/api/plans/${id}/close?month=2026-12`, ana)
+    assert.equal(res.status, 200)
+    const closed = (await res.json()) as Plan & { closedAt: string | null }
+    assert.notEqual(closed.closedAt, null)
+    assert.deepEqual([closed.paidInstallments, closed.remainingInstallments], [2, 0])
+    assert.equal(installmentsOf(id), 2)
+    const january = db.prepare("SELECT id FROM months WHERE month_key = '2027-01' AND user_id = ?").get(anaId)?.id as string
+    assert.equal(db.prepare("SELECT count(*) AS n FROM entries WHERE month_id = ? AND description = 'Phone'").get(january)?.n, 0)
+
+    const row = db.prepare('SELECT action, metadata FROM activity_logs WHERE user_id = ? ORDER BY id DESC').get(anaId)
+    assert.deepEqual([row?.action, JSON.parse(row?.metadata as string)], ['plan.closed', { name: 'Phone', deletedInstallments: 1 }])
+
+    // Closing again changes nothing.
+    await send('POST', `/api/plans/${id}/close?month=2027-01`, ana)
+    assert.equal(installmentsOf(id), 2)
+  })
+
+  test('a closed plan is deleted with every instalment', async () => {
+    const id = planNamed('Phone')
+    assert.equal((await send('DELETE', `/api/plans/${id}`, ana)).status, 200)
+    assert.equal(installmentsOf(id), 0)
+    assert.equal((await send('GET', `/api/plans/${id}?month=2026-12`, ana)).status, 404)
+    // November keeps its own entry; December had only the instalment.
+    const categories = db
+      .prepare("SELECT m.month_key FROM categories c JOIN months m ON m.id = c.month_id WHERE c.user_id = ? AND c.name = 'Instalments'")
+      .all(anaId)
+      .map((row) => row.month_key)
+    assert.ok(categories.includes('2026-11'))
+    const row = db.prepare('SELECT action, metadata FROM activity_logs WHERE user_id = ? ORDER BY id DESC').get(anaId)
+    assert.deepEqual([row?.action, JSON.parse(row?.metadata as string)], ['plan.deleted', { name: 'Phone', deletedInstallments: 2 }])
+  })
+
+  test("another user's plan is not found", async () => {
+    const id = planNamed('Laptop')
+    for (const res of [
+      await send('PATCH', `/api/plans/${id}?month=2026-12`, ion, { purchaseDate: null }),
+      await send('POST', `/api/plans/${id}/close?month=2026-12`, ion),
+      await send('DELETE', `/api/plans/${id}`, ion),
+    ]) {
+      assert.equal(res.status, 404)
+    }
+    assert.equal(installmentsOf(id), 2)
+  })
+})

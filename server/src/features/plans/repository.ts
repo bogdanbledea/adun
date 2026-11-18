@@ -118,3 +118,38 @@ export function listInstallments(db: Database, userId: string, planId: string): 
       amountBani: row.amount_bani as number,
     }))
 }
+
+export function setPurchaseDate(db: Database, userId: string, id: string, purchaseDate: string | null): void {
+  db.prepare('UPDATE payment_plans SET purchase_date = ? WHERE id = ? AND user_id = ?').run(purchaseDate, id, userId)
+}
+
+export function setClosed(db: Database, userId: string, id: string, closedAt: string): void {
+  db.prepare('UPDATE payment_plans SET closed_at = ? WHERE id = ? AND user_id = ?').run(closedAt, id, userId)
+}
+
+/** Deletes the plan's instalments in months after `afterMonth`; returns how many. */
+export function deleteInstallmentsAfter(db: Database, userId: string, planId: string, afterMonth: string): number {
+  const { changes } = db
+    .prepare(
+      `DELETE FROM entries
+       WHERE plan_id = ? AND user_id = ?
+         AND month_id IN (SELECT id FROM months WHERE user_id = ? AND month_key > ?)`,
+    )
+    .run(planId, userId, userId, afterMonth)
+  return Number(changes)
+}
+
+/** Deletes the plan and its instalments; returns how many instalments. */
+export function deletePlan(db: Database, userId: string, planId: string): number {
+  const { changes } = db.prepare('DELETE FROM entries WHERE plan_id = ? AND user_id = ?').run(planId, userId)
+  db.prepare('DELETE FROM payment_plans WHERE id = ? AND user_id = ?').run(planId, userId)
+  return Number(changes)
+}
+
+/** The categories holding the plan's instalments. */
+export function installmentCategoryIds(db: Database, userId: string, planId: string): string[] {
+  return db
+    .prepare('SELECT DISTINCT category_id FROM entries WHERE plan_id = ? AND user_id = ?')
+    .all(planId, userId)
+    .map((row) => row.category_id as string)
+}

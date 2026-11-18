@@ -24,6 +24,8 @@ export type ActivityAction =
   | 'entry.moved'
   | 'entry.deleted'
   | 'plan.created'
+  | 'plan.closed'
+  | 'plan.deleted'
 
 /** Records an action, with what it was about when that helps the user
     recognise it. Call it inside the transaction that makes the change. */

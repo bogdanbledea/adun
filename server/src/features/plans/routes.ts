@@ -16,6 +16,8 @@ const planParams = z.object({ id: z.uuid() })
 const LAST_MONTH = 9999 * 12 + 11
 const monthIndex = (key: string) => Number(key.slice(0, 4)) * 12 + Number(key.slice(5, 7)) - 1
 
+const purchaseDate = z.iso.date().nullable()
+
 const createPlanBody = z
   .object({
     name: z.string().trim().min(1).max(256),
@@ -24,16 +26,18 @@ const createPlanBody = z
     totalBani: z.number().int().min(1).max(999_999_999_900),
     firstMonthKey: monthKey,
     categoryName: z.string().trim().min(1).max(256),
-    purchaseDate: z.iso.date().nullable().default(null),
+    purchaseDate: purchaseDate.default(null),
   })
   .refine((body) => monthIndex(body.firstMonthKey) + body.installmentCount - 1 <= LAST_MONTH)
+const updatePlanBody = z.object({ purchaseDate })
 
 interface Deps {
   db: Database
   config: Config
 }
 
-/* /api/plans: payment plans, each with its instalments in the budget. */
+/* /api/plans: payment plans, each with its instalments in the budget;
+   closing one ends it, and a closed plan can be deleted. */
 export function planRoutes({ db, config }: Deps): Router {
   const router = Router()
   router.use(requireAuth(db, config))
@@ -53,6 +57,25 @@ export function planRoutes({ db, config }: Deps): Router {
     const { id } = validate(planParams, req.params)
     const { month } = validate(monthQuery, req.query)
     res.json(plans.readPlan(db, currentSession(res).userId, id, month))
+  })
+
+  router.patch('/:id', (req, res) => {
+    const { id } = validate(planParams, req.params)
+    const { month } = validate(monthQuery, req.query)
+    const { purchaseDate } = validate(updatePlanBody, req.body)
+    res.json(plans.setPurchaseDate(db, currentSession(res).userId, id, purchaseDate, month))
+  })
+
+  router.post('/:id/close', (req, res) => {
+    const { id } = validate(planParams, req.params)
+    const { month } = validate(monthQuery, req.query)
+    res.json(plans.closePlan(db, currentSession(res).userId, id, month))
+  })
+
+  router.delete('/:id', (req, res) => {
+    const { id } = validate(planParams, req.params)
+    plans.deletePlan(db, currentSession(res).userId, id)
+    res.json({ ok: true })
   })
 
   return router
