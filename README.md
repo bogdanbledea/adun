@@ -25,6 +25,19 @@ It is available in Romanian and English.
 Adun is meant to be small, easy to read and easy to host yourself: one
 Docker container, one SQLite file, no other services needed.
 
+## Develop
+
+Requires Node.js 26.13.1 (see `.nvmrc`; `nvm use`). The server runs its
+TypeScript files directly, with no build step.
+
+```sh
+cd server
+npm install
+npm run dev     # http://localhost:8080/health
+```
+
+Other scripts: `npm test`, `npm run check` (types) and `npm run lint`.
+
 ## License
 
 Adun is free software under the GNU Affero General Public License v3.0. See
