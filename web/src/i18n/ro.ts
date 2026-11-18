@@ -112,6 +112,11 @@ export const ro = {
   'settings.save': 'Salvează',
   'settings.cancel': 'Renunță',
   'settings.saved': 'Salvat.',
+  'settings.password': 'Parolă',
+  'settings.passwordText': 'După schimbare, celelalte dispozitive ies din cont; acesta rămâne conectat.',
+  'settings.changePassword': 'Schimbă parola',
+  'settings.currentPassword': 'Parola actuală',
+  'settings.passwordChanged': 'Parola a fost schimbată. Celelalte dispozitive au ieșit din cont.',
   // Privacy page
   'privacyPage.title': 'Confidențialitate',
   'privacyPage.intro': 'Ce păstrează aplicația despre tine, unde și pe cine poți întreba.',
