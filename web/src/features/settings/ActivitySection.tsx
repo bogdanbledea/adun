@@ -4,16 +4,20 @@ import { isMessageKey, useI18n, type Language, type Translate } from '../../lib/
 import { Button } from '../../ui/Button.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
+import { formatBani } from '../budget/money.ts'
+import { monthName } from '../budget/month-key.ts'
 import { SettingsSection } from './SettingsSection.tsx'
 
 /* The newest 50 entries, with "show more" for older pages, and a way to erase
-   them all. An action this version has no text for shows its raw name. */
+   them all. An action this version has no text for shows its raw name. A
+   budget action also shows what it was about, from the entry's details. */
 
 const PAGE = 50
 
 interface ActivityEntry {
   id: number
   action: string
+  metadata: Record<string, string | number | null> | null
   createdAt: string
 }
 
@@ -25,6 +29,19 @@ type State =
 function labelOf(action: string, t: Translate): string {
   const key = `activity.${action}`
   return isMessageKey(key) ? t(key) : action
+}
+
+/** "Chirie · Casă · 1.500,00 lei · Noiembrie 2026" for an entry, the month's name for a month. */
+function detailsOf({ action, metadata }: ActivityEntry, language: Language): string | null {
+  if (!metadata) return null
+  const month = (key: unknown) => (typeof key === 'string' ? monthName(key, language) : null)
+  if (action.startsWith('month.')) return month(metadata.monthKey)
+  if (!action.startsWith('entry.')) return null
+  const { description, category, type, amountBani } = metadata
+  const amount = typeof amountBani === 'number' ? `${type === 'income' ? '+' : ''}${formatBani(amountBani, language)}` : null
+  const where =
+    action === 'entry.moved' ? `${month(metadata.fromMonthKey) ?? ''} → ${month(metadata.monthKey) ?? ''}` : month(metadata.monthKey)
+  return [description, category, amount, where].filter((part) => typeof part === 'string' && part !== '').join(' · ')
 }
 
 /** "18 nov. 2026, 14:05", in the browser's time zone. */
@@ -110,14 +127,20 @@ export function ActivitySection() {
       {hasEntries && (
         <>
           <ul>
-            {state.entries.map((entry) => (
-              <li key={entry.id} className="flex items-baseline justify-between gap-3 border-t border-line py-2.5 first:border-t-0">
-                <span className="min-w-0">{labelOf(entry.action, t)}</span>
-                <time dateTime={entry.createdAt} className="shrink-0 text-right text-xs text-muted">
-                  {formatInstant(entry.createdAt, language)}
-                </time>
-              </li>
-            ))}
+            {state.entries.map((entry) => {
+              const details = detailsOf(entry, language)
+              return (
+                <li key={entry.id} className="flex items-baseline justify-between gap-3 border-t border-line py-2.5 first:border-t-0">
+                  <span className="min-w-0">
+                    {labelOf(entry.action, t)}
+                    {details && <span className="block text-sm break-words text-muted">{details}</span>}
+                  </span>
+                  <time dateTime={entry.createdAt} className="shrink-0 text-right text-xs text-muted">
+                    {formatInstant(entry.createdAt, language)}
+                  </time>
+                </li>
+              )
+            })}
           </ul>
           {state.moreError !== null && <Notice tone="error">{errorText(state.moreError, t)}</Notice>}
           {state.more && (

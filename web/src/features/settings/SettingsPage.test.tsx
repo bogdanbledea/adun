@@ -136,7 +136,12 @@ describe('the password section', () => {
 })
 
 describe('the activity section', () => {
-  const entry = (id: number, action: string) => ({ id, action, createdAt: '2026-11-18T12:05:00.000Z' })
+  const entry = (id: number, action: string, metadata: Record<string, unknown> | null = null) => ({
+    id,
+    action,
+    metadata,
+    createdAt: '2026-11-18T12:05:00.000Z',
+  })
 
   test('lists what changed, newest first, and shows more on request', async () => {
     const first = Array.from({ length: 50 }, (_, i) => entry(100 - i, 'account.renamed'))
@@ -155,6 +160,31 @@ describe('the activity section', () => {
     expect(within(section).getByText('budget.something_new')).toBeDefined()
     expect(within(section).queryByRole('button', { name: 'Arată mai multe' })).toBeNull()
     expect(fetchMock.mock.calls.filter((args) => args[0].startsWith('/api/activity')).length).toBe(2)
+  })
+
+  test('shows what a budget change was about', async () => {
+    const rent = { description: 'Chirie', category: 'Casă', type: 'expense', amountBani: 150_000, monthKey: '2026-11' }
+    fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/activity?limit=50': [
+        200,
+        [
+          entry(4, 'entry.moved', { ...rent, monthKey: '2026-12', fromMonthKey: '2026-11' }),
+          entry(3, 'entry.created', { ...rent, description: 'Salariu', category: 'Venituri', type: 'income' }),
+          entry(2, 'entry.deleted', rent),
+          entry(1, 'month.created', { monthKey: '2026-11' }),
+        ],
+      ],
+    })
+    renderApp()
+    const section = await screen.findByRole('region', { name: 'Activitate' })
+    const items = await within(section).findAllByRole('listitem')
+    expect(items.map((item) => item.firstElementChild?.textContent)).toEqual([
+      'Înregistrare mutată în altă lunăChirie · Casă · 1.500,00 lei · Noiembrie 2026 → Decembrie 2026',
+      'Înregistrare adăugatăSalariu · Venituri · +1.500,00 lei · Noiembrie 2026',
+      'Înregistrare ștearsăChirie · Casă · 1.500,00 lei · Noiembrie 2026',
+      'Lună adăugată în bugetNoiembrie 2026',
+    ])
   })
 
   test('says when there is nothing yet, with nothing to erase', async () => {

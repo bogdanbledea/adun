@@ -18,6 +18,7 @@ test('can be read without signing in', async () => {
   expect(await screen.findByRole('heading', { level: 1, name: 'Confidențialitate' })).toBeDefined()
   expect(screen.getByRole('heading', { name: 'Ce se păstrează' })).toBeDefined()
   expect(screen.getByText(/Istoricul activității/)).toBeDefined()
+  expect(screen.getByText(/Bugetul: lunile, categoriile și înregistrările lor/)).toBeDefined()
   expect(screen.getByRole('heading', { name: 'Ce poți face' })).toBeDefined()
   expect(screen.queryByRole('navigation', { name: 'Secțiuni' })).toBeNull()
 })
