@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type SubmitEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { api, errorText } from '../../lib/api.ts'
 import { useAuth, type AuthUser } from '../../lib/auth.tsx'
 import { useT } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
-import { AuthLayout } from './AuthLayout.tsx'
+import { AuthLayout, BackToSignIn } from './AuthLayout.tsx'
 import { useLinkToken } from './link-token.ts'
 import { PasswordField } from './PasswordField.tsx'
 
@@ -19,17 +19,6 @@ import { PasswordField } from './PasswordField.tsx'
 interface VerifyAnswer {
   user: AuthUser | null
   passwordRequired?: boolean
-}
-
-function BackToSignIn() {
-  const t = useT()
-  return (
-    <p className="mt-6 border-t border-line pt-5 text-center text-sm">
-      <Link to="/buget" className="font-semibold text-brand underline-offset-2 hover:underline">
-        {t('auth.backToSignIn')}
-      </Link>
-    </p>
-  )
 }
 
 export function VerifyEmailPage() {

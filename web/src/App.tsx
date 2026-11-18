@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router'
+import { ResetPasswordPage } from './features/auth/ResetPasswordPage.tsx'
 import { SignInPage } from './features/auth/SignInPage.tsx'
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage.tsx'
 import { PrivacyPage } from './features/privacy/PrivacyPage.tsx'
@@ -50,6 +51,7 @@ export function App() {
     <Routes>
       <Route path="/confidentialitate" element={<Privacy />} />
       <Route path="/verifica-email" element={<VerifyEmailPage />} />
+      <Route path="/parola-noua" element={<ResetPasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route index element={<Navigate to="/buget" replace />} />
         <Route path="/buget" element={<Section title="nav.budget" subtitle="budget.subtitle" />} />

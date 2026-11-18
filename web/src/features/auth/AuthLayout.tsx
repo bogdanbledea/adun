@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 import { Footer } from '../../layout/Footer.tsx'
 import { PublicHeader } from '../../layout/PublicHeader.tsx'
+import { useT } from '../../lib/i18n.tsx'
 import { cx } from '../../ui/cx.ts'
 
 /* The frame of every signed-out page: brand, theme and language controls,
@@ -41,5 +43,17 @@ export function AuthLayout({ title, children, aside }: AuthLayoutProps) {
 
       <Footer />
     </div>
+  )
+}
+
+/** For pages opened from an email link, which have no sign-in form of their own. */
+export function BackToSignIn() {
+  const t = useT()
+  return (
+    <p className="mt-6 border-t border-line pt-5 text-center text-sm">
+      <Link to="/buget" className="font-semibold text-brand underline-offset-2 hover:underline">
+        {t('auth.backToSignIn')}
+      </Link>
+    </p>
   )
 }

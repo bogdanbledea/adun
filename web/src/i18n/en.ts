@@ -85,6 +85,11 @@ export const en: Record<MessageKey, string> = {
   'auth.forgotNoEmailText': 'This server does not send email, so it cannot send a link for a new password. Ask whoever runs it for help.',
   'auth.resetSentText': 'If {email} has an account, we have sent it a link to choose a new password. The link works for one hour.',
   'auth.resetResent': 'If the address has an account, we have sent a new link. You can ask for another in a minute.',
+  'auth.resetTitle': 'New password',
+  'auth.resetFailedTitle': 'The password was not changed',
+  'auth.resetSessionsNote': 'Once saved, the account is signed out on every other device.',
+  'auth.resetSave': 'Save and sign in',
+  'auth.saving': 'Saving...',
 
   'privacyPage.title': 'Privacy',
   'privacyPage.intro': 'What the app keeps about you, where, and who you can ask.',
@@ -104,7 +109,7 @@ export const en: Record<MessageKey, string> = {
 
   'error.invalid_credentials': 'Wrong email or password.',
   'error.email_not_verified': 'Confirm your email address before signing in.',
-  'error.invalid_token': 'This link no longer works: it was used, it expired or a newer one replaced it. Sign in to ask for another.',
+  'error.invalid_token': 'This link no longer works: it was used, it expired or a newer one replaced it. You can ask for another from the sign-in page.',
   'error.email_disabled': 'This server does not send email.',
   'error.wrong_password': 'The password is not correct.',
   'error.registrations_disabled': 'New sign-ups are turned off.',

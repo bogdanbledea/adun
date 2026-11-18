@@ -95,6 +95,11 @@ export const ro = {
   'auth.forgotNoEmailText': 'Acest server nu trimite emailuri, deci nu poate trimite un link pentru o parolă nouă. Cere ajutor celui care îl administrează.',
   'auth.resetSentText': 'Dacă {email} are un cont, i-am trimis un link pentru o parolă nouă. Linkul funcționează o oră.',
   'auth.resetResent': 'Dacă adresa are un cont, am trimis un link nou. Poți cere altul peste un minut.',
+  'auth.resetTitle': 'Parolă nouă',
+  'auth.resetFailedTitle': 'Parola nu a fost schimbată',
+  'auth.resetSessionsNote': 'După salvare, contul iese din toate sesiunile deschise pe alte dispozitive.',
+  'auth.resetSave': 'Salvează și intră în cont',
+  'auth.saving': 'Se salvează...',
 
   // Privacy page
   'privacyPage.title': 'Confidențialitate',
@@ -116,7 +121,7 @@ export const ro = {
   // Errors, by the server's error code
   'error.invalid_credentials': 'Email sau parolă incorecte.',
   'error.email_not_verified': 'Confirmă adresa de email înainte de autentificare.',
-  'error.invalid_token': 'Linkul nu mai este valabil: a fost folosit, a expirat sau a fost înlocuit de unul mai nou. Intră în cont ca să ceri altul.',
+  'error.invalid_token': 'Linkul nu mai este valabil: a fost folosit, a expirat sau a fost înlocuit de unul mai nou. Poți cere altul de pe pagina de autentificare.',
   'error.email_disabled': 'Acest server nu trimite emailuri.',
   'error.wrong_password': 'Parola nu este corectă.',
   'error.registrations_disabled': 'Înregistrările noi sunt dezactivate.',

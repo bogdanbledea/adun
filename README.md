@@ -96,6 +96,11 @@ Email is optional and off by default. Setting `SMTP_HOST` turns it on, and it
 works with any SMTP server: your mail provider's relay, a Gmail account, or a
 server of your own.
 
+With email on, a new account confirms its address through a link before the
+first sign-in, and a forgotten password can be replaced through a link valid
+for one hour. With email off, accounts work as soon as they are created and
+passwords cannot be reset by email.
+
 | Variable          | Default | Meaning                                                     |
 | ----------------- | ------- | ----------------------------------------------------------- |
 | `SMTP_HOST`       |         | SMTP server; setting it turns email on                      |
