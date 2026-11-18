@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { SignInPage } from './features/auth/SignInPage.tsx'
+import { VerifyEmailPage } from './features/auth/VerifyEmailPage.tsx'
 import { PrivacyPage } from './features/privacy/PrivacyPage.tsx'
 import { AppShell } from './layout/AppShell.tsx'
 import { NotFound } from './layout/NotFound.tsx'
@@ -12,7 +13,7 @@ import { useT, type MessageKey } from './lib/i18n.tsx'
 /* The route table. URLs are Romanian in both languages. Pages are behind
    RequireAuth, which shows the sign-in page in place (keeping the URL) when
    there is no session. The privacy page is open to everyone, inside the shell
-   when signed in. Each section has its page header for now; the features
+   when signed in; the page an email link opens works signed in or out. Each section has its page header for now; the features
    fill them in. */
 
 function RequireAuth() {
@@ -48,6 +49,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/confidentialitate" element={<Privacy />} />
+      <Route path="/verifica-email" element={<VerifyEmailPage />} />
       <Route element={<RequireAuth />}>
         <Route index element={<Navigate to="/buget" replace />} />
         <Route path="/buget" element={<Section title="nav.budget" subtitle="budget.subtitle" />} />

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, mock, test } from 'node:test'
-import { appClient } from '../../../test/auth.ts'
+import { appClient, EMAIL_ENV } from '../../../test/auth.ts'
 import { tempDatabase } from '../../../test/helpers.ts'
 import { passwords } from './password.ts'
 
@@ -19,12 +19,18 @@ const users = () => db.prepare('SELECT * FROM users ORDER BY created_at').all()
 const codeOf = async (res: Response) => ((await res.json()) as { error: { code: string } }).error.code
 
 describe('GET /api/auth/status', () => {
-  test('says whether registrations are open', async () => {
+  test('says whether registrations are open and whether email is on', async () => {
     const open = await client()
-    assert.deepEqual(await (await open.request('GET', '/api/auth/status')).json(), { registrationsEnabled: true })
+    assert.deepEqual(await (await open.request('GET', '/api/auth/status')).json(), {
+      registrationsEnabled: true,
+      emailEnabled: false,
+    })
 
-    const closed = await client({ REGISTRATIONS_ENABLED: 'false' })
-    assert.deepEqual(await (await closed.request('GET', '/api/auth/status')).json(), { registrationsEnabled: false })
+    const closed = await client({ REGISTRATIONS_ENABLED: 'false', ...EMAIL_ENV })
+    assert.deepEqual(await (await closed.request('GET', '/api/auth/status')).json(), {
+      registrationsEnabled: false,
+      emailEnabled: true,
+    })
   })
 })
 

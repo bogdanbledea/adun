@@ -3,26 +3,32 @@ import { useEffect, useState } from 'react'
 import { api } from '../../lib/api.ts'
 import { useT } from '../../lib/i18n.tsx'
 import { AuthLayout } from './AuthLayout.tsx'
+import { MailSent } from './MailSent.tsx'
 import { SignInForm } from './SignInForm.tsx'
 import { SignUpForm } from './SignUpForm.tsx'
 
 /* Shown in place of any signed-in page when there is no session, keeping the
-   URL, so signing in lands exactly where the user was going. Sign-in and
-   sign-up are two modes of this one page. */
+   URL, so signing in lands exactly where the user was going. Sign-in,
+   sign-up and "check your email" are modes of this one page. */
 
-function useRegistrationsEnabled(): boolean | null {
-  const [enabled, setEnabled] = useState<boolean | null>(null)
+interface AuthStatus {
+  registrationsEnabled: boolean
+  emailEnabled: boolean
+}
+
+function useAuthStatus(): AuthStatus | null {
+  const [status, setStatus] = useState<AuthStatus | null>(null)
   useEffect(() => {
     const controller = new AbortController()
-    api<{ registrationsEnabled: boolean }>('/api/auth/status', { signal: controller.signal })
-      .then((status) => { setEnabled(status.registrationsEnabled) })
+    api<AuthStatus>('/api/auth/status', { signal: controller.signal })
+      .then(setStatus)
       .catch(() => {
         // Offer sign-up anyway; the server refuses it if registrations are off.
-        if (!controller.signal.aborted) setEnabled(true)
+        if (!controller.signal.aborted) setStatus({ registrationsEnabled: true, emailEnabled: false })
       })
     return () => { controller.abort() }
   }, [])
-  return enabled
+  return status
 }
 
 function Hero() {
@@ -59,10 +65,20 @@ function SwitchLine({ question, action, onClick }: { question: string; action: s
 
 export function SignInPage() {
   const t = useT()
-  const registrationsEnabled = useRegistrationsEnabled()
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const status = useAuthStatus()
+  const registrationsEnabled = status?.registrationsEnabled ?? null
+  const [mode, setMode] = useState<'signin' | 'signup' | 'check-email'>('signin')
   const [email, setEmail] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
+
+  if (mode === 'check-email') {
+    return (
+      <AuthLayout title={t('auth.checkEmailTitle')} aside={<Hero />}>
+        <MailSent text={t('auth.checkEmailText', { email })} />
+        <SwitchLine question="" action={t('auth.backToSignIn')} onClick={() => { setMode('signin') }} />
+      </AuthLayout>
+    )
+  }
 
   if (mode === 'signup') {
     return (
@@ -77,6 +93,10 @@ export function SignInPage() {
             email={email}
             onEmailChange={setEmail}
             onRegistered={() => {
+              if (status?.emailEnabled) {
+                setMode('check-email')
+                return
+              }
               setNotice(t('auth.accountReady'))
               setMode('signin')
             }}
@@ -89,7 +109,15 @@ export function SignInPage() {
 
   return (
     <AuthLayout title={t('auth.signInTitle')} aside={<Hero />}>
-      <SignInForm email={email} onEmailChange={setEmail} notice={notice} />
+      <SignInForm
+        email={email}
+        onEmailChange={setEmail}
+        notice={notice}
+        onNeedsConfirmation={() => {
+          setNotice(null)
+          setMode('check-email')
+        }}
+      />
       {registrationsEnabled === true && (
         <SwitchLine
           question={t('auth.noAccount')}

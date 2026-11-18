@@ -69,7 +69,7 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
 
   // What the sign-in page needs to know about this server.
   router.get('/status', (_req, res) => {
-    res.json({ registrationsEnabled: config.registrationsEnabled })
+    res.json({ registrationsEnabled: config.registrationsEnabled, emailEnabled: config.email !== null })
   })
 
   /* The answer is the same whether or not the address already has an

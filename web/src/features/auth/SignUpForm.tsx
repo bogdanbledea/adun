@@ -1,7 +1,7 @@
 import { useState, type SubmitEvent } from 'react'
 import { Link } from 'react-router'
 import { api, errorText } from '../../lib/api.ts'
-import { useT, type MessageKey } from '../../lib/i18n.tsx'
+import { useI18n, type MessageKey } from '../../lib/i18n.tsx'
 import { passwordProblem } from '../../lib/password.ts'
 import { Button } from '../../ui/Button.tsx'
 import { Field } from '../../ui/Field.tsx'
@@ -23,7 +23,7 @@ interface Problems {
 }
 
 export function SignUpForm({ email, onEmailChange, onRegistered }: SignUpFormProps) {
-  const t = useT()
+  const { t, language } = useI18n()
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -43,7 +43,8 @@ export function SignUpForm({ email, onEmailChange, onRegistered }: SignUpFormPro
 
     setBusy(true)
     try {
-      await api('/api/auth/register', { method: 'POST', body: { email, password, displayName } })
+      // The language goes along so the confirmation email is written in it.
+      await api('/api/auth/register', { method: 'POST', body: { email, password, displayName, language } })
       onRegistered()
     } catch (err) {
       setError(errorText(err, t))

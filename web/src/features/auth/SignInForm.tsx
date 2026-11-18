@@ -1,5 +1,5 @@
 import { useState, type SubmitEvent } from 'react'
-import { api, errorText } from '../../lib/api.ts'
+import { ApiError, api, errorText } from '../../lib/api.ts'
 import { useAuth, type AuthUser } from '../../lib/auth.tsx'
 import { useT } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
@@ -12,9 +12,11 @@ interface SignInFormProps {
   onEmailChange: (email: string) => void
   /** Shown above the form, e.g. after an account was created. */
   notice: string | null
+  /** The password was right but the address is not confirmed yet. */
+  onNeedsConfirmation: () => void
 }
 
-export function SignInForm({ email, onEmailChange, notice }: SignInFormProps) {
+export function SignInForm({ email, onEmailChange, notice, onNeedsConfirmation }: SignInFormProps) {
   const t = useT()
   const { signedIn } = useAuth()
   const [password, setPassword] = useState('')
@@ -30,6 +32,10 @@ export function SignInForm({ email, onEmailChange, notice }: SignInFormProps) {
       signedIn(user)
     } catch (err) {
       setBusy(false)
+      if (err instanceof ApiError && err.code === 'email_not_verified') {
+        onNeedsConfirmation()
+        return
+      }
       setError(errorText(err, t))
     }
   }

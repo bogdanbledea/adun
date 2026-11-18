@@ -31,6 +31,7 @@ export function PrivacyPage() {
 
       <Section title={t('privacyPage.whereTitle')}>
         <p>{t('privacyPage.whereText')}</p>
+        <p>{t('privacyPage.whereEmail')}</p>
       </Section>
 
       <Section title={t('privacyPage.browserTitle')}>

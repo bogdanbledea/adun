@@ -36,10 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const controller = new AbortController()
+    // Only while still loading: a page that signs in by itself (an email
+    // link) may have answered first, and that answer is the newer one.
+    const settle = (next: AuthState) => {
+      setState((current) => (current.status === 'loading' ? next : current))
+    }
     api<AuthUser>('/api/user/me', { signal: controller.signal })
-      .then((user) => { setState({ status: 'signed_in', user }) })
+      .then((user) => { settle({ status: 'signed_in', user }) })
       .catch(() => {
-        if (!controller.signal.aborted) setState({ status: 'signed_out' })
+        if (!controller.signal.aborted) settle({ status: 'signed_out' })
       })
     return () => { controller.abort() }
   }, [])

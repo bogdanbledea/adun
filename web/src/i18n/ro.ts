@@ -70,6 +70,18 @@ export const ro = {
   'auth.haveAccount': 'Ai deja cont?',
   'auth.accountReady': 'Contul este gata. Intră cu emailul și parola alese.',
 
+  // Confirming the address
+  'auth.checkEmailTitle': 'Verifică emailul',
+  'auth.checkEmailText': 'Am trimis un link de confirmare la {email}. Deschide-l ca să intri în cont.',
+  'auth.backToSignIn': 'Înapoi la autentificare',
+  'auth.verifyingTitle': 'Se confirmă adresa',
+  'auth.verifyFailedTitle': 'Confirmarea nu a reușit',
+  'auth.verifyPasswordTitle': 'Confirmă cu parola',
+  'auth.verifyPasswordText': 'Linkul a fost deschis în alt browser decât cel în care s-a creat contul. Introdu parola aleasă la înregistrare ca să confirmi adresa.',
+  'auth.verifyNotYou': 'Dacă nu tu ai creat contul, nu îl confirma.',
+  'auth.verifyConfirm': 'Confirmă și intră în cont',
+  'auth.linkIncomplete': 'Linkul este incomplet. Deschide-l din nou din email, așa cum a fost trimis.',
+
   // Privacy page
   'privacyPage.title': 'Confidențialitate',
   'privacyPage.intro': 'Ce păstrează aplicația despre tine, unde și pe cine poți întreba.',
@@ -79,6 +91,7 @@ export const ro = {
   'privacyPage.storedNot': 'Aplicația nu se conectează la bancă și nu păstrează adresa IP sau browserul cu care te autentifici.',
   'privacyPage.whereTitle': 'Unde',
   'privacyPage.whereText': 'Toate datele stau într-o singură bază de date pe serverul care rulează aplicația. Aplicația nu le trimite nicăieri altundeva.',
+  'privacyPage.whereEmail': 'Dacă serverul trimite emailuri (de exemplu linkul de confirmare a adresei), adresa ta și conținutul lor trec prin serverul de email ales de cine administrează aplicația.',
   'privacyPage.browserTitle': 'În browser',
   'privacyPage.browserCookie': 'Un singur cookie, cel de sesiune, necesar ca să rămâi autentificat. Nu poate fi citit de scripturi.',
   'privacyPage.browserStorage': 'În memoria locală a browserului: limba și tema alese.',
@@ -88,6 +101,9 @@ export const ro = {
 
   // Errors, by the server's error code
   'error.invalid_credentials': 'Email sau parolă incorecte.',
+  'error.email_not_verified': 'Confirmă adresa de email înainte de autentificare.',
+  'error.invalid_token': 'Linkul nu mai este valabil: a fost folosit, a expirat sau a fost înlocuit de unul mai nou.',
+  'error.wrong_password': 'Parola nu este corectă.',
   'error.registrations_disabled': 'Înregistrările noi sunt dezactivate.',
   'error.weak_password': 'Parola trebuie să aibă 12–200 de caractere, cu litere mici și mari, o cifră și un simbol.',
   'error.network_error': 'Serverul nu răspunde. Verifică conexiunea și încearcă din nou.',

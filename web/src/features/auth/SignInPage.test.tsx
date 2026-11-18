@@ -65,6 +65,17 @@ test('a wrong password is explained and the form stays', async () => {
   expect(screen.getByRole('button', { name: 'Intră în cont' })).toBeDefined()
 })
 
+test('signing in before confirming the address asks to check the email', async () => {
+  fakeServer({
+    '/api/user/me': signedOut,
+    '/api/auth/login': [403, { error: { code: 'email_not_verified', message: 'Confirm.' } }],
+  })
+  renderApp('/buget')
+  await fillIn('ana@example.com', 'Corect-cal-baterie-1')
+  expect(await screen.findByRole('heading', { name: 'Verifică emailul' })).toBeDefined()
+  expect(screen.getByText(/ana@example\.com/)).toBeDefined()
+})
+
 test('the password can be shown while typing', async () => {
   fakeServer({ '/api/user/me': signedOut })
   renderApp('/buget')
@@ -117,7 +128,21 @@ describe('sign up', () => {
       email: 'ion@example.com',
       password: 'Corect-cal-baterie-1',
       displayName: 'Ion Ionescu',
+      language: 'ro',
     })
+  })
+
+  test('with email on, a new account is asked to check its email', async () => {
+    fakeServer({
+      '/api/user/me': signedOut,
+      '/api/auth/status': [200, { registrationsEnabled: true, emailEnabled: true }],
+      '/api/auth/register': [201, { ok: true }],
+    })
+    renderApp('/buget')
+    await openSignUp()
+    await fill()
+    expect(await screen.findByRole('heading', { name: 'Verifică emailul' })).toBeDefined()
+    expect(screen.getByText(/Am trimis un link de confirmare la ion@example\.com/)).toBeDefined()
   })
 
   test('a refusal from the server is shown in the form', async () => {
