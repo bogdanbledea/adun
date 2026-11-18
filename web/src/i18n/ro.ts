@@ -44,6 +44,9 @@ export const ro = {
   'common.save': 'Salvează',
   'common.saving': 'Se salvează...',
   'common.tryAgain': 'Încearcă din nou',
+  'amounts.show': 'Arată sumele',
+  'amounts.hide': 'Ascunde sumele',
+  'amounts.hidden': 'sumă ascunsă',
   'amounts.currency': 'lei',
 
   // Signing in
@@ -278,7 +281,7 @@ export const ro = {
   'privacyPage.whereEmail': 'Dacă serverul trimite emailuri (de exemplu linkul de confirmare a adresei), adresa ta și conținutul lor trec prin serverul de email ales de cine administrează aplicația.',
   'privacyPage.browserTitle': 'În browser',
   'privacyPage.browserCookie': 'Un singur cookie, cel de sesiune, necesar ca să rămâi autentificat. Nu poate fi citit de scripturi.',
-  'privacyPage.browserStorage': 'În memoria locală a browserului: limba și tema alese.',
+  'privacyPage.browserStorage': 'În memoria locală a browserului: limba și tema alese și dacă sumele sunt ascunse.',
   'privacyPage.browserNoTracking': 'Fără reclame, fără statistici de trafic, fără scripturi de la terți.',
   'privacyPage.controlTitle': 'Ce poți face',
   'privacyPage.controlText': 'Din Setări îți poți schimba numele și parola, poți șterge istoricul activității și poți șterge contul.',

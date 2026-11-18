@@ -42,6 +42,20 @@ test('the shell switches language and theme', async () => {
   expect(screen.getByRole('button', { name: 'Switch to light theme' })).toBeDefined()
 })
 
+test('the eye button hides amounts and shows them again', async () => {
+  renderApp('/buget')
+
+  const hide = await screen.findByRole('button', { name: 'Ascunde sumele' })
+  expect(hide.getAttribute('aria-pressed')).toBe('false')
+  await userEvent.click(hide)
+  const show = screen.getByRole('button', { name: 'Arată sumele' })
+  expect(show.getAttribute('aria-pressed')).toBe('true')
+  expect(localStorage.getItem('amountsHidden')).toBe('true')
+
+  await userEvent.click(show)
+  expect(screen.getByRole('button', { name: 'Ascunde sumele' })).toBeDefined()
+})
+
 test('an unknown address shows a page not found with a way back', async () => {
   renderApp('/nicaieri')
   expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeDefined()

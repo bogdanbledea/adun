@@ -1,8 +1,9 @@
-import { BellRing, CreditCard, LayoutTemplate, LogOut, MonitorSmartphone, Moon, Settings, ShieldCheck, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
+import { BellRing, CreditCard, Eye, EyeOff, LayoutTemplate, LogOut, MonitorSmartphone, Moon, Settings, ShieldCheck, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 import { useAuth, type AuthUser } from '../lib/auth.tsx'
 import { useI18n } from '../lib/i18n.tsx'
+import { usePrivacy } from '../lib/privacy.tsx'
 import { useTheme } from '../lib/theme.tsx'
 import { IconButton } from '../ui/Button.tsx'
 import { Menu } from '../ui/Menu.tsx'
@@ -11,9 +12,9 @@ import { Brand } from './Brand.tsx'
 import { Footer } from './Footer.tsx'
 
 /* The frame around every signed-in page: the brand, the three section tabs
-   and the controls (theme, language, account menu) in one row on wide
-   screens, the tabs on a row of their own below on narrow ones; then the
-   page, then the footer. The page is the matched route, or `children` when
+   and the controls (hide amounts, theme, language, account menu) in one row
+   on wide screens, the tabs on a row of their own below on narrow ones; then
+   the page, then the footer. The page is the matched route, or `children` when
    given. */
 
 function initialsFor({ displayName, email }: AuthUser): string {
@@ -26,6 +27,7 @@ function initialsFor({ displayName, email }: AuthUser): string {
 export function AppShell({ children }: { children?: ReactNode }) {
   const { t, toggleLanguage } = useI18n()
   const { theme, toggleTheme } = useTheme()
+  const { amountsHidden, toggleAmounts } = usePrivacy()
   const { state, signOut, signOutEverywhere } = useAuth()
   const navigate = useNavigate()
   const user = state.status === 'signed_in' ? state.user : null
@@ -48,6 +50,11 @@ export function AppShell({ children }: { children?: ReactNode }) {
             />
           </div>
           <div className="ml-auto flex shrink-0 items-center py-2">
+            {user && (
+              <IconButton label={amountsHidden ? t('amounts.show') : t('amounts.hide')} aria-pressed={amountsHidden} onClick={toggleAmounts}>
+                {amountsHidden ? <EyeOff /> : <Eye />}
+              </IconButton>
+            )}
             <IconButton label={theme === 'dark' ? t('theme.toLight') : t('theme.toDark')} onClick={toggleTheme}>
               {theme === 'dark' ? <Sun /> : <Moon />}
             </IconButton>

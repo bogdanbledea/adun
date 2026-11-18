@@ -63,6 +63,11 @@
       opacity: 0;
     }
   }
+
+  .amount-masked {
+    filter: blur(6px);
+    user-select: none;
+  }
 }
 
 /* A raised surface: a section, a panel, a list. Rounded and lightly

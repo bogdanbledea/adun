@@ -37,6 +37,9 @@ export const en: Record<MessageKey, string> = {
   'common.save': 'Save',
   'common.saving': 'Saving...',
   'common.tryAgain': 'Try again',
+  'amounts.show': 'Show amounts',
+  'amounts.hide': 'Hide amounts',
+  'amounts.hidden': 'hidden amount',
   'amounts.currency': 'lei',
 
   'auth.kicker': "The household's digital notebook",
@@ -262,7 +265,7 @@ export const en: Record<MessageKey, string> = {
   'privacyPage.whereEmail': 'If the server sends emails (such as the link that confirms your address), your address and their content pass through the mail server chosen by whoever runs the app.',
   'privacyPage.browserTitle': 'In your browser',
   'privacyPage.browserCookie': 'One cookie, the session cookie, needed to keep you signed in. Scripts cannot read it.',
-  'privacyPage.browserStorage': 'In the browser’s local storage: the language and theme you chose.',
+  'privacyPage.browserStorage': 'In the browser’s local storage: the language and theme you chose, and whether amounts are hidden.',
   'privacyPage.browserNoTracking': 'No ads, no traffic analytics, no third-party scripts.',
   'privacyPage.controlTitle': 'What you can do',
   'privacyPage.controlText': 'In Settings you can change your name and password, erase the activity history and delete the account.',

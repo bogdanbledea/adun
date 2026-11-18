@@ -1,9 +1,10 @@
 import { useI18n } from '../lib/i18n.tsx'
 import { formatLei } from '../lib/money.ts'
+import { usePrivacy } from '../lib/privacy.tsx'
 import { cx } from './cx.ts'
 
 /* Every amount on the budget page renders through here: one place decides
-   tabular figures, sign, colour and the unit. */
+   tabular figures, sign, colour, the unit and how hidden amounts are masked. */
 
 export type MoneyTone = 'plain' | 'muted' | 'income' | 'expense' | 'auto'
 
@@ -31,11 +32,16 @@ interface MoneyProps {
 }
 
 export function Money({ bani, tone = 'plain', signed = false, className }: MoneyProps) {
+  const { amountsHidden } = usePrivacy()
   const { language, t } = useI18n()
   return (
     <span className={cx('whitespace-nowrap tabular-nums', toneClass(tone, bani), className)}>
-      {signed && bani < 0 ? '−' : ''}
-      {formatLei(Math.abs(bani), language)}
+      {/* A screen reader would read the blurred digits, so it hears "hidden amount" instead. */}
+      <span className={cx('inline-block', amountsHidden && 'amount-masked')} aria-hidden={amountsHidden || undefined}>
+        {signed && bani < 0 ? '−' : ''}
+        {formatLei(Math.abs(bani), language)}
+      </span>
+      {amountsHidden && <span className="sr-only">{t('amounts.hidden')}</span>}
       <span className="ml-1 font-normal opacity-70">{t('amounts.currency')}</span>
     </span>
   )
