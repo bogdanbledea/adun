@@ -1,10 +1,9 @@
 import { timingSafeEqual } from 'node:crypto'
 import { transaction, type Database } from '../../db.ts'
-import { badRequest } from '../../http/errors.ts'
 import type { Logger } from '../../lib/log.ts'
 import * as repo from './repository.ts'
 import { passwordMatches, startSession, wrongPassword } from './service.ts'
-import { consumeToken, peekToken } from './tokens.ts'
+import { consumeToken, invalidToken, peekToken } from './tokens.ts'
 
 /* Confirming an address with the link from the email. Only used with email on.
 
@@ -21,8 +20,6 @@ import { consumeToken, peekToken } from './tokens.ts'
 
 // Both are SHA-256 hex digests.
 const sameHash = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b))
-
-export const invalidToken = () => badRequest('invalid_token', 'This link is not valid any more.')
 
 /** Confirms the address and starts a session, returning its account and the
     cookie value, when `browserHash` is that of the browser that registered or

@@ -11,6 +11,7 @@ import { findUser } from '../user/repository.ts'
 import { confirmEmail } from './confirmation.ts'
 import { mayEmail } from './email-limits.ts'
 import { PASSWORD_MAX_LENGTH, passwordProblem } from './password.ts'
+import { resetPassword } from './password-reset.ts'
 import { currentSession, requireAuth } from './require-auth.ts'
 import * as auth from './service.ts'
 import {
@@ -52,6 +53,11 @@ const verifyBody = z.object({
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH).optional(),
 })
 
+const resetBody = z.object({
+  token: z.string().max(200),
+  password: z.string(),
+})
+
 interface AuthDeps {
   db: Database
   config: Config
@@ -72,6 +78,15 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
         log.error({ err: error }, 'auth.email_flow_failed')
       }
     })
+  }
+
+  const requireStrongPassword = (password: string) => {
+    if (passwordProblem(password)) {
+      throw badRequest(
+        'weak_password',
+        'The password needs 12 to 200 characters, with lower and upper case letters, a digit and a symbol.',
+      )
+    }
   }
 
   // With email off there is no link to send; the web app explains instead.
@@ -104,12 +119,7 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
       throw forbidden('registrations_disabled', 'New accounts are not accepted.')
     }
     const body = validate(registerBody, req.body)
-    if (passwordProblem(body.password)) {
-      throw badRequest(
-        'weak_password',
-        'The password needs 12 to 200 characters, with lower and upper case letters, a digit and a symbol.',
-      )
-    }
+    requireStrongPassword(body.password)
     // Set whether or not the address was free, so the answer stays the same.
     const browserHash = config.email ? setSignupCookie(res, config) : null
     const result = await auth.register(db, req.log, body, { verified: config.email === null })
@@ -171,6 +181,16 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
       })
       req.log.info({ userId: account.id }, 'auth.reset_requested')
     })
+  })
+
+  // Answers { user }, signed in, with every other session ended (password-reset.ts).
+  router.post('/reset-password', async (req, res) => {
+    requireEmail()
+    const body = validate(resetBody, req.body)
+    requireStrongPassword(body.password)
+    const { userId, sessionToken } = await resetPassword(db, req.log, body.token, body.password)
+    setSessionCookie(res, config, sessionToken)
+    res.json({ user: findUser(db, userId) })
   })
 
   /* Answers { user }, signed in, in the browser that registered or with the

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { transaction, type Database } from '../../db.ts'
+import { badRequest } from '../../http/errors.ts'
 import * as repo from './repository.ts'
 import { hashToken, looksLikeToken, newToken } from './session.ts'
 
@@ -9,6 +10,8 @@ import { hashToken, looksLikeToken, newToken } from './session.ts'
    earlier one, so only the latest link works. */
 
 const HOUR = 60 * 60 * 1000
+
+export const invalidToken = () => badRequest('invalid_token', 'This link is not valid any more.')
 
 // The emails (email/templates.ts) state these lifetimes; keep them in step.
 export const TOKEN_TTL_MS: Record<repo.TokenPurpose, number> = {

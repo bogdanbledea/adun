@@ -79,6 +79,16 @@ export function clearFailedLogins(db: Database, userId: string): void {
   db.prepare('UPDATE users SET failed_login_count = 0, locked_until = NULL WHERE id = ?').run(userId)
 }
 
+/** A new password also ends any lockout and, since it was set through a link
+    sent to the address, confirms an address that was not confirmed yet. */
+export function setPasswordHash(db: Database, userId: string, passwordHash: string, now: string): void {
+  db.prepare(
+    `UPDATE users SET password_hash = ?, failed_login_count = 0, locked_until = NULL,
+                      email_verified_at = coalesce(email_verified_at, ?)
+     WHERE id = ?`,
+  ).run(passwordHash, now, userId)
+}
+
 // ── Sessions ────────────────────────────────────────────────────────────────
 
 export interface NewSession {
