@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { Config } from '../../config.ts'
 import type { Database } from '../../db.ts'
 import type { Mailer } from '../../email/mailer.ts'
-import { verifyEmail } from '../../email/templates.ts'
+import { passwordReset, verifyEmail } from '../../email/templates.ts'
 import { badRequest, forbidden, unauthorized } from '../../http/errors.ts'
 import { validate } from '../../http/validate.ts'
 import type { Logger } from '../../lib/log.ts'
@@ -143,6 +143,33 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
       if (allowed !== 'yes') return
       sendConfirmation(account.email, account.displayName, body.language, account.id, browserHash)
       req.log.info({ userId: account.id }, 'auth.verification_resent')
+    })
+  })
+
+  /* A link to choose a new password. The answer is the same for every
+     address; any account gets the email, confirmed or not, since setting a
+     password through the link proves the mailbox. The limits and the
+     re-arming past the daily limit work as for confirmation links. */
+  router.post('/forgot-password', (req, res) => {
+    requireEmail()
+    const body = validate(emailBody, req.body)
+    res.json({ ok: true })
+
+    afterAnswer(req.log, () => {
+      const account = repo.findCredentials(db, body.email)
+      if (!account) return
+      const allowed = mayEmail(db, req.log, account.id, 'reset')
+      if (allowed === 'day_limit' && rearmToken(db, account.id, 'password_reset')) {
+        req.log.info({ userId: account.id }, 'auth.link_rearmed')
+      }
+      if (allowed !== 'yes') return
+      const token = issueToken(db, account.id, 'password_reset')
+      const url = `${config.appUrl}/parola-noua#token=${token}`
+      void mailer.send('password_reset', {
+        to: account.email,
+        ...passwordReset(body.language, { displayName: account.displayName, url }),
+      })
+      req.log.info({ userId: account.id }, 'auth.reset_requested')
     })
   })
 
