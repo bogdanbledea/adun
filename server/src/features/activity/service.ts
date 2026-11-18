@@ -27,6 +27,10 @@ export type ActivityAction =
   | 'plan.created'
   | 'plan.closed'
   | 'plan.deleted'
+  | 'reminder.created'
+  | 'reminder.updated'
+  | 'reminder.renewed'
+  | 'reminder.deleted'
 
 /** Records an action, with what it was about when that helps the user
     recognise it. Call it inside the transaction that makes the change. */
