@@ -45,6 +45,26 @@ export const ro = {
   'auth.hidePassword': 'Ascunde parola',
   'auth.signIn': 'Intră în cont',
   'auth.signingIn': 'Se verifică...',
+  'auth.noAccount': 'Nu ai cont?',
+  'auth.register': 'Înregistrează-te',
+  'auth.registrationsClosed': 'Înregistrările sunt închise',
+  'auth.registrationsClosedText': 'Momentan nu acceptăm conturi noi. Dacă ai deja un cont, te poți autentifica.',
+
+  // Creating an account
+  'auth.signUpTitle': 'Cont nou',
+  'auth.name': 'Nume',
+  'auth.newPassword': 'Parolă (min. 12 caractere)',
+  'auth.newPasswordHint': 'Litere mici și mari, o cifră și un simbol.',
+  'auth.confirmPassword': 'Confirmă parola',
+  'auth.passwordTooShort': 'Parola trebuie să aibă cel puțin 12 caractere.',
+  'auth.passwordTooLong': 'Parola poate avea cel mult 200 de caractere.',
+  'auth.passwordTooSimple': 'Parola trebuie să conțină litere mici și mari, o cifră și un simbol.',
+  'auth.passwordsMismatch': 'Parolele nu se potrivesc.',
+  'auth.createAccount': 'Creează cont',
+  'auth.creatingAccount': 'Se creează contul...',
+  'auth.whatIsKept': 'Vezi ce păstrează aplicația',
+  'auth.haveAccount': 'Ai deja cont?',
+  'auth.accountReady': 'Contul este gata. Intră cu emailul și parola alese.',
 
   // Privacy page
   'privacyPage.title': 'Confidențialitate',

@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useLocation } from 'react-router'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { App } from '../../App.tsx'
 import { testAccount } from '../../test/account.ts'
 import { renderWithProviders } from '../../test/render.tsx'
@@ -72,4 +72,79 @@ test('the password can be shown while typing', async () => {
   expect(password.getAttribute('type')).toBe('password')
   await userEvent.click(screen.getByRole('button', { name: 'Arată parola' }))
   expect(password.getAttribute('type')).toBe('text')
+})
+
+describe('sign up', () => {
+  async function openSignUp() {
+    await userEvent.click(await screen.findByRole('button', { name: 'Înregistrează-te' }))
+    expect(screen.getByRole('heading', { name: 'Cont nou' })).toBeDefined()
+  }
+
+  async function fill({ password = 'Corect-cal-baterie-1', confirm = '' } = {}) {
+    await userEvent.type(screen.getByLabelText('Nume'), 'Ion Ionescu')
+    await userEvent.type(screen.getByLabelText('Email'), 'ion@example.com')
+    await userEvent.type(screen.getByLabelText('Parolă (min. 12 caractere)'), password)
+    await userEvent.type(screen.getByLabelText('Confirmă parola'), confirm || password)
+    await userEvent.click(screen.getByRole('button', { name: 'Creează cont' }))
+  }
+
+  test('checks the password and its confirmation before sending', async () => {
+    const fetchMock = fakeServer({ '/api/user/me': signedOut, '/api/auth/status': [200, { registrationsEnabled: true }] })
+    renderApp('/buget')
+    await openSignUp()
+    await fill({ password: 'scurta', confirm: 'alta' })
+
+    expect(screen.getByText('Parola trebuie să aibă cel puțin 12 caractere.')).toBeDefined()
+    expect(screen.getByText('Parolele nu se potrivesc.')).toBeDefined()
+    expect(screen.getByLabelText('Confirmă parola').getAttribute('aria-invalid')).toBe('true')
+    expect(sentBody(fetchMock, '/api/auth/register')).toBeUndefined()
+  })
+
+  test('a new account goes back to sign-in with the address filled in', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': signedOut,
+      '/api/auth/status': [200, { registrationsEnabled: true }],
+      '/api/auth/register': [201, { ok: true }],
+    })
+    renderApp('/buget')
+    await openSignUp()
+    await fill()
+
+    expect(await screen.findByRole('heading', { name: 'Autentificare' })).toBeDefined()
+    expect(screen.getByText('Contul este gata. Intră cu emailul și parola alese.')).toBeDefined()
+    expect(screen.getByLabelText('Email')).toHaveProperty('value', 'ion@example.com')
+    expect(sentBody(fetchMock, '/api/auth/register')).toEqual({
+      email: 'ion@example.com',
+      password: 'Corect-cal-baterie-1',
+      displayName: 'Ion Ionescu',
+    })
+  })
+
+  test('a refusal from the server is shown in the form', async () => {
+    fakeServer({
+      '/api/user/me': signedOut,
+      '/api/auth/status': [200, { registrationsEnabled: true }],
+      '/api/auth/register': [400, { error: { code: 'weak_password', message: 'Weak.' } }],
+    })
+    renderApp('/buget')
+    await openSignUp()
+    await fill()
+    expect((await screen.findByRole('alert')).textContent).toContain('Parola trebuie să aibă 12–200 de caractere')
+  })
+
+  test('links to the privacy page in a new tab', async () => {
+    fakeServer({ '/api/user/me': signedOut, '/api/auth/status': [200, { registrationsEnabled: true }] })
+    renderApp('/buget')
+    await openSignUp()
+    const link = screen.getByRole('link', { name: 'Vezi ce păstrează aplicația' })
+    expect(link.getAttribute('href')).toBe('/confidentialitate')
+    expect(link.getAttribute('target')).toBe('_blank')
+  })
+
+  test('when registrations are closed there is no way to sign up', async () => {
+    fakeServer({ '/api/user/me': signedOut, '/api/auth/status': [200, { registrationsEnabled: false }] })
+    renderApp('/buget')
+    expect(await screen.findByText('Înregistrările sunt închise')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Înregistrează-te' })).toBeNull()
+  })
 })

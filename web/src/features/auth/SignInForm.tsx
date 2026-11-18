@@ -7,10 +7,16 @@ import { Field } from '../../ui/Field.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { PasswordField } from './PasswordField.tsx'
 
-export function SignInForm() {
+interface SignInFormProps {
+  email: string
+  onEmailChange: (email: string) => void
+  /** Shown above the form, e.g. after an account was created. */
+  notice: string | null
+}
+
+export function SignInForm({ email, onEmailChange, notice }: SignInFormProps) {
   const t = useT()
   const { signedIn } = useAuth()
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -30,13 +36,14 @@ export function SignInForm() {
 
   return (
     <form onSubmit={(event) => void submit(event)} className="mt-6 flex flex-col gap-4">
+      {notice && <Notice tone="success">{notice}</Notice>}
       <Field
         label={t('auth.email')}
         type="email"
         autoComplete="email"
         required
         value={email}
-        onChange={(event) => { setEmail(event.target.value) }}
+        onChange={(event) => { onEmailChange(event.target.value) }}
       />
       <PasswordField
         label={t('auth.password')}
