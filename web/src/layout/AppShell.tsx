@@ -35,7 +35,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
       <header className="sticky top-0 z-40 border-b border-line bg-page/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 px-4 sm:px-6 lg:flex-nowrap">
           <div className="py-2">
-            <Brand withMotto />
+            <Brand />
           </div>
           <div className="order-last -mx-4 w-[calc(100%+2rem)] sm:mx-0 sm:w-full lg:order-none lg:w-auto lg:self-end">
             <Tabs
