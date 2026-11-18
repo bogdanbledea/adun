@@ -10,6 +10,8 @@ export interface Entry {
   description: string
   type: EntryType
   amountBani: number
+  /** When it was actually paid; never in the template. */
+  paymentDate: string | null
   /** Set on a payment plan's instalment: number `index` of `total`. */
   plan: { id: string; name: string; index: number; total: number } | null
 }
@@ -46,6 +48,7 @@ export interface EntryFields {
   description: string
   type: EntryType
   amountBani: number
+  paymentDate?: string | null
 }
 
 /** An entry as answered after a change. */
@@ -72,7 +75,7 @@ export const budgetApi = {
   updateEntry: (id: string, fields: Partial<EntryFields>) =>
     api<SavedEntry>(`/api/entries/${id}`, { method: 'PATCH', body: fields }),
   template: (signal?: AbortSignal) => api<Template>('/api/template', { signal }),
-  addTemplateEntry: (fields: Omit<EntryFields, 'monthKey'>) =>
+  addTemplateEntry: (fields: Omit<EntryFields, 'monthKey' | 'paymentDate'>) =>
     api<SavedEntry>('/api/template/entries', { method: 'POST', body: fields }),
   deleteEntry: (id: string) => api(`/api/entries/${id}`, { method: 'DELETE' }),
   // Whole lists in their new order: a month's categories, a category's entries.

@@ -68,6 +68,13 @@ export function monthShort(monthKey: string, language: Language, currentYear: st
   return year === currentYear ? label : `${label} '${year.slice(2)}`
 }
 
+/** "3 dec.", "3 Dec": a day (YYYY-MM-DD) in a few letters. */
+export function dayShort(date: string, language: Language): string {
+  return new Intl.DateTimeFormat(locale(language), { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
+    new Date(`${date}T00:00:00Z`),
+  )
+}
+
 /** "20 octombrie 2026", "20 October 2026": a day (YYYY-MM-DD) as it is, or
     the day an instant (ISO) falls on in the browser's time zone. */
 export function dayLong(date: string, language: Language): string {

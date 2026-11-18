@@ -28,8 +28,8 @@ const december: Month = {
       id: 'c1',
       name: 'Rate',
       entries: [
-        { id: 'e1', description: 'Telefon', type: 'expense', amountBani: 66_666, plan: phonePlan },
-        { id: 'e2', description: 'Bicicletă', type: 'expense', amountBani: 30_000, plan: null },
+        { id: 'e1', description: 'Telefon', type: 'expense', amountBani: 66_666, paymentDate: null, plan: phonePlan },
+        { id: 'e2', description: 'Bicicletă', type: 'expense', amountBani: 30_000, paymentDate: null, plan: null },
       ],
     },
   ],

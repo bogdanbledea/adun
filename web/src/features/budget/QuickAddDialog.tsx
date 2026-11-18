@@ -34,6 +34,7 @@ export function QuickAddDialog({ monthKey, categoryNames, monthsWithBudget, onCl
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('')
+  const [paymentDate, setPaymentDate] = useState('')
   const [errors, setErrors] = useState<Errors>({})
   const [failure, setFailure] = useState<unknown>(null)
   const [saving, setSaving] = useState(false)
@@ -67,6 +68,7 @@ export function QuickAddDialog({ monthKey, categoryNames, monthsWithBudget, onCl
         description: description.trim(),
         type: 'expense',
         amountBani,
+        paymentDate: paymentDate || null,
       })
       onSaved(target)
       onClose()
@@ -123,15 +125,23 @@ export function QuickAddDialog({ monthKey, categoryNames, monthsWithBudget, onCl
           error={errors.description}
           onChange={(event) => { setDescription(event.target.value) }}
         />
-        <Field
-          label={`${t('budget.amount')} (${t('amounts.currency')})`}
-          inputMode="decimal"
-          autoComplete="off"
-          placeholder="0"
-          value={amount}
-          error={errors.amount}
-          onChange={(event) => { setAmount(event.target.value) }}
-        />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field
+            label={`${t('budget.amount')} (${t('amounts.currency')})`}
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="0"
+            value={amount}
+            error={errors.amount}
+            onChange={(event) => { setAmount(event.target.value) }}
+          />
+          <Field
+            type="date"
+            label={t('budget.paymentDate')}
+            value={paymentDate}
+            onChange={(event) => { setPaymentDate(event.target.value) }}
+          />
+        </div>
         <CategoryPicker value={category} onChange={setCategory} suggestions={suggestions} error={errors.category} />
         {failure !== null && <Notice tone="error">{errorText(failure, t)}</Notice>}
       </form>

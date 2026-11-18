@@ -21,7 +21,7 @@ const json = (status: number, body: unknown) => Promise.resolve(new Response(JSO
 
 const before: Month = {
   monthKey: '2026-12',
-  categories: [{ id: 'c1', name: 'Casă', entries: [{ id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, plan: null }] }],
+  categories: [{ id: 'c1', name: 'Casă', entries: [{ id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, paymentDate: null, plan: null }] }],
   totals: { incomeBani: 0, expenseBani: 150_000, balanceBani: -150_000 },
 }
 const after: Month = {
@@ -31,13 +31,13 @@ const after: Month = {
       id: 'c1',
       name: 'Casă',
       entries: [
-        { id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, plan: null },
-        { id: 'e2', description: 'Curent', type: 'expense', amountBani: 4550, plan: null },
+        { id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, paymentDate: null, plan: null },
+        { id: 'e2', description: 'Curent', type: 'expense', amountBani: 4550, paymentDate: null, plan: null },
       ],
     },
   ],
 }
-const saved = { id: 'e2', monthKey: '2026-12', categoryName: 'Casă', description: 'Curent', type: 'expense', amountBani: 4550, plan: null }
+const saved = { id: 'e2', monthKey: '2026-12', categoryName: 'Casă', description: 'Curent', type: 'expense', amountBani: 4550, paymentDate: null, plan: null }
 
 // The month as it was, then as it is after the change.
 function server(routes: Parameters<typeof fakeServer>[0] = {}) {
@@ -77,6 +77,7 @@ test('adds an expense, picking an existing category, and shows the month as stor
     description: 'Curent',
     type: 'expense',
     amountBani: 4550,
+    paymentDate: null,
   })
 })
 
@@ -128,6 +129,7 @@ test('a row opens its entry for editing', async () => {
     description: 'Chirie',
     type: 'expense',
     amountBani: 160_000,
+    paymentDate: null,
   })
 })
 
@@ -183,4 +185,31 @@ test('keeps the dialog open and says why when the server refuses', async () => {
     'Ai atins numărul maxim permis. Șterge din cele existente ca să adaugi altele.',
   )
   expect(screen.getByRole('dialog', { name: 'Adaugă tranzacție nouă' })).toBeDefined()
+})
+
+test('an entry shows its payment date, which can be set and cleared', async () => {
+  const paid: Month = {
+    ...before,
+    categories: [{ id: 'c1', name: 'Casă', entries: [{ id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, paymentDate: '2027-01-03', plan: null }] }],
+  }
+  const fetchMock = fakeServer({
+    '/api/user/me': [200, testAccount],
+    '/api/months': [200, ['2026-12']],
+    'GET /api/months/2026-12': [200, paid],
+    'PATCH /api/entries/e1': [200, { ...saved, id: 'e1' }],
+  })
+  renderApp()
+
+  const badge = await screen.findByTitle('Data plății: 3 ianuarie 2027')
+  expect(badge.textContent).toBe('3 ian.')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Editează Chirie' }))
+  const dialog = screen.getByRole('dialog', { name: 'Editează tranzacția' })
+  const date = () => within(dialog).getByLabelText('Data plății (opțional)')
+  expect(date()).toHaveProperty('value', '2027-01-03')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Șterge data plății' }))
+  expect(date()).toHaveProperty('value', '')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Salvează' }))
+
+  expect(sentBody(fetchMock, '/api/entries/e1')).toMatchObject({ paymentDate: null })
 })

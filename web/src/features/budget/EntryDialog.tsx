@@ -1,9 +1,9 @@
-import { ArrowRight, Trash2 } from 'lucide-react'
+import { ArrowRight, Trash2, X } from 'lucide-react'
 import { useId, useState, type SubmitEvent } from 'react'
 import { errorText } from '../../lib/api.ts'
 import { useI18n } from '../../lib/i18n.tsx'
 import { baniToInput, parseAmount } from '../../lib/money.ts'
-import { Button } from '../../ui/Button.tsx'
+import { Button, IconButton } from '../../ui/Button.tsx'
 import { Dialog } from '../../ui/Dialog.tsx'
 import { Field, Select } from '../../ui/Field.tsx'
 import { Notice } from '../../ui/Notice.tsx'
@@ -52,6 +52,7 @@ export function EntryDialog({
   const [amount, setAmount] = useState(entry ? baniToInput(entry.amountBani, language) : '')
   const [description, setDescription] = useState(entry?.description ?? '')
   const [category, setCategory] = useState(entry?.categoryName ?? categoryName ?? '')
+  const [paymentDate, setPaymentDate] = useState(entry?.paymentDate ?? '')
   // The template has no month to move from.
   const [targetMonth, setTargetMonth] = useState(monthKey ?? '')
   const [errors, setErrors] = useState<Errors>({})
@@ -78,7 +79,7 @@ export function EntryDialog({
       if (monthKey === null) {
         onSaved(entry ? await budgetApi.updateEntry(entry.id, common) : await budgetApi.addTemplateEntry(common))
       } else {
-        const fields = { ...common, monthKey: targetMonth }
+        const fields = { ...common, monthKey: targetMonth, paymentDate: paymentDate || null }
         onSaved(entry ? await budgetApi.updateEntry(entry.id, fields) : await budgetApi.addEntry(fields))
       }
       onClose()
@@ -142,6 +143,22 @@ export function EntryDialog({
           onChange={(event) => { setDescription(event.target.value) }}
         />
         <CategoryPicker value={category} onChange={setCategory} suggestions={categoryNames} error={errors.category} />
+        {monthKey !== null && (
+          <Field
+            type="date"
+            label={`${t('budget.paymentDate')} (${t('budget.optional')})`}
+            hint={t('budget.paymentDateHint')}
+            value={paymentDate}
+            onChange={(event) => { setPaymentDate(event.target.value) }}
+            trailing={
+              paymentDate ? (
+                <IconButton label={t('budget.clearPaymentDate')} onClick={() => { setPaymentDate('') }}>
+                  <X />
+                </IconButton>
+              ) : undefined
+            }
+          />
+        )}
         {entry?.plan && (
           <div>
             <p className="text-sm font-semibold">{t('budget.month')}</p>

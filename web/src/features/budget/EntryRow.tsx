@@ -1,15 +1,16 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { CreditCard, GripVertical, Pencil, Trash2 } from 'lucide-react'
-import { useT } from '../../lib/i18n.tsx'
+import { CalendarDays, CreditCard, GripVertical, Pencil, Trash2 } from 'lucide-react'
+import { useI18n } from '../../lib/i18n.tsx'
 import { cx } from '../../ui/cx.ts'
 import { Money } from '../../ui/Money.tsx'
 import type { Entry } from './budget-api.ts'
+import { dayLong, dayShort } from './month-key.ts'
 
-/* One entry: drag handle, description, an instalment's n/N badge, amount,
-   edit and delete. A click anywhere on the row opens it for editing, or an
-   instalment's plan when onViewPlan is given; keyboard users have the edit
-   button and the instalment badge. */
+/* One entry: drag handle, description, its payment date and an instalment's
+   n/N badge, amount, edit and delete. A click anywhere on the row opens it
+   for editing, or an instalment's plan when onViewPlan is given; keyboard
+   users have the edit button and the instalment badge. */
 
 interface EntryRowProps {
   entry: Entry
@@ -28,7 +29,7 @@ const ROW_BUTTON =
   'grid size-11 pointer-fine:size-8 place-items-center rounded-lg text-muted transition-colors duration-150 hover:bg-hover hover:text-ink [&_svg]:size-4'
 
 export function EntryRow({ entry, onEdit, onDelete, onViewPlan }: EntryRowProps) {
-  const t = useT()
+  const { t, language } = useI18n()
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
   })
@@ -58,12 +59,21 @@ export function EntryRow({ entry, onEdit, onDelete, onViewPlan }: EntryRowProps)
         >
           <GripVertical />
         </button>
-        {/* Phones: the badge under the description, which keeps its room. Wider: one line. */}
+        {/* Phones: the badges under the description, which keeps its room. Wider: one line. */}
         <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-1.5">
           <span className="truncate">{entry.description}</span>
-          {plan && (
-            <div className="flex items-center">
-              {viewPlan ? (
+          <div className="flex flex-wrap items-center gap-1.5 empty:hidden">
+            {entry.paymentDate && (
+              <span
+                title={`${t('budget.paymentDate')}: ${dayLong(entry.paymentDate, language)}`}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-track px-2 text-xs text-muted tabular-nums"
+              >
+                <CalendarDays aria-hidden="true" className="size-3" />
+                {dayShort(entry.paymentDate, language)}
+              </span>
+            )}
+            {plan &&
+              (viewPlan ? (
                 <button
                   type="button"
                   aria-label={`${installmentLabel}. ${t('plans.openPlan', { name: entry.description })}`}
@@ -82,9 +92,8 @@ export function EntryRow({ entry, onEdit, onDelete, onViewPlan }: EntryRowProps)
                   <CreditCard aria-hidden="true" className="size-3" />
                   {plan.index}/{plan.total}
                 </span>
-              )}
-            </div>
-          )}
+              ))}
+          </div>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-0.5">

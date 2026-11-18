@@ -21,18 +21,18 @@ const json = (status: number, body: unknown) => Promise.resolve(new Response(JSO
 
 const before: Month = {
   monthKey: '2026-12',
-  categories: [{ id: 'c1', name: 'Casă', entries: [{ id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, plan: null }] }],
+  categories: [{ id: 'c1', name: 'Casă', entries: [{ id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, paymentDate: null, plan: null }] }],
   totals: { incomeBani: 0, expenseBani: 150_000, balanceBani: -150_000 },
 }
 const after: Month = {
   monthKey: '2026-12',
   categories: [
     ...before.categories,
-    { id: 'c2', name: 'Alimente', entries: [{ id: 'e2', description: 'Piață', type: 'expense', amountBani: 8550, plan: null }] },
+    { id: 'c2', name: 'Alimente', entries: [{ id: 'e2', description: 'Piață', type: 'expense', amountBani: 8550, paymentDate: null, plan: null }] },
   ],
   totals: { incomeBani: 0, expenseBani: 158_550, balanceBani: -158_550 },
 }
-const saved = { id: 'e2', monthKey: '2026-12', categoryName: 'Alimente', description: 'Piață', type: 'expense', amountBani: 8550, plan: null }
+const saved = { id: 'e2', monthKey: '2026-12', categoryName: 'Alimente', description: 'Piață', type: 'expense', amountBani: 8550, paymentDate: null, plan: null }
 
 // The month as it was, then as it is after the change.
 function server(routes: Parameters<typeof fakeServer>[0] = {}) {
@@ -81,6 +81,7 @@ test('the floating button adds an expense to the month on screen, which is then 
     description: 'Piață',
     type: 'expense',
     amountBani: 8550,
+    paymentDate: null,
   })
 })
 
@@ -144,4 +145,17 @@ test('a failure stays in the dialog, with what was typed', async () => {
 
   expect(await within(dialog).findByRole('alert')).toBeDefined()
   expect(within(dialog).getByLabelText('Descriere')).toHaveProperty('value', 'Piață')
+})
+
+test('sends the payment date when one is chosen', async () => {
+  const fetchMock = server({ 'POST /api/entries': [201, saved] })
+  renderApp()
+
+  const dialog = await openQuickAdd()
+  await fill(dialog)
+  await userEvent.type(within(dialog).getByLabelText('Data plății'), '2027-01-05')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Adaugă cheltuiala' }))
+
+  await screen.findByText('Piață')
+  expect(sentBody(fetchMock, '/api/entries')).toMatchObject({ paymentDate: '2027-01-05' })
 })

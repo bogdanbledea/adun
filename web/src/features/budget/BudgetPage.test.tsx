@@ -28,11 +28,11 @@ const december: Month = {
       id: 'c1',
       name: 'Casă',
       entries: [
-        { id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, plan: null },
-        { id: 'e2', description: 'Curent', type: 'expense', amountBani: 25_050, plan: null },
+        { id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, paymentDate: null, plan: null },
+        { id: 'e2', description: 'Curent', type: 'expense', amountBani: 25_050, paymentDate: null, plan: null },
       ],
     },
-    { id: 'c2', name: 'Salariu', entries: [{ id: 'e3', description: 'Salariu Ana', type: 'income', amountBani: 650_000, plan: null }] },
+    { id: 'c2', name: 'Salariu', entries: [{ id: 'e3', description: 'Salariu Ana', type: 'income', amountBani: 650_000, paymentDate: null, plan: null }] },
   ],
   totals: { incomeBani: 650_000, expenseBani: 175_050, balanceBani: 474_950 },
 }
