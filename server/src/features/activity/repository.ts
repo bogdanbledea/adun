@@ -35,3 +35,8 @@ export function listActivity(db: Database, userId: string, limit: number, offset
 export function deleteUserActivity(db: Database, userId: string): number {
   return Number(db.prepare('DELETE FROM activity_logs WHERE user_id = ?').run(userId).changes)
 }
+
+/** Removes every user's entries older than `before`. */
+export function deleteActivityBefore(db: Database, before: string): number {
+  return Number(db.prepare('DELETE FROM activity_logs WHERE created_at < ?').run(before).changes)
+}

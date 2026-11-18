@@ -1,11 +1,12 @@
 import { createApp } from './app.ts'
 import { ConfigError, loadConfig } from './config.ts'
 import { migrate, MigrationError, openDatabase } from './db.ts'
+import { startDailyCleanup } from './jobs/cleanup.ts'
 import { createLogger } from './lib/log.ts'
 import { shutdown } from './shutdown.ts'
 
-// Read config → open db → migrate → build app → listen. On SIGTERM or
-// SIGINT, shut down gracefully (shutdown.ts).
+// Read config → open db → migrate → start the daily cleanup → build app →
+// listen. On SIGTERM or SIGINT, shut down gracefully (shutdown.ts).
 
 let config
 try {
@@ -29,6 +30,8 @@ try {
   process.exit(1)
 }
 
+const stopCleanup = startDailyCleanup(db, log)
+
 const server = createApp({ config, db, log }).listen(config.port, () => {
   log.info({ port: config.port, production: config.production }, 'server.listening')
   // Behind a proxy every visitor would then share its address, and so its
@@ -44,6 +47,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     if (stopping) return
     stopping = true
     log.info({ signal }, 'server.stopping')
+    stopCleanup()
     shutdown({ server, db, log }).then(
       () => process.exit(0),
       (error: unknown) => {

@@ -134,6 +134,10 @@ The schema is built from the numbered SQL files in `server/migrations/`. The
 server applies any pending ones at startup; `npm run migrate` applies them
 without starting it.
 
+At startup and then once a day the server removes what it no longer needs:
+activity history older than 365 days, ended sessions, used or expired email
+links, and email send records older than a day.
+
 ## License
 
 Adun is free software under the GNU Affero General Public License v3.0. See

@@ -265,3 +265,22 @@ export function recentAuthEmails(db: Database, userId: string, kind: AuthEmailKi
 export function recordAuthEmail(db: Database, userId: string, kind: AuthEmailKind, now: string): void {
   db.prepare('INSERT INTO auth_emails (user_id, kind, sent_at) VALUES (?, ?, ?)').run(userId, kind, now)
 }
+
+/** Removes sessions that can no longer be used: expired or revoked. */
+export function deleteDeadSessions(db: Database, now: string): number {
+  return Number(db.prepare('DELETE FROM sessions WHERE expires_at <= ? OR revoked_at IS NOT NULL').run(now).changes)
+}
+
+/** Removes used links, and unused ones that expired and can no longer be
+    re-armed (issued before `rearmableAfter`). */
+export function deleteDeadTokens(db: Database, now: string, rearmableAfter: string): number {
+  return Number(
+    db
+      .prepare('DELETE FROM auth_tokens WHERE consumed_at IS NOT NULL OR (expires_at <= ? AND created_at <= ?)')
+      .run(now, rearmableAfter).changes,
+  )
+}
+
+export function deleteAuthEmailsBefore(db: Database, before: string): number {
+  return Number(db.prepare('DELETE FROM auth_emails WHERE sent_at < ?').run(before).changes)
+}
