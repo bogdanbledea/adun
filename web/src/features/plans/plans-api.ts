@@ -33,9 +33,28 @@ export interface PlanDetail extends Plan {
   installments: Installment[]
 }
 
+export interface NewPlan {
+  name: string
+  installmentCount: number
+  totalBani: number
+  firstMonthKey: string
+  categoryName: string
+  purchaseDate: string | null
+}
+
+export const MAX_INSTALLMENTS = 360
+
+/** The first and the regular instalment, split as the server does: the
+    first takes the remainder (200000 / 3 → 66668, then 66666). */
+export function splitPreview(totalBani: number, count: number): { first: number; regular: number } {
+  const regular = Math.floor(totalBani / count)
+  return { first: totalBani - regular * (count - 1), regular }
+}
+
 const month = () => `month=${currentMonthKey()}`
 
 export const plansApi = {
   list: (signal?: AbortSignal) => api<Plan[]>(`/api/plans?${month()}`, { signal }),
   get: (id: string, signal?: AbortSignal) => api<PlanDetail>(`/api/plans/${id}?${month()}`, { signal }),
+  create: (plan: NewPlan) => api<Plan>(`/api/plans?${month()}`, { method: 'POST', body: plan }),
 }

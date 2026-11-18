@@ -1,4 +1,4 @@
-import { CreditCard } from 'lucide-react'
+import { CreditCard, Plus } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '../../layout/PageHeader.tsx'
 import { errorText } from '../../lib/api.ts'
@@ -7,16 +7,19 @@ import { Button } from '../../ui/Button.tsx'
 import { EmptyState } from '../../ui/EmptyState.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
+import { CreatePlanDialog } from './CreatePlanDialog.tsx'
 import { PlanRow } from './PlanRow.tsx'
 import { plansApi, type Plan } from './plans-api.ts'
 
 /* /planuri-de-rate: the user's payment plans, newest first, each with how
-   many instalments are paid and, on request, the months they fall in. */
+   many instalments are paid and, on request, the months they fall in.
+   Creating a plan fills the months it covers; the list is read again after. */
 
 export function PlansPage() {
   const t = useT()
   const [plans, setPlans] = useState<Plan[] | null>(null)
   const [loadError, setLoadError] = useState<unknown>(null)
+  const [creating, setCreating] = useState(false)
 
   const load = useCallback(
     (signal?: AbortSignal) =>
@@ -64,7 +67,16 @@ export function PlansPage() {
     )
   } else if (plans.length === 0) {
     body = (
-      <EmptyState icon={<CreditCard />} title={t('plans.empty')}>
+      <EmptyState
+        icon={<CreditCard />}
+        title={t('plans.empty')}
+        action={
+          <Button onClick={() => { setCreating(true) }}>
+            <Plus />
+            {t('plans.addFirst')}
+          </Button>
+        }
+      >
         {t('plans.emptyText')}
       </EmptyState>
     )
@@ -85,8 +97,22 @@ export function PlansPage() {
 
   return (
     <>
-      <PageHeader title={t('plans.title')} subtitle={t('plans.subtitle')} />
+      <PageHeader
+        title={t('plans.title')}
+        subtitle={t('plans.subtitle')}
+        // An empty page has its own button in the empty state.
+        action={
+          plans !== null &&
+          plans.length > 0 && (
+            <Button className="self-start sm:self-auto" onClick={() => { setCreating(true) }}>
+              <Plus />
+              {t('plans.add')}
+            </Button>
+          )
+        }
+      />
       {body}
+      {creating && <CreatePlanDialog onClose={() => { setCreating(false) }} onCreated={() => void load()} />}
     </>
   )
 }

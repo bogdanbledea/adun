@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { App } from '../../App.tsx'
 import { testAccount } from '../../test/account.ts'
 import { renderWithProviders } from '../../test/render.tsx'
-import { fakeServer } from '../../test/server.ts'
+import { fakeServer, sentBody } from '../../test/server.ts'
 import { currentMonthKey, shiftMonth } from '../budget/month-key.ts'
 import type { Plan, PlanDetail } from './plans-api.ts'
 
@@ -77,4 +77,38 @@ test('says when the plans cannot be loaded', async () => {
   renderApp()
 
   expect(await screen.findByText(/Planurile nu au putut fi încărcate/)).toBeDefined()
+})
+
+test('a new plan shows its split and is sent in bani', async () => {
+  let reads = 0
+  const fetchMock = fakeServer({
+    '/api/user/me': [200, testAccount],
+    [`GET /api/plans${query}`]: () =>
+      Promise.resolve(new Response(JSON.stringify(reads++ === 0 ? [] : [phone]), { status: 200 })),
+    [`POST /api/plans${query}`]: [201, phone],
+  })
+  renderApp()
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Adaugă primul plan' }))
+  const dialog = screen.getByRole('dialog', { name: 'Plan nou de plată în rate' })
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Creează planul' }))
+  expect(within(dialog).getByText('Scrie numele produsului.')).toBeDefined()
+  expect(within(dialog).getByText('Scrie un număr de rate între 1 și 360.')).toBeDefined()
+
+  await userEvent.type(within(dialog).getByLabelText('Numele produsului'), 'Telefon')
+  await userEvent.type(within(dialog).getByLabelText('Valoare totală (lei)'), '2000')
+  await userEvent.type(within(dialog).getByLabelText('Număr de rate'), '3')
+  expect(within(dialog).getByRole('status').textContent).toMatch(/Prima rată 666,68.*apoi 666,66/)
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Creează planul' }))
+
+  expect(await screen.findByRole('heading', { name: 'Telefon' })).toBeDefined()
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(sentBody(fetchMock, `/api/plans${query}`)).toEqual({
+    name: 'Telefon',
+    totalBani: 200_000,
+    installmentCount: 3,
+    firstMonthKey: thisMonth,
+    categoryName: 'Rate',
+    purchaseDate: null,
+  })
 })
