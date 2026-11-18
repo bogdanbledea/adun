@@ -102,6 +102,22 @@ export const ro = {
   'auth.resetSave': 'Salvează și intră în cont',
   'auth.saving': 'Se salvează...',
 
+  // Budget
+  'budget.months': 'Lunile anului',
+  'budget.previousMonth': 'Luna anterioară',
+  'budget.nextMonth': 'Luna următoare',
+  'budget.hasBudget': 'are buget',
+  'budget.noBudgetTitle': '{month} nu are încă buget',
+  'budget.noBudgetText': 'Creează bugetul lunii ca să adaugi venituri și cheltuieli.',
+  'budget.createMonth': 'Creează bugetul',
+  'budget.creating': 'Se creează...',
+  'budget.loadFailed': 'Luna nu s-a putut încărca.',
+  'budget.tryAgain': 'Încearcă din nou',
+  'budget.totals': 'Totalurile lunii',
+  'budget.income': 'Venituri',
+  'budget.expenses': 'Cheltuieli',
+  'budget.balance': 'Rămân',
+
   // Settings
   'settings.title': 'Setări',
   'settings.subtitle': 'Contul tău, parola și ce s-a schimbat în el.',
@@ -165,6 +181,10 @@ export const ro = {
   'error.password_confirmation_required': 'Introdu din nou parola ca să continui.',
   'error.registrations_disabled': 'Înregistrările noi sunt dezactivate.',
   'error.weak_password': 'Parola trebuie să aibă 12–200 de caractere, cu litere mici și mari, o cifră și un simbol.',
+  'error.month_not_found': 'Luna nu are încă buget.',
+  'error.month_exists': 'Luna are deja buget.',
+  'error.entry_not_found': 'Înregistrarea nu mai există.',
+  'error.limit_reached': 'Ai atins numărul maxim permis. Șterge din cele existente ca să adaugi altele.',
   'error.network_error': 'Serverul nu răspunde. Verifică conexiunea și încearcă din nou.',
   'error.unauthorized': 'Sesiunea a expirat. Autentifică-te din nou.',
   'error.forbidden': 'Nu ai acces la această acțiune.',

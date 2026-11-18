@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage.tsx'
 import { SignInPage } from './features/auth/SignInPage.tsx'
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage.tsx'
+import { BudgetPage } from './features/budget/BudgetPage.tsx'
 import { PrivacyPage } from './features/privacy/PrivacyPage.tsx'
 import { SettingsPage } from './features/settings/SettingsPage.tsx'
 import { AppShell } from './layout/AppShell.tsx'
@@ -15,8 +16,8 @@ import { useT, type MessageKey } from './lib/i18n.tsx'
 /* The route table. URLs are Romanian in both languages. Pages are behind
    RequireAuth, which shows the sign-in page in place (keeping the URL) when
    there is no session. The privacy page is open to everyone, inside the shell
-   when signed in; the page an email link opens works signed in or out. Each
-   section has its page header for now; the features fill them in. */
+   when signed in; the page an email link opens works signed in or out.
+   Sections not built yet show their page header. */
 
 function RequireAuth() {
   const { state } = useAuth()
@@ -64,7 +65,8 @@ export function App() {
       <Route path="/parola-uitata" element={<ForgotPassword />} />
       <Route element={<RequireAuth />}>
         <Route index element={<Navigate to="/buget" replace />} />
-        <Route path="/buget" element={<Section title="nav.budget" subtitle="budget.subtitle" />} />
+        <Route path="/buget" element={<BudgetPage />} />
+        <Route path="/buget/:month" element={<BudgetPage />} />
         <Route path="/mancare" element={<Section title="nav.food" subtitle="food.subtitle" />} />
         <Route path="/scadente" element={<Section title="nav.reminders" subtitle="reminders.subtitle" />} />
         <Route path="/setari" element={<SettingsPage />} />
