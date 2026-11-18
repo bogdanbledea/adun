@@ -21,6 +21,7 @@ const amountBani = z.number().int().min(0).max(999_999_999_900)
 
 const entryParams = z.object({ id: z.uuid() })
 const createEntryBody = z.object({ monthKey, categoryName, description, type, amountBani })
+const createTemplateEntryBody = createEntryBody.omit({ monthKey: true })
 // Any of the fields; another month moves the entry there.
 const updateEntryBody = createEntryBody.partial().refine((body) => Object.keys(body).length > 0)
 
@@ -115,6 +116,24 @@ export function entryRoutes({ db, config }: Deps): Router {
     const { id } = validate(entryParams, req.params)
     budget.deleteEntry(db, currentSession(res).userId, id)
     res.json({ ok: true })
+  })
+
+  return router
+}
+
+/* /api/template: the template's categories and entries, and adding one. They
+   are changed, deleted and reordered through /api/entries and /api/categories. */
+export function templateRoutes({ db, config }: Deps): Router {
+  const router = Router()
+  router.use(requireAuth(db, config))
+
+  router.get('/', (_req, res) => {
+    res.json(budget.readTemplate(db, currentSession(res).userId))
+  })
+
+  router.post('/entries', (req, res) => {
+    const body = validate(createTemplateEntryBody, req.body)
+    res.status(201).json(budget.createEntry(db, currentSession(res).userId, { ...body, monthKey: null }))
   })
 
   return router

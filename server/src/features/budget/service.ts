@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { transaction, type Database } from '../../db.ts'
-import { conflict, notFound } from '../../http/errors.ts'
+import { badRequest, conflict, notFound } from '../../http/errors.ts'
 import { LIMITS, limitReached } from '../../lib/limits.ts'
 import { logActivity } from '../activity/service.ts'
 import * as repo from './repository.ts'
@@ -17,6 +17,11 @@ import * as repo from './repository.ts'
      category's entries, in the new order. A list that is no longer that
      whole list (something was added or removed meanwhile) is refused, so
      the client reloads instead of saving a partial order.
+   - The template holds the entries a new month can start from. Its row is
+     made with its first entry, and its entries are changed, deleted and
+     reordered like a month's, but stay in the template. It counts as a
+     month for the limits on categories and entries, not for the number of
+     months.
    - Balance = income − expenses, summed in SQL as integers.
    - An account holds at most LIMITS.months months, a month
      LIMITS.entriesPerMonth entries in LIMITS.categoriesPerMonth categories;
@@ -42,9 +47,14 @@ export interface Month {
   totals: { incomeBani: number; expenseBani: number; balanceBani: number }
 }
 
+export interface Template {
+  categories: Category[]
+}
+
 /** An entry on its own, as it is answered after a change. */
 export interface SavedEntry extends Entry {
-  monthKey: string
+  /** null: the template. */
+  monthKey: string | null
   categoryName: string
 }
 
@@ -78,18 +88,40 @@ export function listMonths(db: Database, userId: string): string[] {
   return repo.listMonthKeys(db, userId)
 }
 
-/** The month with every category in order, each with its entries, and the totals. */
-export function readMonth(db: Database, userId: string, monthKey: string): Month {
-  const month = requireMonth(db, userId, monthKey)
-  const entries = repo.listEntries(db, userId, month.id)
-  const categories = repo.listCategories(db, userId, month.id).map((category) => ({
+// Every category of the month (or template) in order, each with its entries.
+function categoriesOf(db: Database, userId: string, monthId: string): Category[] {
+  const entries = repo.listEntries(db, userId, monthId)
+  return repo.listCategories(db, userId, monthId).map((category) => ({
     ...category,
     entries: entries
       .filter((entry) => entry.categoryId === category.id)
       .map(({ id, description, type, amountBani }) => ({ id, description, type, amountBani })),
   }))
+}
+
+/** The month with every category in order, each with its entries, and the totals. */
+export function readMonth(db: Database, userId: string, monthKey: string): Month {
+  const month = requireMonth(db, userId, monthKey)
   const { incomeBani, expenseBani } = repo.monthTotals(db, userId, month.id)
-  return { monthKey, categories, totals: { incomeBani, expenseBani, balanceBani: incomeBani - expenseBani } }
+  return {
+    monthKey,
+    categories: categoriesOf(db, userId, month.id),
+    totals: { incomeBani, expenseBani, balanceBani: incomeBani - expenseBani },
+  }
+}
+
+/** Empty until its first entry. */
+export function readTemplate(db: Database, userId: string): Template {
+  const id = repo.findTemplateId(db, userId)
+  return { categories: id ? categoriesOf(db, userId, id) : [] }
+}
+
+function templateId(db: Database, userId: string): string {
+  const existing = repo.findTemplateId(db, userId)
+  if (existing) return existing
+  const id = randomUUID()
+  repo.insertTemplate(db, { id, userId, now: new Date().toISOString() })
+  return id
 }
 
 export function createMonth(db: Database, userId: string, monthKey: string): Month {
@@ -120,7 +152,8 @@ function toSavedEntry(row: repo.FullEntryRow): SavedEntry {
   return { id, monthKey, categoryName, description, type, amountBani }
 }
 
-// What the activity history shows for an entry: the user's own data, never logged.
+// What the activity history shows for an entry: the user's own data, never
+// logged. A template entry has a null monthKey.
 function entryActivity(row: repo.FullEntryRow) {
   return {
     description: row.description,
@@ -140,7 +173,8 @@ function findOrCreateCategory(db: Database, userId: string, monthId: string, nam
 }
 
 export interface NewEntryInput {
-  monthKey: string
+  /** null: the template. */
+  monthKey: string | null
   categoryName: string
   description: string
   type: repo.EntryType
@@ -149,31 +183,35 @@ export interface NewEntryInput {
 
 export function createEntry(db: Database, userId: string, input: NewEntryInput): SavedEntry {
   return transaction(db, () => {
-    const month = requireMonth(db, userId, input.monthKey)
+    const monthId = input.monthKey === null ? templateId(db, userId) : requireMonth(db, userId, input.monthKey).id
     const id = randomUUID()
     repo.insertEntry(db, {
       id,
       userId,
-      monthId: month.id,
-      categoryId: findOrCreateCategory(db, userId, month.id, input.categoryName),
+      monthId,
+      categoryId: findOrCreateCategory(db, userId, monthId, input.categoryName),
       description: input.description,
       type: input.type,
       amountBani: input.amountBani,
       now: new Date().toISOString(),
     })
-    checkMonthLimits(db, userId, month.id)
+    checkMonthLimits(db, userId, monthId)
     const created = repo.findEntry(db, userId, id) as repo.FullEntryRow
     logActivity(db, userId, 'entry.created', entryActivity(created))
     return toSavedEntry(created)
   })
 }
 
-export type EntryUpdate = Partial<NewEntryInput>
+/** Any of the fields; another month moves the entry there. */
+export type EntryUpdate = Partial<Omit<NewEntryInput, 'monthKey'>> & { monthKey?: string }
 
 export function updateEntry(db: Database, userId: string, id: string, update: EntryUpdate): SavedEntry {
   return transaction(db, () => {
     const current = repo.findEntry(db, userId, id)
     if (!current) throw entryNotFound()
+    if (current.monthKey === null && update.monthKey !== undefined) {
+      throw badRequest('template_entry_move', 'A template entry stays in the template.')
+    }
 
     let monthId = current.monthId
     const moving = update.monthKey !== undefined && update.monthKey !== current.monthKey

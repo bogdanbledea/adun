@@ -9,7 +9,7 @@ import { createMailer, type Mailer } from './email/mailer.ts'
 import type { Logger } from './lib/log.ts'
 import { activityRoutes } from './features/activity/routes.ts'
 import { authRoutes } from './features/auth/routes.ts'
-import { categoryRoutes, entryRoutes, monthRoutes } from './features/budget/routes.ts'
+import { categoryRoutes, entryRoutes, monthRoutes, templateRoutes } from './features/budget/routes.ts'
 import { userRoutes } from './features/user/routes.ts'
 import { errorHandler, notFoundHandler } from './http/errors.ts'
 import { authLimit, generalLimit } from './http/rate-limits.ts'
@@ -95,6 +95,7 @@ export function createApp({
   app.use('/api/months', monthRoutes({ db, config }))
   app.use('/api/categories', categoryRoutes({ db, config }))
   app.use('/api/entries', entryRoutes({ db, config }))
+  app.use('/api/template', templateRoutes({ db, config }))
 
   // An unknown /api path is a 404 here, before the web app's files.
   app.use('/api', notFoundHandler)

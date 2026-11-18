@@ -1,7 +1,9 @@
 import type { Database } from '../../db.ts'
 
 /* SQL for months, categories and entries. Every function takes the user ID
-   and filters by it, so one user's IDs never reach another's rows. */
+   and filters by it, so one user's IDs never reach another's rows. The
+   template is a row in months with is_template = 1 and no month key; its
+   categories and entries are like a month's. */
 
 export type EntryType = 'income' | 'expense'
 
@@ -26,7 +28,8 @@ export interface EntryRow {
 /** An entry with its month and category. */
 export interface FullEntryRow extends EntryRow {
   monthId: string
-  monthKey: string
+  /** null: the template. */
+  monthKey: string | null
   categoryName: string
 }
 
@@ -37,10 +40,10 @@ export interface Totals {
 
 // ── Months ───────────────────────────────────────────────────────────────────
 
-/** Oldest first. */
+/** Oldest first, the template aside. */
 export function listMonthKeys(db: Database, userId: string): string[] {
   return db
-    .prepare('SELECT month_key FROM months WHERE user_id = ? ORDER BY month_key')
+    .prepare('SELECT month_key FROM months WHERE user_id = ? AND is_template = 0 ORDER BY month_key')
     .all(userId)
     .map((row) => row.month_key as string)
 }
@@ -59,8 +62,22 @@ export function insertMonth(db: Database, month: { id: string; userId: string; m
   )
 }
 
+/** The template does not count. */
 export function countMonths(db: Database, userId: string): number {
-  return db.prepare('SELECT count(*) AS n FROM months WHERE user_id = ?').get(userId)?.n as number
+  return db.prepare('SELECT count(*) AS n FROM months WHERE user_id = ? AND is_template = 0').get(userId)?.n as number
+}
+
+export function findTemplateId(db: Database, userId: string): string | null {
+  const row = db.prepare('SELECT id FROM months WHERE user_id = ? AND is_template = 1').get(userId)
+  return row ? (row.id as string) : null
+}
+
+export function insertTemplate(db: Database, template: { id: string; userId: string; now: string }): void {
+  db.prepare('INSERT INTO months (id, user_id, is_template, created_at) VALUES (?, ?, 1, ?)').run(
+    template.id,
+    template.userId,
+    template.now,
+  )
 }
 
 /** Its categories and entries go with it (ON DELETE CASCADE). */
@@ -165,7 +182,7 @@ export function findEntry(db: Database, userId: string, id: string): FullEntryRo
   return {
     id: row.id as string,
     monthId: row.month_id as string,
-    monthKey: row.month_key as string,
+    monthKey: row.month_key as string | null,
     categoryId: row.category_id as string,
     categoryName: row.category_name as string,
     description: row.description as string,
