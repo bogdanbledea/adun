@@ -1,18 +1,99 @@
-import { Pencil, Wallet } from 'lucide-react'
+import { Bike, Info, Pencil, ShoppingCart, Wallet } from 'lucide-react'
 import { useI18n } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
+import { cx } from '../../ui/cx.ts'
 import { Money } from '../../ui/Money.tsx'
 import { ProgressBar } from '../../ui/ProgressBar.tsx'
 import { monthName } from '../budget/month-key.ts'
-import type { FoodMonth } from './food-api.ts'
-import { fill, percent } from './food-format.ts'
+import type { FoodCurrentWeek, FoodMonth } from './food-api.ts'
+import { fill, formatRange, isDelivery, percent } from './food-format.ts'
 
-/* The panels around a food month: what is left of the month and of each
-   source. */
+/* The panels around a food month: the running week, which is the one
+   question the screen exists to answer, the month, the sources and the
+   shops. */
+
+const STATUS_TONE = { ok: 'brand', behind: 'gold', over: 'over' } as const
+const STATUS_BADGE = { ok: 'border-brand text-brand', behind: 'border-warning text-warning', over: 'border-expense text-expense' }
 
 const panel = 'card p-4 sm:p-5'
 const heading = 'font-sans text-sm font-semibold text-muted'
 const hero = 'font-display text-3xl font-semibold tracking-tight text-brand-deep sm:text-4xl'
+
+/** How much is left this week, and whether the spending is on pace. */
+export function CurrentWeekPanel({ week, laterWeeks }: { week: FoodCurrentWeek; laterWeeks: number }) {
+  const { t, language } = useI18n()
+  const over = week.remainingBani < 0
+  let hint = null
+  if (over) {
+    hint =
+      laterWeeks === 0
+        ? t('food.overHintLast')
+        : fill(t(laterWeeks === 1 ? 'food.overHintOne' : 'food.overHintMany', { count: laterWeeks }), {
+            amount: <Money bani={-week.remainingBani} />,
+          })
+  } else if (week.status === 'behind') {
+    hint = fill(t('food.behindHint'), { amount: <Money bani={week.paceBani} /> })
+  }
+
+  return (
+    <section aria-labelledby="food-this-week" className={panel}>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h2 id="food-this-week" className={heading}>
+            {t('food.thisWeek')}
+          </h2>
+          <p className="mt-0.5 text-xs text-muted">{formatRange(week.start, week.end, language)}</p>
+        </div>
+        <span className={cx('rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap', STATUS_BADGE[week.status])}>
+          {t(`food.status.${week.status}`)}
+        </span>
+      </header>
+
+      <p className="mt-3 flex flex-wrap items-baseline gap-x-2">
+        <Money bani={week.remainingBani} signed tone={over ? 'expense' : 'plain'} className={hero} />
+        <span className="text-sm text-muted">
+          {fill(t(over ? 'food.overOf' : 'food.leftOf'), { amount: <Money bani={week.allowanceBani} /> })}
+        </span>
+      </p>
+
+      <div className="mt-4">
+        <ProgressBar
+          value={week.spentBani}
+          max={week.allowanceBani}
+          label={t('food.weekProgress')}
+          tone={STATUS_TONE[week.status]}
+          marker={week.days > 1 && !over ? week.paceBani : undefined}
+        />
+      </div>
+
+      <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-3">
+        <div className="min-w-0">
+          <dt className="text-xs text-muted">{t('food.spent')}</dt>
+          <dd className="font-display text-lg font-semibold">
+            <Money bani={week.spentBani} />
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-xs text-muted">{t('food.daysLeft')}</dt>
+          <dd className="font-display text-lg font-semibold tabular-nums">{week.daysLeft}</dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-xs text-muted">{t('food.perDay')}</dt>
+          <dd className="font-display text-lg font-semibold">
+            <Money bani={week.perDayLeftBani} />
+          </dd>
+        </div>
+      </dl>
+
+      {hint && (
+        <p className="mt-3 flex items-start gap-2 border-t border-line pt-3 text-sm text-muted">
+          <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info" />
+          <span>{hint}</span>
+        </p>
+      )}
+    </section>
+  )
+}
 
 /** What is left of the month. The hero when no week is running (a past or future month). */
 export function MonthPanel({ data, compact }: { data: FoodMonth; compact: boolean }) {
@@ -82,6 +163,43 @@ export function SourcesPanel({ data, onEdit }: { data: FoodMonth; onEdit: () => 
                   label={t('food.sourceProgress', { name: source.name })}
                   tone={over ? 'over' : 'brand'}
                 />
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+/** Where the money went, biggest shop first. Hidden until there is a purchase. */
+export function MerchantsPanel({ data }: { data: FoodMonth }) {
+  const { t } = useI18n()
+  const top = data.merchants[0]
+  if (!top) return null
+  return (
+    <section aria-labelledby="food-merchants" className={panel}>
+      <h2 id="food-merchants" className={cx(heading, 'mb-3')}>
+        {t('food.byStore')}
+      </h2>
+      <ul className="flex flex-col gap-3">
+        {data.merchants.map((merchant) => {
+          const Icon = isDelivery(merchant.name) ? Bike : ShoppingCart
+          return (
+            <li key={merchant.name}>
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="flex min-w-0 items-center gap-2">
+                  <Icon aria-hidden="true" className="size-4 shrink-0 text-muted" />
+                  <span className="truncate font-semibold">{merchant.name}</span>
+                  <span className="text-xs text-muted">×{merchant.count}</span>
+                </span>
+                <span className="whitespace-nowrap">
+                  <Money bani={merchant.totalBani} className="font-semibold" />
+                  <span className="ml-1.5 text-xs text-muted tabular-nums">{Math.round(percent(merchant.totalBani, data.spentBani))}%</span>
+                </span>
+              </div>
+              <div className="mt-1.5">
+                <ProgressBar value={merchant.totalBani} max={top.totalBani} label={merchant.name} tone="gold" />
               </div>
             </li>
           )

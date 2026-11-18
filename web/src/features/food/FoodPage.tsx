@@ -12,8 +12,9 @@ import { Skeleton } from '../../ui/Skeleton.tsx'
 import { currentMonthKey, monthKeyToParam, monthLong, monthName, paramToMonthKey, shiftMonth } from '../budget/month-key.ts'
 import { foodApi, type EmptyFoodMonth, type FoodMonth, type FoodMonthData } from './food-api.ts'
 import { formatRange } from './food-format.ts'
-import { MonthPanel, SourcesPanel } from './FoodSummary.tsx'
+import { CurrentWeekPanel, MerchantsPanel, MonthPanel, SourcesPanel } from './FoodSummary.tsx'
 import { SourcesDialog } from './SourcesDialog.tsx'
+import { WeekList } from './WeekList.tsx'
 
 /* /mancare/:month (MM-YY): a month's food budget. Without a month, or with
    one that is not a month, it opens the month whose money today belongs to:
@@ -50,6 +51,7 @@ function FoodMonthView({ monthKey }: { monthKey: string }) {
   const [data, setData] = useState<FoodMonthData | null>(null)
   const [loadError, setLoadError] = useState<unknown>(null)
   const [open, setOpen] = useState<Open>(null)
+  const [week, setWeek] = useState<number | null>(null)
 
   const load = useCallback(
     (signal?: AbortSignal) =>
@@ -90,7 +92,7 @@ function FoodMonthView({ monthKey }: { monthKey: string }) {
   } else if (!data.exists) {
     body = <SetupState data={data} onStart={editSources} />
   } else {
-    body = <MonthLayout data={data} onEditSources={editSources} />
+    body = <MonthLayout data={data} week={week} onWeek={setWeek} onEditSources={editSources} />
   }
 
   const navClass = 'grid size-11 pointer-fine:size-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-hover hover:text-ink [&_svg]:size-5'
@@ -142,15 +144,35 @@ function FoodMonthView({ monthKey }: { monthKey: string }) {
 
 /* One column on a phone in reading order; from lg the summaries move to a side
    column. `contents` lets the same elements take part in either layout. */
-function MonthLayout({ data, onEditSources }: { data: FoodMonth; onEditSources: () => void }) {
+interface MonthLayoutProps {
+  data: FoodMonth
+  week: number | null
+  onWeek: (week: number | null) => void
+  onEditSources: () => void
+}
+
+function MonthLayout({ data, week, onWeek, onEditSources }: MonthLayoutProps) {
+  const current = data.currentWeek
+  const laterWeeks = current ? data.weeks.filter((w) => w.index > current.index).length : 0
   return (
     <div className="grid gap-4 pb-20 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
       <div className="contents lg:flex lg:flex-col lg:gap-4">
-        <MonthPanel data={data} compact={false} />
+        {current ? <CurrentWeekPanel week={current} laterWeeks={laterWeeks} /> : <MonthPanel data={data} compact={false} />}
+        <div className="order-3 lg:order-none">
+          <WeekList weeks={data.weeks} selected={week} onSelect={onWeek} />
+        </div>
       </div>
       <div className="contents lg:flex lg:flex-col lg:gap-4">
+        {current && (
+          <div className="order-1 lg:order-none">
+            <MonthPanel data={data} compact />
+          </div>
+        )}
         <div className="order-2 lg:order-none">
           <SourcesPanel data={data} onEdit={onEditSources} />
+        </div>
+        <div className="order-4 lg:order-none">
+          <MerchantsPanel data={data} />
         </div>
       </div>
     </div>

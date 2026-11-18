@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
 import { expect, test } from 'vitest'
-import { fill, formatRange, percent, sameName } from './food-format.ts'
+import { translate, type Language, type Translate } from '../../lib/i18n.tsx'
+import { counted, fill, formatRange, isDelivery, percent, sameName } from './food-format.ts'
 
 test('a name is the same whatever its case and spaces', () => {
   expect(sameName(' kaufland', 'Kaufland ')).toBe(true)
@@ -28,4 +29,19 @@ test('a share stays between 0 and 100', () => {
   expect(percent(-5, 200)).toBe(0)
   expect(percent(5, 0)).toBe(100)
   expect(percent(0, 0)).toBe(0)
+})
+
+test('days are counted with "de" from 20 up in Romanian', () => {
+  const t = (language: Language): Translate => (key, params) => translate(language, key, params)
+  expect(counted(t('ro'), 'food.count.days', 1)).toBe('1 zi')
+  expect(counted(t('ro'), 'food.count.days', 6)).toBe('6 zile')
+  expect(counted(t('ro'), 'food.count.days', 21)).toBe('21 de zile')
+  expect(counted(t('ro'), 'food.count.days', 101)).toBe('101 zile')
+  expect(counted(t('en'), 'food.count.days', 21)).toBe('21 days')
+})
+
+test('delivery apps are told apart from shops', () => {
+  expect(isDelivery('Bolt Food')).toBe(true)
+  expect(isDelivery('glovo')).toBe(true)
+  expect(isDelivery('Kaufland')).toBe(false)
 })

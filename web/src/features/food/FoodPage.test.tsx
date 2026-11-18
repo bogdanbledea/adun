@@ -36,6 +36,9 @@ const november: FoodMonth = {
     { id: 's1', name: 'Card', amountBani: 150_000, spentBani: 10_000, remainingBani: 140_000 },
     { id: 's2', name: 'Cash', amountBani: 20_000, spentBani: 17_000, remainingBani: 3_000 },
   ],
+  weeks: [],
+  currentWeek: null,
+  merchants: [],
 }
 
 const renderPage = (path: string) => renderWithProviders(<App />, { path, withAuth: true })
@@ -141,4 +144,30 @@ test('a month that cannot be loaded says so and can be tried again', async () =>
   renderPage('/mancare/11-26')
   expect(await screen.findByText(/Nu am putut încărca bugetul de mâncare/)).toBeDefined()
   expect(screen.getByRole('button', { name: 'Încearcă din nou' })).toBeDefined()
+})
+
+test('the running week shows what is left, the pace and the weeks', async () => {
+  const week = { index: 2, start: '2026-11-02', end: '2026-11-08', days: 7, state: 'current' as const, estimated: false, beforeStart: false }
+  const data: FoodMonth = {
+    ...november,
+    weeks: [
+      { ...week, index: 1, start: '2026-11-01', end: '2026-11-01', days: 1, allowanceBani: 0, spentBani: 8_450, remainingBani: -8_450, state: 'past', beforeStart: true },
+      { ...week, allowanceBani: 40_000, spentBani: 25_000, remainingBani: 15_000 },
+    ],
+    currentWeek: { ...week, allowanceBani: 40_000, spentBani: 25_000, remainingBani: 15_000, daysElapsed: 3, daysLeft: 5, paceBani: 17_143, perDayLeftBani: 3_000, status: 'behind' },
+    merchants: [{ name: 'Lidl', totalBani: 27_000, count: 3 }],
+  }
+  fakeServer({ '/api/user/me': [200, testAccount], [at('/api/food/2026-11')]: [200, data] })
+  renderPage('/mancare/11-26')
+
+  const panel = (await screen.findByRole('heading', { name: 'Săptămâna aceasta' })).closest('section') as HTMLElement
+  expect(within(panel).getByText('Atenție la ritm')).toBeDefined()
+  expect(panel.textContent).toContain('rămași din 400lei')
+  expect(panel.textContent).toContain('cel mult 171,43lei')
+  const weeks = screen.getByRole('heading', { name: 'Săptămâni' }).closest('section') as HTMLElement
+  expect(within(weeks).getAllByRole('button').map((b) => b.textContent)).toEqual([
+    'Săpt. 1 · 1 nov. · 1 zi0leiînainte de buget · cheltuit 84,50lei',
+    'Săpt. 2 · 2–8 nov.400leicheltuit 250lei · rămas 150lei',
+  ])
+  expect(screen.getByRole('heading', { name: 'Pe magazine' })).toBeDefined()
 })

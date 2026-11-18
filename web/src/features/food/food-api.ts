@@ -21,6 +21,30 @@ export interface FoodSource {
   remainingBani: number
 }
 
+export interface FoodWeek {
+  index: number
+  start: string
+  end: string
+  days: number
+  allowanceBani: number
+  spentBani: number
+  remainingBani: number
+  state: 'past' | 'current' | 'future'
+  /** A later week whose allowance still depends on how this week ends. */
+  estimated: boolean
+  /** Entirely before the budget was set up. */
+  beforeStart: boolean
+}
+
+export interface FoodCurrentWeek extends FoodWeek {
+  daysElapsed: number
+  daysLeft: number
+  /** What should have been spent by the end of today. */
+  paceBani: number
+  perDayLeftBani: number
+  status: 'ok' | 'behind' | 'over'
+}
+
 interface MonthCommon {
   monthKey: string
   period: FoodPeriod
@@ -38,6 +62,9 @@ export interface FoodMonth extends MonthCommon {
   spentBani: number
   remainingBani: number
   sources: FoodSource[]
+  weeks: FoodWeek[]
+  currentWeek: FoodCurrentWeek | null
+  merchants: { name: string; totalBani: number; count: number }[]
 }
 
 export type FoodMonthData = EmptyFoodMonth | FoodMonth

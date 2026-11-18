@@ -1,11 +1,19 @@
 import { Fragment, createElement, type ReactNode } from 'react'
-import type { Language } from '../../lib/i18n.tsx'
+import type { Language, MessageKey, Translate } from '../../lib/i18n.tsx'
+import { takesDe } from '../reminders/kinds.ts'
 
 /* Small helpers the food screens share. Dates are calendar days, so they are
    formatted in UTC. */
 
 const locale = (language: Language) => (language === 'ro' ? 'ro-RO' : 'en-GB')
 const utc = (date: string) => new Date(`${date}T00:00:00Z`)
+
+const DELIVERY = /bolt|glovo|tazz|wolt|foodpanda|livrare|delivery/i
+
+/** Delivery apps get a bike icon instead of a cart. */
+export function isDelivery(merchant: string): boolean {
+  return DELIVERY.test(merchant)
+}
 
 /** The same name however it was typed: "kaufland" is "Kaufland". */
 export function sameName(a: string, b: string): boolean {
@@ -18,6 +26,16 @@ export function formatRange(start: string, end: string, language: Language): str
     utc(start),
     utc(end),
   )
+}
+
+/* A counted noun has three texts: `<base>.one`, `<base>.many` and
+   `<base>.manyDe` for the Romanian counts that take "de" (English repeats
+   `many`). */
+export type CountedNoun = 'food.count.days'
+
+export function counted(t: Translate, noun: CountedNoun, count: number): string {
+  if (count === 1) return t(`${noun}.one`)
+  return t(`${noun}.${takesDe(count) ? 'manyDe' : 'many'}` as MessageKey, { count })
 }
 
 /** A translated sentence with React nodes in place of its {placeholders}:
