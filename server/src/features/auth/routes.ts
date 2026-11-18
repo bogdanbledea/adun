@@ -24,6 +24,7 @@ import {
   setSignupCookie,
 } from './session.ts'
 import * as repo from './repository.ts'
+import { confirmPassword } from './step-up.ts'
 import { issueToken, rearmToken } from './tokens.ts'
 
 // The language the web app is shown in; emails sent for the request use it.
@@ -58,6 +59,10 @@ const changePasswordBody = z.object({
   currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
   newPassword: z.string(),
   language,
+})
+
+const passwordBody = z.object({
+  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
 })
 
 const resetBody = z.object({
@@ -264,6 +269,13 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
       to: user.email,
       ...passwordChanged(body.language, { displayName: user.displayName, resetUrl }),
     })
+  })
+
+  // Before an action that asks for the password again (step-up.ts).
+  router.post('/confirm-password', requireAuth(db, config), async (req, res) => {
+    const body = validate(passwordBody, req.body)
+    await confirmPassword(db, req.log, currentSession(res), body.password)
+    res.json({ ok: true })
   })
 
   // Ends every session of the account, on every device, this one included.

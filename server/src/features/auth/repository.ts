@@ -131,6 +131,27 @@ export function revokeSessionByTokenHash(db: Database, tokenHash: string, now: s
   db.prepare('UPDATE sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL').run(now, tokenHash)
 }
 
+/** Records that the password was just typed again on this live session. */
+export function setPasswordConfirmed(db: Database, sessionId: string, now: string): boolean {
+  const result = db
+    .prepare('UPDATE sessions SET password_confirmed_at = :now WHERE id = :sessionId AND revoked_at IS NULL AND expires_at > :now')
+    .run({ sessionId, now })
+  return result.changes === 1
+}
+
+/** Uses up a password confirmation made on this live session since `since`.
+    One statement, so two requests cannot both use the same confirmation. */
+export function claimPasswordConfirmed(db: Database, sessionId: string, since: string, now: string): boolean {
+  const result = db
+    .prepare(
+      `UPDATE sessions SET password_confirmed_at = NULL
+       WHERE id = :sessionId AND revoked_at IS NULL AND expires_at > :now
+         AND password_confirmed_at >= :since AND password_confirmed_at <= :now`,
+    )
+    .run({ sessionId, since, now })
+  return result.changes === 1
+}
+
 /** Revokes the user's live sessions except the `keep` most recent. */
 export function revokeOldestSessions(db: Database, userId: string, keep: number, now: string): void {
   db.prepare(
