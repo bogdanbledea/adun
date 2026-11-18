@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import type { Config } from '../../config.ts'
-import type { Database } from '../../db.ts'
+import { transaction, type Database } from '../../db.ts'
 import { notFound } from '../../http/errors.ts'
 import { validate } from '../../http/validate.ts'
+import { logActivity } from '../activity/service.ts'
 import { currentSession, requireAuth } from '../auth/require-auth.ts'
 import { clearSessionCookie } from '../auth/session.ts'
 import { requireRecentPassword } from '../auth/step-up.ts'
@@ -27,7 +28,11 @@ export function userRoutes({ db, config }: { db: Database; config: Config }): Ro
   router.patch('/me', (req, res) => {
     const { userId } = currentSession(res)
     const { displayName } = validate(profileBody, req.body)
-    const user = setDisplayName(db, userId, displayName)
+    const user = transaction(db, () => {
+      const changed = setDisplayName(db, userId, displayName)
+      if (changed) logActivity(db, userId, 'account.renamed')
+      return changed
+    })
     if (!user) throw notFound()
     req.log.info({ userId }, 'user.profile_updated')
     res.json(user)

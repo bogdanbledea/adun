@@ -1,5 +1,6 @@
 import { transaction, type Database } from '../../db.ts'
 import type { Logger } from '../../lib/log.ts'
+import { logActivity } from '../activity/service.ts'
 import { passwords } from './password.ts'
 import * as repo from './repository.ts'
 import { passwordMatches, wrongPassword } from './service.ts'
@@ -27,6 +28,7 @@ export async function changePassword(
     repo.setPasswordHash(db, userId, passwordHash, now)
     repo.revokeUserSessions(db, userId, now, sessionId)
     repo.deleteTokens(db, userId, 'password_reset')
+    logActivity(db, userId, 'account.password_changed')
   })
   log.info({ userId }, 'auth.password_changed')
 }

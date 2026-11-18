@@ -1,5 +1,6 @@
 import { transaction, type Database } from '../../db.ts'
 import type { Logger } from '../../lib/log.ts'
+import { logActivity } from '../activity/service.ts'
 import { passwords } from './password.ts'
 import * as repo from './repository.ts'
 import { startSession } from './service.ts'
@@ -33,6 +34,7 @@ export async function resetPassword(
     const now = new Date().toISOString()
     repo.setPasswordHash(db, used.userId, passwordHash, now)
     repo.revokeUserSessions(db, used.userId, now)
+    logActivity(db, used.userId, 'account.password_reset')
     return used.userId
   })
   // Used or replaced while the password was being hashed.

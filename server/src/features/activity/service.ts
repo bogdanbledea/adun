@@ -10,7 +10,11 @@ import * as repo from './repository.ts'
 export const ACTIVITY_RETENTION_DAYS = 365
 export const ACTIVITY_MAX_ENTRIES = 5000
 
-export type ActivityAction = 'account.renamed' | 'account.password_changed' | 'account.logged_out_everywhere'
+export type ActivityAction =
+  | 'account.renamed'
+  | 'account.password_changed'
+  | 'account.password_reset'
+  | 'account.logged_out_everywhere'
 
 /** Records an action. Call it inside the transaction that makes the change. */
 export function logActivity(db: Database, userId: string, action: ActivityAction): void {

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { transaction, type Database } from '../../db.ts'
 import { forbidden, HttpError } from '../../http/errors.ts'
 import type { Logger } from '../../lib/log.ts'
+import { logActivity } from '../activity/service.ts'
 import { passwords } from './password.ts'
 import * as repo from './repository.ts'
 import { hashToken, newToken, SESSION_TTL_MS } from './session.ts'
@@ -172,5 +173,8 @@ export function logout(db: Database, token: string): void {
 }
 
 export function logoutEverywhere(db: Database, userId: string): void {
-  repo.revokeUserSessions(db, userId, new Date().toISOString())
+  transaction(db, () => {
+    repo.revokeUserSessions(db, userId, new Date().toISOString())
+    logActivity(db, userId, 'account.logged_out_everywhere')
+  })
 }
