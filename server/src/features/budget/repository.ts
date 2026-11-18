@@ -23,6 +23,13 @@ export interface EntryRow {
   amountBani: number
 }
 
+/** An entry with its month and category. */
+export interface FullEntryRow extends EntryRow {
+  monthId: string
+  monthKey: string
+  categoryName: string
+}
+
 export interface Totals {
   incomeBani: number
   expenseBani: number
@@ -83,6 +90,34 @@ export function listCategories(db: Database, userId: string, monthId: string): C
     .map((row) => ({ id: row.id as string, name: row.name as string }))
 }
 
+export function countCategories(db: Database, userId: string, monthId: string): number {
+  return db.prepare('SELECT count(*) AS n FROM categories WHERE month_id = ? AND user_id = ?').get(monthId, userId)
+    ?.n as number
+}
+
+export function findCategoryByName(db: Database, userId: string, monthId: string, name: string): CategoryRow | null {
+  const row = db
+    .prepare('SELECT id, name FROM categories WHERE month_id = ? AND user_id = ? AND name = ?')
+    .get(monthId, userId, name)
+  return row ? { id: row.id as string, name: row.name as string } : null
+}
+
+/** Adds a category after the month's last one. */
+export function insertCategory(db: Database, category: { id: string; userId: string; monthId: string; name: string }): void {
+  db.prepare(
+    `INSERT INTO categories (id, user_id, month_id, name, sort_order)
+     VALUES (?, ?, ?, ?, (SELECT coalesce(max(sort_order) + 1, 0) FROM categories WHERE month_id = ?))`,
+  ).run(category.id, category.userId, category.monthId, category.name, category.monthId)
+}
+
+/** A category lives as long as it has entries. */
+export function deleteCategoryIfEmpty(db: Database, userId: string, id: string): void {
+  db.prepare(
+    `DELETE FROM categories
+     WHERE id = ? AND user_id = ? AND NOT EXISTS (SELECT 1 FROM entries WHERE category_id = categories.id)`,
+  ).run(id, userId)
+}
+
 // ── Entries ──────────────────────────────────────────────────────────────────
 
 export function countEntries(db: Database, userId: string, monthId: string): number {
@@ -105,4 +140,93 @@ export function listEntries(db: Database, userId: string, monthId: string): Entr
       type: row.type as EntryType,
       amountBani: row.amount_bani as number,
     }))
+}
+
+export function findEntry(db: Database, userId: string, id: string): FullEntryRow | null {
+  const row = db
+    .prepare(
+      `SELECT e.id, e.month_id, m.month_key, e.category_id, c.name AS category_name, e.description, e.type, e.amount_bani
+       FROM entries e
+       JOIN months m ON m.id = e.month_id
+       JOIN categories c ON c.id = e.category_id
+       WHERE e.id = ? AND e.user_id = ?`,
+    )
+    .get(id, userId)
+  if (!row) return null
+  return {
+    id: row.id as string,
+    monthId: row.month_id as string,
+    monthKey: row.month_key as string,
+    categoryId: row.category_id as string,
+    categoryName: row.category_name as string,
+    description: row.description as string,
+    type: row.type as EntryType,
+    amountBani: row.amount_bani as number,
+  }
+}
+
+export interface NewEntry {
+  id: string
+  userId: string
+  monthId: string
+  categoryId: string
+  description: string
+  type: EntryType
+  amountBani: number
+  now: string
+}
+
+/** Adds an entry after the category's last one. */
+export function insertEntry(db: Database, entry: NewEntry): void {
+  db.prepare(
+    `INSERT INTO entries (id, user_id, month_id, category_id, description, type, amount_bani, sort_order, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort_order) + 1, 0) FROM entries WHERE category_id = ?), ?)`,
+  ).run(
+    entry.id,
+    entry.userId,
+    entry.monthId,
+    entry.categoryId,
+    entry.description,
+    entry.type,
+    entry.amountBani,
+    entry.categoryId,
+    entry.now,
+  )
+}
+
+export interface EntryChanges {
+  monthId: string
+  categoryId: string
+  description: string
+  type: EntryType
+  amountBani: number
+  /** Puts the entry after the last one of its (new) category. */
+  appendLast: boolean
+}
+
+/** Writes every field at once; the service has merged them with the current ones. */
+export function updateEntry(db: Database, userId: string, id: string, changes: EntryChanges): void {
+  db.prepare(
+    `UPDATE entries
+     SET month_id = ?, category_id = ?, description = ?, type = ?, amount_bani = ?,
+         sort_order = CASE WHEN ? THEN
+           (SELECT coalesce(max(sort_order) + 1, 0) FROM entries WHERE category_id = ? AND id <> ?)
+         ELSE sort_order END
+     WHERE id = ? AND user_id = ?`,
+  ).run(
+    changes.monthId,
+    changes.categoryId,
+    changes.description,
+    changes.type,
+    changes.amountBani,
+    Number(changes.appendLast),
+    changes.categoryId,
+    id,
+    id,
+    userId,
+  )
+}
+
+export function deleteEntry(db: Database, userId: string, id: string): void {
+  db.prepare('DELETE FROM entries WHERE id = ? AND user_id = ?').run(id, userId)
 }

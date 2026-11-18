@@ -18,6 +18,10 @@ export type ActivityAction =
   | 'account.logged_out_everywhere'
   | 'month.created'
   | 'month.deleted'
+  | 'entry.created'
+  | 'entry.updated'
+  | 'entry.moved'
+  | 'entry.deleted'
 
 /** Records an action, with what it was about when that helps the user
     recognise it. Call it inside the transaction that makes the change. */
