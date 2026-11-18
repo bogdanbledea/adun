@@ -24,6 +24,7 @@ const list = (query: string, cookie: string | null = ana) =>
 interface Entry {
   id: number
   action: string
+  metadata: Record<string, unknown> | null
   createdAt: string
 }
 
@@ -48,6 +49,14 @@ describe('logActivity', () => {
       }),
     )
     assert.equal(db.prepare("SELECT 1 FROM activity_logs WHERE action = 'account.password_changed'").get(), undefined)
+  })
+
+  test('keeps the details given with the action', () => {
+    transaction(db, () => {
+      logActivity(db, ionId, 'account.renamed', { name: 'Ion', count: 2, note: null })
+    })
+    const row = db.prepare('SELECT metadata FROM activity_logs WHERE user_id = ?').get(ionId)
+    assert.deepEqual(JSON.parse(row?.metadata as string), { name: 'Ion', count: 2, note: null })
   })
 
   test('refuses to run outside a transaction', () => {
@@ -92,9 +101,10 @@ describe('GET /api/activity', () => {
     assert.equal(entries.length, 50)
     const newest = entries[0]
     assert.ok(newest)
-    assert.deepEqual(Object.keys(newest).sort(), ['action', 'createdAt', 'id'])
+    assert.deepEqual(Object.keys(newest).sort(), ['action', 'createdAt', 'id', 'metadata'])
     assert.equal(newest.createdAt, new Date(start + 119 * 60_000).toISOString())
     assert.equal(newest.action, 'account.renamed')
+    assert.equal(newest.metadata, null)
     assert.equal(entries[49]?.createdAt, new Date(start + 70 * 60_000).toISOString())
   })
 
@@ -108,6 +118,15 @@ describe('GET /api/activity', () => {
     for (const query of ['?limit=0', '?limit=101', '?limit=abc', '?limit=1.5', '?offset=-1', '?limit=1&limit=2']) {
       assert.equal((await list(query)).status, 400, query)
     }
+  })
+
+  test('returns the details of an entry', async () => {
+    transaction(db, () => {
+      logActivity(db, anaId, 'account.renamed', { name: 'Ana' })
+    })
+    const [newest] = (await (await list('?limit=1')).json()) as Entry[]
+    assert.deepEqual(newest?.metadata, { name: 'Ana' })
+    db.exec("DELETE FROM activity_logs WHERE metadata IS NOT NULL")
   })
 
   test('shows only the caller’s entries', async () => {
