@@ -17,6 +17,7 @@ export const ro = {
   'nav.food': 'Mâncare',
   'nav.reminders': 'Scadențe',
   'footer.copyright': '© {year} adun',
+  'footer.privacy': 'Confidențialitate',
 
   // Sections
   'budget.subtitle': 'Ce intră, ce iese și ce rămâne în fiecare lună.',
@@ -44,6 +45,22 @@ export const ro = {
   'auth.hidePassword': 'Ascunde parola',
   'auth.signIn': 'Intră în cont',
   'auth.signingIn': 'Se verifică...',
+
+  // Privacy page
+  'privacyPage.title': 'Confidențialitate',
+  'privacyPage.intro': 'Ce păstrează aplicația despre tine, unde și pe cine poți întreba.',
+  'privacyPage.storedTitle': 'Ce se păstrează',
+  'privacyPage.storedAccount': 'Contul: adresa de email, numele afișat, parola (doar ca hash Argon2, niciodată în clar) și data la care a fost creat.',
+  'privacyPage.storedSessions': 'Sesiunile de autentificare: doar un hash al cookie-ului de sesiune, cu data expirării. O sesiune expiră după 30 de zile fără folosire.',
+  'privacyPage.storedNot': 'Aplicația nu se conectează la bancă și nu păstrează adresa IP sau browserul cu care te autentifici.',
+  'privacyPage.whereTitle': 'Unde',
+  'privacyPage.whereText': 'Toate datele stau într-o singură bază de date pe serverul care rulează aplicația. Aplicația nu le trimite nicăieri altundeva.',
+  'privacyPage.browserTitle': 'În browser',
+  'privacyPage.browserCookie': 'Un singur cookie, cel de sesiune, necesar ca să rămâi autentificat. Nu poate fi citit de scripturi.',
+  'privacyPage.browserStorage': 'În memoria locală a browserului: limba și tema alese.',
+  'privacyPage.browserNoTracking': 'Fără reclame, fără statistici de trafic, fără scripturi de la terți.',
+  'privacyPage.contactTitle': 'Contact',
+  'privacyPage.contactAdmin': 'Aplicația rulează pe un server administrat de o anumită persoană, care decide cum sunt folosite datele de pe el. Pentru întrebări sau cereri privind datele tale, adresează-te ei.',
 
   // Errors, by the server's error code
   'error.invalid_credentials': 'Email sau parolă incorecte.',

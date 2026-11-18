@@ -1,4 +1,5 @@
 import { BellRing, Moon, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Outlet } from 'react-router'
 import { useI18n } from '../lib/i18n.tsx'
 import { useTheme } from '../lib/theme.tsx'
@@ -9,9 +10,10 @@ import { Footer } from './Footer.tsx'
 
 /* The frame around every page: the brand, the three section tabs and the
    controls (theme, language) in one row on wide screens, the tabs on a row of
-   their own below on narrow ones; then the page, then the footer. */
+   their own below on narrow ones; then the page, then the footer. The page is
+   the matched route, or `children` when given. */
 
-export function AppShell() {
+export function AppShell({ children }: { children?: ReactNode }) {
   const { t, toggleLanguage } = useI18n()
   const { theme, toggleTheme } = useTheme()
 
@@ -43,7 +45,7 @@ export function AppShell() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 sm:px-6 sm:py-6">
-        <Outlet />
+        {children ?? <Outlet />}
       </main>
       <Footer />
     </div>
