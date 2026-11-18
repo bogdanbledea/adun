@@ -98,8 +98,10 @@ server of your own.
 
 With email on, a new account confirms its address through a link before the
 first sign-in, and a forgotten password can be replaced through a link valid
-for one hour. With email off, accounts work as soon as they are created and
-passwords cannot be reset by email.
+for one hour. Registering with an address that already has an account sends
+its owner a notice (at most one a day) instead of a link. With email off,
+accounts work as soon as they are created and passwords cannot be reset by
+email.
 
 | Variable          | Default | Meaning                                                     |
 | ----------------- | ------- | ----------------------------------------------------------- |

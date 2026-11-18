@@ -64,11 +64,34 @@ describe('with email on', async () => {
     assert.equal(english.sent.subject, 'Confirm your email address')
   })
 
-  test('a taken address gets the same answer, cookie included, and no link', async () => {
+  test('a taken address gets the same answer, cookie included; its owner gets a notice, not a link', async () => {
     const before = mailer.sent.length
+    const res = await client.request('POST', '/api/auth/register', {
+      body: { ...registration('ana@example.com', 'en'), displayName: 'Someone Else' },
+    })
+    assert.equal(res.status, 201)
+    assert.deepEqual(await res.json(), { ok: true })
+    assert.match(res.headers.get('set-cookie') ?? '', /^adun_signup=/)
+
+    const sent = await nextEmail(mailer, before + 1)
+    assert.equal(sent.kind, 'account_exists')
+    assert.equal(sent.to, 'ana@example.com')
+    assert.equal(sent.subject, 'You already have an adun account')
+    assert.match(sent.text, /^Hi Ana,/)
+    assert.doesNotMatch(sent.text, /Someone Else|#token=/)
+    assert.match(sent.text, /http:\/\/app\.test\/buget/)
+    assert.match(sent.text, /http:\/\/app\.test\/parola-uitata/)
+  })
+
+  test('at most one notice a day', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const before = mailer.sent.length
+    db.prepare(
+      `UPDATE auth_emails SET sent_at = strftime('%Y-%m-%dT%H:%M:%fZ', sent_at, '-23 hours')
+       WHERE user_id = (SELECT id FROM users WHERE email = 'ana@example.com')`,
+    ).run()
     const res = await client.request('POST', '/api/auth/register', { body: registration('ana@example.com') })
     assert.equal(res.status, 201)
-    assert.match(res.headers.get('set-cookie') ?? '', /^adun_signup=/)
     await new Promise((resolve) => setTimeout(resolve, 50))
     assert.equal(mailer.sent.length, before)
   })
@@ -148,6 +171,13 @@ describe('with email off', async () => {
       body: { email: 'dan@example.com', password: PASSWORD },
     })
     assert.equal(login.status, 200)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    assert.equal(mailer.sent.length, 0)
+  })
+
+  test('a taken address gets the same answer and no notice', async () => {
+    const res = await client.request('POST', '/api/auth/register', { body: registration('dan@example.com') })
+    assert.equal(res.status, 201)
     await new Promise((resolve) => setTimeout(resolve, 50))
     assert.equal(mailer.sent.length, 0)
   })

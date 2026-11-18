@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { Config } from '../../config.ts'
 import type { Database } from '../../db.ts'
 import type { Mailer } from '../../email/mailer.ts'
-import { passwordReset, verifyEmail } from '../../email/templates.ts'
+import { accountExists, passwordReset, verifyEmail } from '../../email/templates.ts'
 import { badRequest, forbidden, unauthorized } from '../../http/errors.ts'
 import { validate } from '../../http/validate.ts'
 import type { Logger } from '../../lib/log.ts'
@@ -113,7 +113,9 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
 
   /* The answer is the same whether or not the address already has an
      account. With email on, a new account is confirmed through a link before
-     it can sign in; with email off it is ready at once. */
+     it can sign in; with email off it is ready at once. An address that
+     already has an account gets a notice instead, at most one a day, so its
+     owner learns of the attempt and finds the way back in. */
   router.post('/register', async (req, res) => {
     if (!config.registrationsEnabled) {
       throw forbidden('registrations_disabled', 'New accounts are not accepted.')
@@ -125,10 +127,22 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
     const result = await auth.register(db, req.log, body, { verified: config.email === null })
     res.status(201).json({ ok: true })
 
-    if (!browserHash || !result.created) return
+    if (!browserHash) return
     afterAnswer(req.log, () => {
-      if (mayEmail(db, req.log, result.userId, 'verification') !== 'yes') return
-      sendConfirmation(body.email, body.displayName, body.language, result.userId, browserHash)
+      if (result.created) {
+        if (mayEmail(db, req.log, result.userId, 'verification') !== 'yes') return
+        sendConfirmation(body.email, body.displayName, body.language, result.userId, browserHash)
+        return
+      }
+      // The owner's name, not the one typed in the form.
+      const account = repo.findCredentials(db, body.email)
+      if (!account || mayEmail(db, req.log, account.id, 'notice') !== 'yes') return
+      const links = { signInUrl: `${config.appUrl}/buget`, resetUrl: `${config.appUrl}/parola-uitata` }
+      void mailer.send('account_exists', {
+        to: account.email,
+        ...accountExists(body.language, { displayName: account.displayName, ...links }),
+      })
+      req.log.info({ userId: account.id }, 'auth.account_exists_notified')
     })
   })
 
