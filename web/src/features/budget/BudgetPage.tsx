@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react'
+import { Copy, FileText, LayoutTemplate } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router'
 import { errorText } from '../../lib/api.ts'
@@ -6,8 +6,8 @@ import { useI18n } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
 import { EmptyState } from '../../ui/EmptyState.tsx'
 import { Notice } from '../../ui/Notice.tsx'
-import { budgetApi } from './budget-api.ts'
-import { currentMonthKey, monthKeyToParam, monthLong, monthRange, paramToMonthKey } from './month-key.ts'
+import { budgetApi, type Source } from './budget-api.ts'
+import { currentMonthKey, monthKeyToParam, monthLong, monthRange, paramToMonthKey, shiftMonth } from './month-key.ts'
 import { MonthSkeleton } from './MonthSkeleton.tsx'
 import { MonthStrip } from './MonthStrip.tsx'
 import { MonthView } from './MonthView.tsx'
@@ -15,7 +15,8 @@ import { MonthView } from './MonthView.tsx'
 /* /buget/:month (MM-YY). The strip offers 12 months back and 13 ahead; a URL
    outside that window, or not a month, opens the current one. The list of
    months with a budget decides whether a month shows its budget or offers
-   to create one. */
+   to create one: empty, from the template, or as a copy of the month before
+   when they have something to copy. */
 
 const MONTHS_BACK = 12
 const MONTHS_AHEAD = 13
@@ -65,6 +66,20 @@ function useMonths(): MonthsState {
   }
 }
 
+// Whether the template has entries to copy. A failure only hides the template choices.
+function useHasTemplate(): boolean {
+  const [hasTemplate, setHasTemplate] = useState(false)
+  useEffect(() => {
+    const controller = new AbortController()
+    budgetApi
+      .template(controller.signal)
+      .then((template) => { setHasTemplate(template.categories.length > 0) })
+      .catch(() => { setHasTemplate(false) })
+    return () => { controller.abort() }
+  }, [])
+  return hasTemplate
+}
+
 export function BudgetPage() {
   const { t } = useI18n()
   const { month } = useParams()
@@ -72,8 +87,12 @@ export function BudgetPage() {
   const visible = useMemo(() => monthRange(today, MONTHS_BACK, MONTHS_AHEAD), [today])
   const selected = month ? paramToMonthKey(month) : null
   const { months, error, reload, add, remove } = useMonths()
+  const hasTemplate = useHasTemplate()
 
   if (!selected || !visible.includes(selected)) return <Navigate to={`/buget/${monthKeyToParam(today)}`} replace />
+
+  const previous = shiftMonth(selected, -1)
+  const previousWithBudget = months?.has(previous) ? previous : null
 
   return (
     <>
@@ -99,26 +118,43 @@ export function BudgetPage() {
           monthKey={selected}
           months={visible}
           monthsWithBudget={months}
+          previousMonth={previousWithBudget}
+          hasTemplate={hasTemplate}
           onMonthCreated={add}
           onMonthDeleted={remove}
         />
       ) : (
-        <NewMonth key={selected} monthKey={selected} onCreated={add} />
+        <NewMonth
+          key={selected}
+          monthKey={selected}
+          previousMonth={previousWithBudget}
+          hasTemplate={hasTemplate}
+          onCreated={add}
+        />
       )}
     </>
   )
 }
 
-function NewMonth({ monthKey, onCreated }: { monthKey: string; onCreated: (monthKey: string) => void }) {
+interface NewMonthProps {
+  monthKey: string
+  /** The month before, when it has a budget to copy. */
+  previousMonth: string | null
+  hasTemplate: boolean
+  onCreated: (monthKey: string) => void
+}
+
+function NewMonth({ monthKey, previousMonth, hasTemplate, onCreated }: NewMonthProps) {
   const { t, language } = useI18n()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
+  const hasChoices = hasTemplate || previousMonth !== null
 
-  const create = async () => {
+  const create = async (from?: Source) => {
     setBusy(true)
     setError(null)
     try {
-      await budgetApi.createMonth(monthKey)
+      await budgetApi.createMonth(monthKey, from)
       onCreated(monthKey)
     } catch (err) {
       setError(err)
@@ -136,12 +172,29 @@ function NewMonth({ monthKey, onCreated }: { monthKey: string; onCreated: (month
             {t('budget.creating')}
           </p>
         ) : (
-          <Button onClick={() => void create()}>{t('budget.createEmpty')}</Button>
+          <>
+            {hasTemplate && (
+              <Button onClick={() => void create('template')}>
+                <LayoutTemplate />
+                {t('budget.useTemplate')}
+              </Button>
+            )}
+            {previousMonth && (
+              <Button variant={hasTemplate ? 'secondary' : 'primary'} onClick={() => void create(previousMonth)}>
+                <Copy />
+                {t('budget.copyMonth', { month: monthLong(previousMonth, language) })}
+              </Button>
+            )}
+            <Button variant={hasChoices ? 'quiet' : 'primary'} onClick={() => void create()}>
+              {t('budget.createEmpty')}
+            </Button>
+          </>
         )
       }
     >
       <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-brand uppercase">{t('budget.newSheet')}</p>
-      <p>{t('budget.newSheetText')}</p>
+      <p>{hasChoices ? t('budget.newSheetChoices') : t('budget.newSheetText')}</p>
+      {hasChoices && <p className="mt-2 text-sm">{t('budget.copyHint')}</p>}
       {error !== null && (
         <div className="mt-4 text-left">
           <Notice tone="error">{errorText(error, t)}</Notice>

@@ -187,6 +187,30 @@ describe('the activity section', () => {
     ])
   })
 
+  test('shows where a month’s entries were copied from, and the template’s entries', async () => {
+    fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/activity?limit=50': [
+        200,
+        [
+          entry(4, 'entry.created', { description: 'Chirie', category: 'Casă', type: 'expense', amountBani: 150_000, monthKey: null }),
+          entry(3, 'month.imported', { monthKey: '2026-12', from: 'template', entries: 2 }),
+          entry(2, 'month.created', { monthKey: '2026-12', from: '2026-11', entries: 5 }),
+          entry(1, 'month.deleted', { monthKey: '2026-10', entries: 3 }),
+        ],
+      ],
+    })
+    renderApp()
+    const section = await screen.findByRole('region', { name: 'Activitate' })
+    const items = await within(section).findAllByRole('listitem')
+    expect(items.map((item) => item.firstElementChild?.textContent)).toEqual([
+      'Înregistrare adăugatăChirie · Casă · 1.500,00 lei · Șablon',
+      'Intrări importateDecembrie 2026 · din Șablon · intrări: 2',
+      'Lună adăugată în bugetDecembrie 2026 · din Noiembrie 2026 · intrări: 5',
+      'Lună ștearsă din bugetOctombrie 2026',
+    ])
+  })
+
   test('says when there is nothing yet, with nothing to erase', async () => {
     fakeServer({ '/api/user/me': [200, testAccount], '/api/activity?limit=50': [200, []] })
     renderApp()

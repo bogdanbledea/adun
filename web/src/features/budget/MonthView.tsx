@@ -13,14 +13,17 @@ import { budgetApi, type Category, type Entry } from './budget-api.ts'
 import { BudgetSummary } from './BudgetSummary.tsx'
 import { CategoryList, type Filter } from './CategoryList.tsx'
 import { EntryDialog } from './EntryDialog.tsx'
+import { ImportMenu } from './ImportMenu.tsx'
 import { monthKeyToParam, monthLong } from './month-key.ts'
 import { MonthSkeleton } from './MonthSkeleton.tsx'
 
 /* One month with a budget: the summary, the entries by category, and the
    dialogs that change them. After every change the month is read again from
    the server, which keeps totals and order exactly as stored; a new order
-   shows at once and is saved behind. An entry moved to another month leaves
-   a notice with a link there. */
+   shows at once and is saved behind. Entries can be imported from the
+   previous month or the template, appended to their categories; the notice
+   says how many came. An entry moved to another month leaves a notice with
+   a link there. */
 
 type Open =
   | { dialog: 'add'; categoryName?: string }
@@ -29,18 +32,32 @@ type Open =
   | { dialog: 'deleteMonth' }
   | null
 
-type Message = { tone: 'moved'; description: string; monthKey: string } | { tone: 'error'; error: unknown; lead?: string }
+type Message =
+  | { tone: 'moved'; description: string; monthKey: string }
+  | { tone: 'imported'; count: number }
+  | { tone: 'error'; error: unknown; lead?: string }
 
 interface MonthViewProps {
   monthKey: string
   /** The months the strip offers. */
   months: string[]
   monthsWithBudget: ReadonlySet<string>
+  /** The month before, when it has a budget to import from. */
+  previousMonth: string | null
+  hasTemplate: boolean
   onMonthCreated: (monthKey: string) => void
   onMonthDeleted: (monthKey: string) => void
 }
 
-export function MonthView({ monthKey, months, monthsWithBudget, onMonthCreated, onMonthDeleted }: MonthViewProps) {
+export function MonthView({
+  monthKey,
+  months,
+  monthsWithBudget,
+  previousMonth,
+  hasTemplate,
+  onMonthCreated,
+  onMonthDeleted,
+}: MonthViewProps) {
   const { t, language } = useI18n()
   const [month, setMonth] = useState<Awaited<ReturnType<typeof budgetApi.month>> | null>(null)
   const [loadError, setLoadError] = useState<unknown>(null)
@@ -152,6 +169,10 @@ export function MonthView({ monthKey, months, monthsWithBudget, onMonthCreated, 
                 {t('budget.viewMonth')}
               </Link>
             </Notice>
+          ) : message.tone === 'imported' ? (
+            <Notice tone={message.count > 0 ? 'success' : 'info'}>
+              {message.count > 0 ? t('budget.imported', { count: message.count }) : t('budget.importedNone')}
+            </Notice>
           ) : (
             <Notice tone="error">
               {message.lead} {errorText(message.error, t)}
@@ -181,6 +202,16 @@ export function MonthView({ monthKey, months, monthsWithBudget, onMonthCreated, 
               </button>
             ))}
           </div>
+          <ImportMenu
+            monthKey={monthKey}
+            previousMonth={previousMonth}
+            hasTemplate={hasTemplate}
+            onImported={(count) => {
+              setMessage({ tone: 'imported', count })
+              void load()
+            }}
+            onFailed={(error) => { setMessage({ tone: 'error', error, lead: t('budget.importFailed') }) }}
+          />
           <Button className="min-h-9 px-3 py-1.5" onClick={() => { setOpen({ dialog: 'add' }) }}>
             <Plus />
             {t('budget.add')}

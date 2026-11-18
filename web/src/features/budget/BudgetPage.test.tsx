@@ -77,13 +77,71 @@ test('offers to create a month without a budget, then shows it', async () => {
   renderApp('/buget/11-26')
 
   expect(await screen.findByText('Foaie nouă')).toBeDefined()
-  expect(screen.getByText('Deschide bugetul lunii și notează primele venituri și cheltuieli.')).toBeDefined()
+  // October has a budget, so it is offered as a copy.
+  expect(screen.getByText('Pornește de la șablon sau de la luna trecută, ori începe cu o foaie goală.')).toBeDefined()
+  expect(screen.getByRole('button', { name: 'Copiază Octombrie 2026' })).toBeDefined()
+  expect(screen.queryByRole('button', { name: 'Folosește șablonul' })).toBeNull()
   await userEvent.click(screen.getByRole('button', { name: 'Creează un buget gol' }))
 
   expect(await screen.findByRole('heading', { name: 'Nicio tranzacție' })).toBeDefined()
   expect(sentBody(fetchMock, '/api/months')).toEqual({ monthKey: '2026-11' })
   const strip = screen.getByRole('navigation', { name: 'Selectează luna' })
   expect(within(strip).getByRole('link', { current: 'page' }).textContent).toBe('Nov, are buget')
+})
+
+test('a month with nothing before it and an empty template is only offered empty', async () => {
+  withDecember({
+    '/api/months': [200, ['2026-12']],
+    'GET /api/template': [200, { categories: [] }],
+  })
+  renderApp('/buget/11-26')
+
+  expect(await screen.findByText('Deschide bugetul lunii și notează primele venituri și cheltuieli.')).toBeDefined()
+  expect(screen.getAllByRole('button', { name: /Folosește șablonul|Copiază|Creează un buget gol/ }).map((b) => b.textContent)).toEqual([
+    'Creează un buget gol',
+  ])
+})
+
+test('a new month starts from the template', async () => {
+  const fetchMock = withDecember({
+    'GET /api/template': [200, { categories: december.categories }],
+    'POST /api/months': [201, { ...december, monthKey: '2026-11' }],
+    'GET /api/months/2026-11': [200, { ...december, monthKey: '2026-11' }],
+  })
+  renderApp('/buget/11-26')
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Folosește șablonul' }))
+
+  expect(await screen.findByRole('button', { name: 'Editează Chirie' })).toBeDefined()
+  expect(sentBody(fetchMock, '/api/months')).toEqual({ monthKey: '2026-11', from: 'template' })
+})
+
+test('a month imports the previous month, and says how many entries came', async () => {
+  let reads = 0
+  const fetchMock = withDecember({
+    '/api/months': [200, ['2026-11', '2026-12']],
+    'GET /api/template': [200, { categories: december.categories }],
+    'GET /api/months/2026-12': () =>
+      Promise.resolve(new Response(JSON.stringify(reads++ === 0 ? { ...december, categories: [] } : december), { status: 200 })),
+    'POST /api/months/2026-12/import': [200, { imported: 3 }],
+  })
+  renderApp('/buget/12-26')
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Importă tranzacții' }))
+  expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Din Noiembrie 2026', 'Din șablon'])
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Din Noiembrie 2026' }))
+
+  expect(await screen.findByText('Tranzacții importate: 3.')).toBeDefined()
+  expect(await screen.findByRole('button', { name: 'Editează Chirie' })).toBeDefined()
+  expect(sentBody(fetchMock, '/api/months/2026-12/import')).toEqual({ from: '2026-11' })
+})
+
+test('there is no import without a month before or a template', async () => {
+  withDecember({ 'GET /api/template': [200, { categories: [] }] })
+  renderApp('/buget/12-26')
+
+  await screen.findByRole('button', { name: 'Editează Chirie' })
+  expect(screen.queryByRole('button', { name: 'Importă tranzacții' })).toBeNull()
 })
 
 test('the summary shows what is left and how much of the income is spent', async () => {

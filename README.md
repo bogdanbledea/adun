@@ -136,7 +136,8 @@ without starting it.
 
 Amounts are kept as whole bani (1 leu = 100 bani), so totals are exact. To
 keep any one account from filling the disk, an account holds at most 600
-budget months, each with up to 200 categories and 500 entries.
+budget months, each with up to 200 categories and 500 entries; the template
+has the same limits as a month.
 
 At startup and then once a day the server removes what it no longer needs:
 activity history older than 365 days, ended sessions, used or expired email

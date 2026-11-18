@@ -31,11 +31,22 @@ function labelOf(action: string, t: Translate): string {
   return isMessageKey(key) ? t(key) : action
 }
 
-/** "Chirie · Casă · 1.500,00 lei · Noiembrie 2026" for an entry, the month's name for a month. */
-function detailsOf({ action, metadata }: ActivityEntry, language: Language): string | null {
+/** "Chirie · Casă · 1.500,00 lei · Noiembrie 2026" for an entry; for a month its name, and where its
+    entries were copied from. A null monthKey is the template. */
+function detailsOf({ action, metadata }: ActivityEntry, t: Translate, language: Language): string | null {
   if (!metadata) return null
-  const month = (key: unknown) => (typeof key === 'string' ? monthLong(key, language) : null)
-  if (action.startsWith('month.')) return month(metadata.monthKey)
+  const month = (key: unknown) => (typeof key === 'string' ? monthLong(key, language) : key === null ? t('activity.template') : null)
+  if (action.startsWith('month.')) {
+    const { from, entries } = metadata
+    const source = from === 'template' ? t('activity.template') : month(from)
+    return [
+      month(metadata.monthKey),
+      source && t('activity.from', { source }),
+      typeof entries === 'number' && from !== undefined ? t('activity.entries', { count: entries }) : null,
+    ]
+      .filter((part) => typeof part === 'string' && part !== '')
+      .join(' · ')
+  }
   if (!action.startsWith('entry.')) return null
   const { description, category, type, amountBani } = metadata
   const amount = typeof amountBani === 'number' ? `${type === 'income' ? '+' : ''}${formatBani(amountBani, language)}` : null
@@ -128,7 +139,7 @@ export function ActivitySection() {
         <>
           <ul>
             {state.entries.map((entry) => {
-              const details = detailsOf(entry, language)
+              const details = detailsOf(entry, t, language)
               return (
                 <li key={entry.id} className="flex items-baseline justify-between gap-3 border-t border-line py-2.5 first:border-t-0">
                   <span className="min-w-0">

@@ -30,6 +30,9 @@ export interface Month {
   totals: Totals
 }
 
+/** Where a month's entries are copied from: another month's key, or 'template'. */
+export type Source = string
+
 /** Empty until its first entry. */
 export interface Template {
   categories: Category[]
@@ -53,7 +56,9 @@ export interface SavedEntry extends Entry {
 export const budgetApi = {
   months: (signal?: AbortSignal) => api<string[]>('/api/months', { signal }),
   month: (monthKey: string, signal?: AbortSignal) => api<Month>(`/api/months/${monthKey}`, { signal }),
-  createMonth: (monthKey: string) => api<Month>('/api/months', { method: 'POST', body: { monthKey } }),
+  createMonth: (monthKey: string, from?: Source) => api<Month>('/api/months', { method: 'POST', body: { monthKey, from } }),
+  importInto: (monthKey: string, from: Source) =>
+    api<{ imported: number }>(`/api/months/${monthKey}/import`, { method: 'POST', body: { from } }),
   deleteMonth: (monthKey: string) => api(`/api/months/${monthKey}`, { method: 'DELETE' }),
   addEntry: (fields: EntryFields) => api<SavedEntry>('/api/entries', { method: 'POST', body: fields }),
   updateEntry: (id: string, fields: Partial<EntryFields>) =>
