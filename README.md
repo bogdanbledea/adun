@@ -27,16 +27,25 @@ Docker container, one SQLite file, no other services needed.
 
 ## Develop
 
-Requires Node.js 26.13.1 (see `.nvmrc`; `nvm use`). The server runs its
-TypeScript files directly, with no build step.
+Requires Node.js 26.13.1 (see `.nvmrc`; `nvm use`). Two plain npm packages:
+
+- `server/` is the API, Express run directly from TypeScript, with no build
+  step.
+- `web/` is the React app, built with Vite.
 
 ```sh
-cd server
-npm install
-npm run dev     # http://localhost:8080/health
+cd server && npm install && npm run dev   # API on http://localhost:8080
+cd web && npm install && npm run dev      # app on http://localhost:5173
 ```
 
-Other scripts: `npm test`, `npm run check` (types) and `npm run lint`.
+The Vite dev server forwards `/api` and `/health` to the API, so the browser
+sees a single origin, as in production. Set `ADUN_API_URL` to proxy to an API
+on another address.
+
+| Package  | Scripts                                                                    |
+| -------- | -------------------------------------------------------------------------- |
+| `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`   |
+| `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`   |
 
 ## Configure
 
