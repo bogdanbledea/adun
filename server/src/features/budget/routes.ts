@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Config } from '../../config.ts'
 import type { Database } from '../../db.ts'
 import { validate } from '../../http/validate.ts'
+import { LIMITS } from '../../lib/limits.ts'
 import { currentSession, requireAuth } from '../auth/require-auth.ts'
 import * as budget from './service.ts'
 
@@ -22,6 +23,18 @@ const entryParams = z.object({ id: z.uuid() })
 const createEntryBody = z.object({ monthKey, categoryName, description, type, amountBani })
 // Any of the fields; another month moves the entry there.
 const updateEntryBody = createEntryBody.partial().refine((body) => Object.keys(body).length > 0)
+
+// A whole list in its new order, each ID once.
+const orderBody = (max: number) =>
+  z.object({
+    ids: z
+      .array(z.uuid())
+      .min(1)
+      .max(max)
+      .refine((ids) => new Set(ids).size === ids.length),
+  })
+const categoryOrderBody = orderBody(LIMITS.categoriesPerMonth)
+const entryOrderBody = orderBody(LIMITS.entriesPerMonth)
 
 interface Deps {
   db: Database
@@ -61,10 +74,31 @@ export function monthRoutes({ db, config }: Deps): Router {
   return router
 }
 
-/* /api/entries: add, change, move and delete entries. */
+/* /api/categories: a month's categories are added and removed with their
+   entries; here they are only put in order. */
+export function categoryRoutes({ db, config }: Deps): Router {
+  const router = Router()
+  router.use(requireAuth(db, config))
+
+  router.put('/order', (req, res) => {
+    const { ids } = validate(categoryOrderBody, req.body)
+    budget.reorderCategories(db, currentSession(res).userId, ids)
+    res.json({ ok: true })
+  })
+
+  return router
+}
+
+/* /api/entries: add, change, move, delete and reorder entries. */
 export function entryRoutes({ db, config }: Deps): Router {
   const router = Router()
   router.use(requireAuth(db, config))
+
+  router.put('/order', (req, res) => {
+    const { ids } = validate(entryOrderBody, req.body)
+    budget.reorderEntries(db, currentSession(res).userId, ids)
+    res.json({ ok: true })
+  })
 
   router.post('/', (req, res) => {
     const body = validate(createEntryBody, req.body)

@@ -110,6 +110,15 @@ export function insertCategory(db: Database, category: { id: string; userId: str
   ).run(category.id, category.userId, category.monthId, category.name, category.monthId)
 }
 
+export function findCategory(db: Database, userId: string, id: string): { id: string; monthId: string } | null {
+  const row = db.prepare('SELECT id, month_id FROM categories WHERE id = ? AND user_id = ?').get(id, userId)
+  return row ? { id: row.id as string, monthId: row.month_id as string } : null
+}
+
+export function setCategoryOrder(db: Database, userId: string, id: string, sortOrder: number): void {
+  db.prepare('UPDATE categories SET sort_order = ? WHERE id = ? AND user_id = ?').run(sortOrder, id, userId)
+}
+
 /** A category lives as long as it has entries. */
 export function deleteCategoryIfEmpty(db: Database, userId: string, id: string): void {
   db.prepare(
@@ -225,6 +234,10 @@ export function updateEntry(db: Database, userId: string, id: string, changes: E
     id,
     userId,
   )
+}
+
+export function setEntryOrder(db: Database, userId: string, id: string, sortOrder: number): void {
+  db.prepare('UPDATE entries SET sort_order = ? WHERE id = ? AND user_id = ?').run(sortOrder, id, userId)
 }
 
 export function deleteEntry(db: Database, userId: string, id: string): void {

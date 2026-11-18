@@ -13,6 +13,10 @@ import * as repo from './repository.ts'
    - New entries go after the last one of their category. Moving an entry to
      another month creates that month if needed and keeps the category name;
      changing its category or month puts it last there.
+   - Reordering takes the whole list of a month's categories, or of a
+     category's entries, in the new order. A list that is no longer that
+     whole list (something was added or removed meanwhile) is refused, so
+     the client reloads instead of saving a partial order.
    - Balance = income − expenses, summed in SQL as integers.
    - An account holds at most LIMITS.months months, a month
      LIMITS.entriesPerMonth entries in LIMITS.categoriesPerMonth categories;
@@ -46,6 +50,8 @@ export interface SavedEntry extends Entry {
 
 const monthNotFound = () => notFound('month_not_found', 'This month has no budget yet.')
 const entryNotFound = () => notFound('entry_not_found', 'Entry not found.')
+const categoryNotFound = () => notFound('category_not_found', 'Category not found.')
+const orderChanged = () => conflict('order_changed', 'The list has changed since it was loaded. Reload and try again.')
 
 export function requireMonth(db: Database, userId: string, monthKey: string): repo.MonthRow {
   const month = repo.findMonth(db, userId, monthKey)
@@ -219,5 +225,42 @@ export function deleteEntry(db: Database, userId: string, id: string): void {
     repo.deleteEntry(db, userId, id)
     repo.deleteCategoryIfEmpty(db, userId, entry.categoryId)
     logActivity(db, userId, 'entry.deleted', entryActivity(entry))
+  })
+}
+
+// ── Order ────────────────────────────────────────────────────────────────────
+
+// The IDs have no duplicates (the routes check), so equal sizes and inclusion mean the same set.
+const sameIds = (ids: string[], current: string[]) =>
+  ids.length === current.length && current.every((id) => ids.includes(id))
+
+/** `ids`: every category of one month, in the new order. */
+export function reorderCategories(db: Database, userId: string, ids: string[]): void {
+  transaction(db, () => {
+    const first = repo.findCategory(db, userId, ids[0] as string)
+    if (!first) throw categoryNotFound()
+    const current = repo.listCategories(db, userId, first.monthId).map((category) => category.id)
+    if (!sameIds(ids, current)) {
+      if (ids.some((id) => !repo.findCategory(db, userId, id))) throw categoryNotFound()
+      throw orderChanged()
+    }
+    for (const [i, id] of ids.entries()) repo.setCategoryOrder(db, userId, id, i)
+  })
+}
+
+/** `ids`: every entry of one category, in the new order. */
+export function reorderEntries(db: Database, userId: string, ids: string[]): void {
+  transaction(db, () => {
+    const first = repo.findEntry(db, userId, ids[0] as string)
+    if (!first) throw entryNotFound()
+    const current = repo
+      .listEntries(db, userId, first.monthId)
+      .filter((entry) => entry.categoryId === first.categoryId)
+      .map((entry) => entry.id)
+    if (!sameIds(ids, current)) {
+      if (ids.some((id) => !repo.findEntry(db, userId, id))) throw entryNotFound()
+      throw orderChanged()
+    }
+    for (const [i, id] of ids.entries()) repo.setEntryOrder(db, userId, id, i)
   })
 }
