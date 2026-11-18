@@ -8,6 +8,7 @@ export interface NewUser {
   email: string
   displayName: string
   passwordHash: string
+  emailVerifiedAt: string | null
   now: string
 }
 
@@ -15,23 +16,41 @@ export interface NewUser {
 export function insertUser(db: Database, user: NewUser): boolean {
   const result = db
     .prepare(
-      `INSERT INTO users (id, email, display_name, password_hash, created_at)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO users (id, email, display_name, password_hash, email_verified_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT DO NOTHING`,
     )
-    .run(user.id, user.email, user.displayName, user.passwordHash, user.now)
+    .run(user.id, user.email, user.displayName, user.passwordHash, user.emailVerifiedAt, user.now)
   return result.changes === 1
 }
 
 export interface Credentials {
   id: string
   passwordHash: string
+  emailVerified: boolean
+}
+
+const CREDENTIALS = 'SELECT id, password_hash, email_verified_at FROM users'
+
+function toCredentials(row: Record<string, unknown> | undefined): Credentials | null {
+  if (!row) return null
+  return {
+    id: row.id as string,
+    passwordHash: row.password_hash as string,
+    emailVerified: row.email_verified_at !== null,
+  }
 }
 
 export function findCredentials(db: Database, email: string): Credentials | null {
-  const row = db.prepare('SELECT id, password_hash FROM users WHERE lower(email) = ?').get(email)
-  if (!row) return null
-  return { id: row.id as string, passwordHash: row.password_hash as string }
+  return toCredentials(db.prepare(`${CREDENTIALS} WHERE lower(email) = ?`).get(email))
+}
+
+export function findCredentialsById(db: Database, userId: string): Credentials | null {
+  return toCredentials(db.prepare(`${CREDENTIALS} WHERE id = ?`).get(userId))
+}
+
+export function markEmailVerified(db: Database, userId: string, now: string): void {
+  db.prepare('UPDATE users SET email_verified_at = coalesce(email_verified_at, ?) WHERE id = ?').run(now, userId)
 }
 
 /** Counts one attempt against the account before its password is checked,

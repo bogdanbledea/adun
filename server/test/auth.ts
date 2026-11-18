@@ -1,5 +1,6 @@
 import { createApp } from '../src/app.ts'
 import type { Database } from '../src/db.ts'
+import type { Mailer } from '../src/email/mailer.ts'
 import { register } from '../src/features/auth/service.ts'
 import { silentLogger } from '../src/lib/log.ts'
 import { testClient, testConfig, type TestClient } from './helpers.ts'
@@ -9,13 +10,24 @@ import { testClient, testConfig, type TestClient } from './helpers.ts'
 export const TEST_PASSWORD = 'Corect-cal-baterie-1'
 
 export async function createUser(db: Database, email: string, displayName = 'Ana Popescu'): Promise<void> {
-  await register(db, silentLogger, { email, password: TEST_PASSWORD, displayName })
+  await register(db, silentLogger, { email, password: TEST_PASSWORD, displayName }, { verified: true })
 }
 
-/** A new app instance, so each group of tests has its own rate-limit budget. */
-export function appClient(db: Database, dataDir: string, env: Record<string, string> = {}): Promise<TestClient> {
-  return testClient(createApp({ config: testConfig(dataDir, env), db, log: silentLogger, webRoot: '/nonexistent' }))
+/** A new app instance, so each group of tests has its own rate-limit budget.
+    Pass a memoryMailer to see the emails it sends. */
+export function appClient(
+  db: Database,
+  dataDir: string,
+  env: Record<string, string> = {},
+  mailer?: Mailer,
+): Promise<TestClient> {
+  return testClient(
+    createApp({ config: testConfig(dataDir, env), db, log: silentLogger, mailer, webRoot: '/nonexistent' }),
+  )
 }
+
+/** Turns email on; the emails themselves go to the memoryMailer passed to appClient. */
+export const EMAIL_ENV: Record<string, string> = { SMTP_HOST: 'smtp.example.com', EMAIL_FROM: 'adun@example.com' }
 
 /** The `name=value` part of a Set-Cookie header, ready to send back as Cookie. */
 export function sessionCookie(res: Response): string {

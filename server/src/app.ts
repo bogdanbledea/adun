@@ -5,6 +5,7 @@ import express from 'express'
 import { pinoHttp } from 'pino-http'
 import type { Config } from './config.ts'
 import type { Database } from './db.ts'
+import { createMailer, type Mailer } from './email/mailer.ts'
 import type { Logger } from './lib/log.ts'
 import { authRoutes } from './features/auth/routes.ts'
 import { userRoutes } from './features/user/routes.ts'
@@ -20,6 +21,8 @@ export interface AppDeps {
   config: Config
   db: Database
   log: Logger
+  // SMTP when email is configured, else an in-memory outbox.
+  mailer?: Mailer
   // The built web app. Skipped when the folder does not exist (development).
   webRoot?: string
 }
@@ -27,7 +30,13 @@ export interface AppDeps {
 // Middleware order and route mounting. The order is part of the security model:
 // every response gets a request ID and security headers, and the body limit,
 // rate limits and same-origin guard all run before any route.
-export function createApp({ config, db, log, webRoot = DEFAULT_WEB_ROOT }: AppDeps): express.Express {
+export function createApp({
+  config,
+  db,
+  log,
+  mailer = createMailer(config.email, log),
+  webRoot = DEFAULT_WEB_ROOT,
+}: AppDeps): express.Express {
   const app = express()
   app.disable('x-powered-by')
   app.set('trust proxy', config.trustProxyHops)
@@ -78,7 +87,7 @@ export function createApp({ config, db, log, webRoot = DEFAULT_WEB_ROOT }: AppDe
     }
   })
 
-  app.use('/api/auth', authRoutes({ db, config }))
+  app.use('/api/auth', authRoutes({ db, config, mailer }))
   app.use('/api/user', userRoutes({ db, config }))
 
   // An unknown /api path is a 404 here, before the web app's files.

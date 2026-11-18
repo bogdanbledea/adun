@@ -48,10 +48,7 @@ export function looksLikeToken(value: string): boolean {
   return TOKEN_SHAPE.test(value)
 }
 
-/** The session token from the Cookie header, or null. Anything that is not
-    shaped like a token we issued is ignored. */
-export function readSessionToken(req: Request, config: Config): string | null {
-  const name = sessionCookieName(config)
+function readCookieToken(req: Request, name: string): string | null {
   for (const part of (req.headers.cookie ?? '').split(';')) {
     const separator = part.indexOf('=')
     if (separator === -1 || part.slice(0, separator).trim() !== name) continue
@@ -59,4 +56,42 @@ export function readSessionToken(req: Request, config: Config): string | null {
     return looksLikeToken(value) ? value : null
   }
   return null
+}
+
+/** The session token from the Cookie header, or null. Anything that is not
+    shaped like a token we issued is ignored. */
+export function readSessionToken(req: Request, config: Config): string | null {
+  return readCookieToken(req, sessionCookieName(config))
+}
+
+/* The sign-up cookie marks the browser that registered. Its confirmation link
+   signs in only where this cookie matches the one recorded with the link;
+   opened anywhere else it needs the account's password too. So a link someone
+   else asked for, or sent on to a victim, never starts a session by itself.
+   It lasts as long as the link, and is Strict: only the app's own pages ever
+   need to send it. */
+
+const SIGNUP_TTL_MS = 24 * 60 * 60 * 1000
+
+export function signupCookieName(config: Config): string {
+  return secure(config) ? '__Host-adun_signup' : 'adun_signup'
+}
+
+const signupCookieOptions = (config: Config): CookieOptions => ({ ...cookieOptions(config), sameSite: 'strict' })
+
+/** Gives this browser a fresh sign-up cookie and returns its hash, to store with the link. */
+export function setSignupCookie(res: Response, config: Config): string {
+  const token = newToken()
+  res.cookie(signupCookieName(config), token, { ...signupCookieOptions(config), maxAge: SIGNUP_TTL_MS })
+  return hashToken(token)
+}
+
+/** The hash of this browser's sign-up cookie, or null without one. */
+export function readSignupHash(req: Request, config: Config): string | null {
+  const token = readCookieToken(req, signupCookieName(config))
+  return token ? hashToken(token) : null
+}
+
+export function clearSignupCookie(res: Response, config: Config): void {
+  res.clearCookie(signupCookieName(config), signupCookieOptions(config))
 }

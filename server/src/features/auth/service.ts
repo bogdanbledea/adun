@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { transaction, type Database } from '../../db.ts'
-import { HttpError } from '../../http/errors.ts'
+import { forbidden, HttpError } from '../../http/errors.ts'
 import type { Logger } from '../../lib/log.ts'
 import { passwords } from './password.ts'
 import * as repo from './repository.ts'
@@ -15,6 +15,8 @@ import { hashToken, newToken, SESSION_TTL_MS } from './session.ts'
      each further failure up to 1 hour. A correct password clears the count.
      An attempt is counted before its password is checked, so a burst of
      parallel attempts gets no more guesses than the same attempts in a row.
+   - With email on, an unconfirmed address is refused, but only after the
+     password proved correct.
    - Sessions roll: 30 days from last use, recorded at most once an hour. A user
      keeps at most 10 live sessions; signing in again revokes the oldest. */
 
@@ -32,6 +34,7 @@ export function lockoutDelayMs(failures: number): number {
 }
 
 const invalidCredentials = () => new HttpError(401, 'invalid_credentials', 'Wrong email or password.')
+export const wrongPassword = () => new HttpError(401, 'wrong_password', 'The password is not correct.')
 
 export interface Registration {
   email: string
@@ -39,37 +42,50 @@ export interface Registration {
   displayName: string
 }
 
+export type RegisterResult = { created: true; userId: string } | { created: false }
+
 /** Creates the account unless the address is taken, and says which happened.
-    The caller answers the same either way, so nobody can probe for accounts. */
-export async function register(db: Database, log: Logger, input: Registration): Promise<boolean> {
+    The caller answers the same either way, so nobody can probe for accounts.
+    `verified` is false when the address still has to be confirmed by email. */
+export async function register(
+  db: Database,
+  log: Logger,
+  input: Registration,
+  { verified }: { verified: boolean },
+): Promise<RegisterResult> {
   // Hashed before looking at the address, so a taken address costs the same.
   const passwordHash = await passwords.hash(input.password)
   const id = randomUUID()
+  const now = new Date().toISOString()
   const created = repo.insertUser(db, {
     id,
     email: input.email,
     displayName: input.displayName,
     passwordHash,
-    now: new Date().toISOString(),
+    emailVerifiedAt: verified ? now : null,
+    now,
   })
-  if (created) log.info({ userId: id }, 'auth.registered')
-  else log.info('auth.register_existing')
-  return created
+  if (!created) {
+    log.info('auth.register_existing')
+    return { created: false }
+  }
+  log.info({ userId: id, verified }, 'auth.registered')
+  return { created: true, userId: id }
 }
 
-/** Checks the password and starts a session; returns the user ID and the
-    cookie value. */
-export async function login(
+/* Checks a password for an account and applies the lockout. Whatever the
+   outcome, it costs exactly one Argon2 verification. */
+async function checkPassword(
   db: Database,
   log: Logger,
-  email: string,
+  account: repo.Credentials | null,
   password: string,
-): Promise<{ userId: string; token: string }> {
-  const account = repo.findCredentials(db, email)
+  failureEvent: string,
+): Promise<boolean> {
   if (!account) {
     await passwords.verifyDummy(password)
-    log.warn({ reason: 'no_account' }, 'auth.login_failed')
-    throw invalidCredentials()
+    log.warn({ reason: 'no_account' }, failureEvent)
+    return false
   }
 
   const attempt = transaction(db, () => {
@@ -81,27 +97,56 @@ export async function login(
   })
   if (attempt === null) {
     await passwords.verifyDummy(password)
-    log.warn({ userId: account.id, reason: 'locked' }, 'auth.login_failed')
-    throw invalidCredentials()
+    log.warn({ userId: account.id, reason: 'locked' }, failureEvent)
+    return false
   }
   if (!(await passwords.verify(account.passwordHash, password))) {
-    log.warn({ userId: account.id, reason: 'wrong_password', failures: attempt }, 'auth.login_failed')
-    throw invalidCredentials()
+    log.warn({ userId: account.id, reason: 'wrong_password', failures: attempt }, failureEvent)
+    return false
   }
   repo.clearFailedLogins(db, account.id)
+  return true
+}
 
+/** Whether this is the account's password, checked and counted towards the
+    lockout as a sign-in is. */
+export function passwordMatches(db: Database, log: Logger, userId: string, password: string, failureEvent: string): Promise<boolean> {
+  return checkPassword(db, log, repo.findCredentialsById(db, userId), password, failureEvent)
+}
+
+/** Starts a session and returns the cookie value. */
+export function startSession(db: Database, userId: string): string {
   const token = newToken()
   const now = Date.now()
   transaction(db, () => {
     repo.insertSession(db, {
       id: randomUUID(),
-      userId: account.id,
+      userId,
       tokenHash: hashToken(token),
       expiresAt: iso(now + SESSION_TTL_MS),
       now: iso(now),
     })
-    repo.revokeOldestSessions(db, account.id, MAX_LIVE_SESSIONS, iso(now))
+    repo.revokeOldestSessions(db, userId, MAX_LIVE_SESSIONS, iso(now))
   })
+  return token
+}
+
+/** Checks the password and starts a session; returns the user ID and the
+    cookie value. */
+export async function login(
+  db: Database,
+  log: Logger,
+  email: string,
+  password: string,
+): Promise<{ userId: string; token: string }> {
+  const account = repo.findCredentials(db, email)
+  if (!(await checkPassword(db, log, account, password, 'auth.login_failed')) || !account) {
+    throw invalidCredentials()
+  }
+  if (!account.emailVerified) {
+    throw forbidden('email_not_verified', 'Confirm your email address before signing in.')
+  }
+  const token = startSession(db, account.id)
   log.info({ userId: account.id }, 'auth.login')
   return { userId: account.id, token }
 }
