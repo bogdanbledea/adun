@@ -58,6 +58,7 @@ export interface SavedEntry extends Entry {
   categoryName: string
 }
 
+export const monthExists = () => conflict('month_exists', 'This month already has a budget.')
 const monthNotFound = () => notFound('month_not_found', 'This month has no budget yet.')
 const entryNotFound = () => notFound('entry_not_found', 'Entry not found.')
 const categoryNotFound = () => notFound('category_not_found', 'Category not found.')
@@ -126,7 +127,7 @@ function templateId(db: Database, userId: string): string {
 
 export function createMonth(db: Database, userId: string, monthKey: string): Month {
   return transaction(db, () => {
-    if (repo.findMonth(db, userId, monthKey)) throw conflict('month_exists', 'This month already has a budget.')
+    if (repo.findMonth(db, userId, monthKey)) throw monthExists()
     repo.insertMonth(db, { id: randomUUID(), userId, monthKey, now: new Date().toISOString() })
     checkMonthCount(db, userId)
     logActivity(db, userId, 'month.created', { monthKey })
@@ -164,7 +165,7 @@ function entryActivity(row: repo.FullEntryRow) {
   }
 }
 
-function findOrCreateCategory(db: Database, userId: string, monthId: string, name: string): string {
+export function findOrCreateCategory(db: Database, userId: string, monthId: string, name: string): string {
   const existing = repo.findCategoryByName(db, userId, monthId, name)
   if (existing) return existing.id
   const id = randomUUID()

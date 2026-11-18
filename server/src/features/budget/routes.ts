@@ -5,13 +5,17 @@ import type { Database } from '../../db.ts'
 import { validate } from '../../http/validate.ts'
 import { LIMITS } from '../../lib/limits.ts'
 import { currentSession, requireAuth } from '../auth/require-auth.ts'
+import * as copy from './copy.ts'
 import * as budget from './service.ts'
 
 // YYYY-MM, months 01 to 12.
 const monthKey = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
 
 const monthParams = z.object({ monthKey })
-const createMonthBody = z.object({ monthKey })
+// Where a month's entries are copied from: another month, or the template.
+const source = z.union([monthKey, z.literal('template')])
+const createMonthBody = z.object({ monthKey, from: source.optional() })
+const importBody = z.object({ from: source })
 
 const description = z.string().trim().min(1).max(512)
 const categoryName = z.string().trim().min(1).max(256)
@@ -42,7 +46,8 @@ interface Deps {
   config: Config
 }
 
-/* /api/months: the user's months, each with its entries and totals. */
+/* /api/months: the user's months, each with its entries and totals; a new
+   month starts empty or as a copy, and a month can import another's entries. */
 export function monthRoutes({ db, config }: Deps): Router {
   const router = Router()
   router.use(requireAuth(db, config))
@@ -53,10 +58,19 @@ export function monthRoutes({ db, config }: Deps): Router {
 
   router.post('/', (req, res) => {
     const { userId } = currentSession(res)
-    const { monthKey } = validate(createMonthBody, req.body)
-    const month = budget.createMonth(db, userId, monthKey)
+    const { monthKey, from } = validate(createMonthBody, req.body)
+    const month = from ? copy.createMonthFrom(db, userId, monthKey, from) : budget.createMonth(db, userId, monthKey)
     req.log.info({ userId }, 'budget.month_created')
     res.status(201).json(month)
+  })
+
+  router.post('/:monthKey/import', (req, res) => {
+    const { userId } = currentSession(res)
+    const { monthKey } = validate(monthParams, req.params)
+    const { from } = validate(importBody, req.body)
+    const imported = copy.importInto(db, userId, monthKey, from)
+    req.log.info({ userId, entries: imported }, 'budget.month_imported')
+    res.json({ imported })
   })
 
   router.get('/:monthKey', (req, res) => {
