@@ -1,4 +1,5 @@
 import type { Database } from '../../db.ts'
+import type { Language } from '../../email/templates.ts'
 
 /* SQL for reminders and the sweep's notification records. Every function
    that reads or writes one user's reminders takes the user ID and filters by
@@ -120,6 +121,7 @@ export interface SweepCandidate {
   leadDays: number[]
   email: string
   displayName: string
+  language: Language
   emailVerified: boolean
 }
 
@@ -128,7 +130,7 @@ export function sweepCandidates(db: Database, today: string): SweepCandidate[] {
   return db
     .prepare(
       `SELECT r.id, r.user_id, r.kind, r.name, r.subject, r.due_date, r.lead_days,
-              u.email, u.display_name, u.email_verified_at
+              u.email, u.display_name, u.language, u.email_verified_at
        FROM reminders r JOIN users u ON u.id = r.user_id
        WHERE r.is_active = 1 AND r.due_date >= ?
        ORDER BY r.due_date, r.rowid`,
@@ -144,6 +146,7 @@ export function sweepCandidates(db: Database, today: string): SweepCandidate[] {
       leadDays: JSON.parse(row.lead_days as string) as number[],
       email: row.email as string,
       displayName: row.display_name as string,
+      language: row.language as Language,
       emailVerified: row.email_verified_at !== null,
     }))
 }
@@ -167,6 +170,12 @@ export function claimCheckpoint(db: Database, checkpoint: Checkpoint, now: strin
     )
     .get(checkpoint.reminderId, checkpoint.userId, checkpoint.dueDate, checkpoint.leadDays, now)
   return row ? (row.id as number) : null
+}
+
+/** Records of due dates before `day`: a reminder that passed its due date
+    is no longer swept, so they can no longer stop an email. */
+export function deleteNotificationsBefore(db: Database, day: string): number {
+  return Number(db.prepare('DELETE FROM reminder_notifications WHERE due_date < ?').run(day).changes)
 }
 
 export function markSent(db: Database, notificationId: number): void {

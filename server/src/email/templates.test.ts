@@ -92,6 +92,9 @@ describe('the reminder email', () => {
   test('counts down to today', () => {
     assert.equal(reminderDue('ro', { ...REMINDER, daysLeft: 1 }).subject, 'ITP Logan expiră mâine')
     assert.equal(reminderDue('ro', { ...REMINDER, daysLeft: 0 }).subject, 'ITP Logan expiră azi')
+    assert.equal(reminderDue('ro', { ...REMINDER, daysLeft: 19 }).subject, 'ITP Logan expiră în 19 zile')
+    assert.equal(reminderDue('ro', { ...REMINDER, daysLeft: 30 }).subject, 'ITP Logan expiră în 30 de zile')
+    assert.equal(reminderDue('ro', { ...REMINDER, daysLeft: 101 }).subject, 'ITP Logan expiră în 101 zile')
     assert.equal(reminderDue('en', { ...REMINDER, daysLeft: 1 }).subject, 'ITP Logan is due tomorrow')
     assert.equal(reminderDue('en', { ...REMINDER, daysLeft: 0 }).subject, 'ITP Logan is due today')
   })

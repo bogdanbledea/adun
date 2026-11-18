@@ -101,9 +101,11 @@ With email on, a new account confirms its address through a link before the
 first sign-in, and a forgotten password can be replaced through a link valid
 for one hour. Registering with an address that already has an account sends
 its owner a notice (at most one a day) instead of a link, and changing the
-password tells the owner, with a way to ask for a new one. With email off,
-accounts work as soon as they are created and passwords cannot be reset by
-email.
+password tells the owner, with a way to ask for a new one. Reminders send
+one email at each warning the user chose (a week before, a month before),
+from 08:00 in `TIME_ZONE`, written in the language the user last chose in
+the app. With email off, accounts work as soon as they are created, passwords
+cannot be reset by email, and reminders show only in the app.
 
 | Variable          | Default | Meaning                                                     |
 | ----------------- | ------- | ----------------------------------------------------------- |
@@ -144,7 +146,8 @@ reminders.
 
 At startup and then once a day the server removes what it no longer needs:
 activity history older than 365 days, ended sessions, used or expired email
-links, and email send records older than a day.
+links, email send records older than a day, and the record of reminder
+emails for due dates that have passed.
 
 ## License
 

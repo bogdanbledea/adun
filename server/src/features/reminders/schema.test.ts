@@ -166,6 +166,7 @@ describe('the sweep', () => {
         leadDays: [3],
         email: 'ana@example.com',
         displayName: 'Ana Popescu',
+        language: 'ro',
         emailVerified: true,
       },
     )

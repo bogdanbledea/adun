@@ -56,15 +56,26 @@ describe('runCleanup', () => {
     insertEmail.run(1, anaId, at(-HOUR))
     insertEmail.run(2, anaId, at(-2 * DAY))
 
-    assert.deepEqual(runCleanup(db, NOW), { activity: 1, sessions: 2, tokens: 2, authEmails: 1 })
+    // NOW is 18 November: records of due dates from the 16th on stay.
+    db.prepare(
+      "INSERT INTO reminders (id, user_id, kind, name, due_date, created_at) VALUES ('r', ?, 'itp', 'ITP', '2026-11-15', ?)",
+    ).run(anaId, at(-DAY))
+    const insertNotification = db.prepare(
+      "INSERT INTO reminder_notifications (id, reminder_id, user_id, due_date, lead_days, created_at) VALUES (?, 'r', ?, ?, 3, ?)",
+    )
+    insertNotification.run(1, anaId, '2026-11-15', at(-4 * DAY))
+    insertNotification.run(2, anaId, '2026-11-16', at(-4 * DAY))
+
+    assert.deepEqual(runCleanup(db, NOW), { activity: 1, sessions: 2, tokens: 2, authEmails: 1, reminderNotifications: 1 })
     assert.deepEqual(ids('sessions'), ['live'])
     assert.deepEqual(ids('auth_tokens'), ['rearmable', 'unused'])
     assert.deepEqual(ids('activity_logs'), [1])
     assert.deepEqual(ids('auth_emails'), [1])
+    assert.deepEqual(ids('reminder_notifications'), [2])
   })
 
   test('a second run finds nothing more', () => {
-    assert.deepEqual(runCleanup(db, NOW), { activity: 0, sessions: 0, tokens: 0, authEmails: 0 })
+    assert.deepEqual(runCleanup(db, NOW), { activity: 0, sessions: 0, tokens: 0, authEmails: 0, reminderNotifications: 0 })
   })
 })
 
@@ -76,8 +87,8 @@ describe('startDailyCleanup', () => {
     const line = lines.find((entry) => entry.msg === 'job.cleanup')
     assert.ok(line)
     assert.deepEqual(
-      [line.activity, line.sessions, line.tokens, line.authEmails].map((value) => typeof value),
-      ['number', 'number', 'number', 'number'],
+      [line.activity, line.sessions, line.tokens, line.authEmails, line.reminderNotifications].map((value) => typeof value),
+      ['number', 'number', 'number', 'number', 'number'],
     )
   })
 

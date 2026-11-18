@@ -203,9 +203,16 @@ function longDate(language: Language, date: string): string {
   return format.format(new Date(`${date}T00:00:00Z`))
 }
 
+// Romanian puts "de" after 20 and up, unless the number ends in 01–19:
+// "7 zile", "30 de zile", "101 zile".
+function zile(days: number): string {
+  const rest = days % 100
+  return rest === 0 || rest >= 20 ? `${String(days)} de zile` : `${String(days)} zile`
+}
+
 function countdown(language: Language, days: number): string {
   if (language === 'en') return days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${String(days)} days`
-  return days <= 0 ? 'azi' : days === 1 ? 'mâine' : `în ${String(days)} zile`
+  return days <= 0 ? 'azi' : days === 1 ? 'mâine' : `în ${zile(days)}`
 }
 
 export interface ReminderDue {

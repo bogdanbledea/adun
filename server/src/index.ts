@@ -1,12 +1,14 @@
 import { createApp } from './app.ts'
 import { ConfigError, loadConfig } from './config.ts'
 import { migrate, MigrationError, openDatabase } from './db.ts'
+import { createMailer } from './email/mailer.ts'
 import { startDailyCleanup } from './jobs/cleanup.ts'
+import { startReminderSweep } from './jobs/reminders.ts'
 import { createLogger } from './lib/log.ts'
 import { shutdown } from './shutdown.ts'
 
-// Read config → open db → migrate → start the daily cleanup → build app →
-// listen. On SIGTERM or SIGINT, shut down gracefully (shutdown.ts).
+// Read config → open db → migrate → start the daily cleanup and the hourly
+// reminder emails → build app → listen. On SIGTERM or SIGINT, shut down gracefully (shutdown.ts).
 
 let config
 try {
@@ -31,8 +33,10 @@ try {
 }
 
 const stopCleanup = startDailyCleanup(db, log)
+const mailer = createMailer(config.email, log)
+const stopReminders = startReminderSweep(db, mailer, config, log)
 
-const server = createApp({ config, db, log }).listen(config.port, () => {
+const server = createApp({ config, db, log, mailer }).listen(config.port, () => {
   log.info({ port: config.port, production: config.production }, 'server.listening')
   // Behind a proxy every visitor would then share its address, and so its
   // rate limits.
@@ -48,12 +52,15 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     stopping = true
     log.info({ signal }, 'server.stopping')
     stopCleanup()
-    shutdown({ server, db, log }).then(
-      () => process.exit(0),
-      (error: unknown) => {
-        log.error({ err: error }, 'server.shutdown_failed')
-        process.exit(1)
-      },
-    )
+    // A sweep waiting on the mail server finishes before the database closes.
+    stopReminders()
+      .then(() => shutdown({ server, db, log }))
+      .then(
+        () => process.exit(0),
+        (error: unknown) => {
+          log.error({ err: error }, 'server.shutdown_failed')
+          process.exit(1)
+        },
+      )
   })
 }
