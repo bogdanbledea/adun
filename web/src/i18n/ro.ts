@@ -17,6 +17,7 @@ export const ro = {
   'nav.food': 'Mâncare',
   'nav.reminders': 'Scadențe',
   'nav.accountMenu': 'Meniu cont',
+  'nav.settings': 'Setări',
   'nav.privacy': 'Confidențialitate',
   'nav.signOutEverywhere': 'Ieși de pe toate dispozitivele',
   'nav.signOut': 'Deconectare',
@@ -101,6 +102,16 @@ export const ro = {
   'auth.resetSave': 'Salvează și intră în cont',
   'auth.saving': 'Se salvează...',
 
+  // Settings
+  'settings.title': 'Setări',
+  'settings.subtitle': 'Contul tău, parola și ce s-a schimbat în el.',
+  'settings.account': 'Cont',
+  'settings.displayName': 'Nume afișat',
+  'settings.nameRequired': 'Scrie un nume.',
+  'settings.emailFixed': 'Adresa de email nu se poate schimba.',
+  'settings.save': 'Salvează',
+  'settings.cancel': 'Renunță',
+  'settings.saved': 'Salvat.',
   // Privacy page
   'privacyPage.title': 'Confidențialitate',
   'privacyPage.intro': 'Ce păstrează aplicația despre tine, unde și pe cine poți întreba.',

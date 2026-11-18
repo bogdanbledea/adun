@@ -3,6 +3,7 @@ import { ResetPasswordPage } from './features/auth/ResetPasswordPage.tsx'
 import { SignInPage } from './features/auth/SignInPage.tsx'
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage.tsx'
 import { PrivacyPage } from './features/privacy/PrivacyPage.tsx'
+import { SettingsPage } from './features/settings/SettingsPage.tsx'
 import { AppShell } from './layout/AppShell.tsx'
 import { NotFound } from './layout/NotFound.tsx'
 import { PageHeader } from './layout/PageHeader.tsx'
@@ -66,6 +67,7 @@ export function App() {
         <Route path="/buget" element={<Section title="nav.budget" subtitle="budget.subtitle" />} />
         <Route path="/mancare" element={<Section title="nav.food" subtitle="food.subtitle" />} />
         <Route path="/scadente" element={<Section title="nav.reminders" subtitle="reminders.subtitle" />} />
+        <Route path="/setari" element={<SettingsPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

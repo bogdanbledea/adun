@@ -20,7 +20,8 @@ export type AuthState = { status: 'loading' } | { status: 'signed_out' } | { sta
 
 interface AuthValue {
   state: AuthState
-  /** Called by the sign-in form with the account it received. */
+  /** Called with the account the server answered with: by the sign-in form,
+      and after a change to the account. */
   signedIn: (user: AuthUser) => void
   /** Ends this session on the server, then everything held here. */
   signOut: () => Promise<void>
