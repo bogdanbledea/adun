@@ -233,6 +233,34 @@ describe('forgotten password', () => {
     expect(await screen.findByRole('heading', { name: 'Autentificare' })).toBeDefined()
   })
 
+  test('/parola-uitata opens straight on the form, and signing in from there opens the budget', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': signedOut,
+      '/api/auth/status': emailOn,
+      '/api/auth/forgot-password': [200, { ok: true }],
+      '/api/auth/login': [200, testAccount],
+    })
+    renderApp('/parola-uitata')
+    expect(await screen.findByRole('heading', { name: 'Parolă uitată' })).toBeDefined()
+    await userEvent.type(screen.getByLabelText('Email'), 'ana@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite linkul' }))
+    expect(await screen.findByRole('heading', { name: 'Verifică emailul' })).toBeDefined()
+    expect(sentBody(fetchMock, '/api/auth/forgot-password')).toEqual({ email: 'ana@example.com', language: 'ro' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Înapoi la autentificare' }))
+    await userEvent.type(await screen.findByLabelText('Parolă'), 'Corect-cal-baterie-1')
+    await userEvent.click(screen.getByRole('button', { name: 'Intră în cont' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
+    expect(screen.getByTestId('location').textContent).toBe('/buget')
+  })
+
+  test('/parola-uitata, already signed in, opens the budget', async () => {
+    fakeServer({ '/api/user/me': [200, testAccount] })
+    renderApp('/parola-uitata')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
+    expect(screen.getByTestId('location').textContent).toBe('/buget')
+  })
+
   test('with email off, explains that no link can be sent', async () => {
     fakeServer({
       '/api/user/me': signedOut,

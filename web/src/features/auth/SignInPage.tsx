@@ -11,7 +11,8 @@ import { SignUpForm } from './SignUpForm.tsx'
 /* Shown in place of any signed-in page when there is no session, keeping the
    URL, so signing in lands exactly where the user was going. Sign-in,
    sign-up, "forgot password" and "check your email" are modes of this one
-   page. */
+   page. /parola-uitata opens it in "forgot password", for the link in the
+   "this address already has an account" email. */
 
 interface AuthStatus {
   registrationsEnabled: boolean
@@ -65,11 +66,13 @@ function SwitchLine({ question, action, onClick }: { question: string; action: s
   )
 }
 
-export function SignInPage() {
+type Mode = 'signin' | 'signup' | 'check-email' | 'forgot' | 'reset-sent'
+
+export function SignInPage({ initialMode = 'signin' }: { initialMode?: Mode }) {
   const t = useT()
   const status = useAuthStatus()
   const registrationsEnabled = status?.registrationsEnabled ?? null
-  const [mode, setMode] = useState<'signin' | 'signup' | 'check-email' | 'forgot' | 'reset-sent'>('signin')
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [email, setEmail] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
 

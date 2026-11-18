@@ -14,8 +14,8 @@ import { useT, type MessageKey } from './lib/i18n.tsx'
 /* The route table. URLs are Romanian in both languages. Pages are behind
    RequireAuth, which shows the sign-in page in place (keeping the URL) when
    there is no session. The privacy page is open to everyone, inside the shell
-   when signed in; the page an email link opens works signed in or out. Each section has its page header for now; the features
-   fill them in. */
+   when signed in; the page an email link opens works signed in or out. Each
+   section has its page header for now; the features fill them in. */
 
 function RequireAuth() {
   const { state } = useAuth()
@@ -41,6 +41,14 @@ function Privacy() {
   )
 }
 
+// Signed out, the sign-in page asking for a new password; signed in, nothing to do.
+function ForgotPassword() {
+  const { state } = useAuth()
+  if (state.status === 'loading') return <PageLoading />
+  if (state.status === 'signed_out') return <SignInPage initialMode="forgot" />
+  return <Navigate to="/buget" replace />
+}
+
 function Section({ title, subtitle }: { title: MessageKey; subtitle: MessageKey }) {
   const t = useT()
   return <PageHeader title={t(title)} subtitle={t(subtitle)} />
@@ -52,6 +60,7 @@ export function App() {
       <Route path="/confidentialitate" element={<Privacy />} />
       <Route path="/verifica-email" element={<VerifyEmailPage />} />
       <Route path="/parola-noua" element={<ResetPasswordPage />} />
+      <Route path="/parola-uitata" element={<ForgotPassword />} />
       <Route element={<RequireAuth />}>
         <Route index element={<Navigate to="/buget" replace />} />
         <Route path="/buget" element={<Section title="nav.budget" subtitle="budget.subtitle" />} />
