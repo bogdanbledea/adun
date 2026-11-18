@@ -5,7 +5,9 @@ import type { Database } from '../../db.ts'
 import { notFound } from '../../http/errors.ts'
 import { validate } from '../../http/validate.ts'
 import { currentSession, requireAuth } from '../auth/require-auth.ts'
-import { findUser, setDisplayName } from './repository.ts'
+import { clearSessionCookie } from '../auth/session.ts'
+import { requireRecentPassword } from '../auth/step-up.ts'
+import { deleteUser, findUser, setDisplayName } from './repository.ts'
 
 // Other fields, such as the email address, are ignored.
 const profileBody = z.object({
@@ -29,6 +31,16 @@ export function userRoutes({ db, config }: { db: Database; config: Config }): Ro
     if (!user) throw notFound()
     req.log.info({ userId }, 'user.profile_updated')
     res.json(user)
+  })
+
+  // Everything the account holds goes at once; nothing is kept.
+  router.delete('/', (req, res) => {
+    const { userId } = currentSession(res)
+    requireRecentPassword(db, res)
+    if (!deleteUser(db, userId)) throw notFound()
+    req.log.warn({ userId }, 'user.account_deleted')
+    clearSessionCookie(res, config)
+    res.json({ ok: true })
   })
 
   return router

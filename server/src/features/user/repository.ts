@@ -31,3 +31,9 @@ export function setDisplayName(db: Database, userId: string, displayName: string
   const row = db.prepare(`UPDATE users SET display_name = ? WHERE id = ? RETURNING ${COLUMNS}`).get(displayName, userId)
   return row ? toPublicUser(row) : null
 }
+
+/** Deletes the account; its sessions, links and email records go with it
+    (ON DELETE CASCADE). */
+export function deleteUser(db: Database, userId: string): boolean {
+  return db.prepare('DELETE FROM users WHERE id = ?').run(userId).changes === 1
+}
