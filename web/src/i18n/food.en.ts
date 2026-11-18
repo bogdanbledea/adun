@@ -1,0 +1,53 @@
+import type { roFood } from './food.ro.ts'
+
+export const enFood: Record<keyof typeof roFood, string> = {
+  'food.title': 'Food',
+  'food.previousMonth': 'Previous month',
+  'food.nextMonth': 'Next month',
+  'food.loadFailed': 'Could not load the food budget.',
+
+  'food.setupTitle': 'How much are you setting aside for food?',
+  'food.setupText': 'Set the amount for {month} ({range}) and we split it into weeks. You can always see how much is left to spend this week.',
+  'food.startFrom': 'Start from {month}',
+  'food.setBudget': 'Set the budget',
+
+  'food.leftIn': 'Left in {month}',
+  'food.spentShare': '{percent}% spent',
+  'food.ofTotal': 'of {amount}',
+  'food.monthProgress': 'Spent of the month’s money',
+
+  'food.sources': 'Sources',
+  'food.editSources': 'Edit',
+  'food.editSourcesLabel': 'Edit the sources and the period',
+  'food.sourceProgress': 'Spent from {name}',
+
+  'food.moneyTitle': 'Food money',
+  'food.newBudgetTitle': 'Food budget · {month}',
+  'food.sourcesText': 'Where the money for {month} sits: a card, cash or meal vouchers. The total is split into weeks.',
+  'food.coveredFrom': 'The money covers from',
+  'food.until': 'Until {date}, the day before the next month.',
+  'food.fromPayday': 'This date comes from the payday in Settings.',
+  'food.backToPayday': 'Payday ({date})',
+  'food.backToFirst': 'From the 1st ({date})',
+  'food.sourceName': 'Source {number} name',
+  'food.sourceAmount': 'Source {number} amount (lei)',
+  'food.removeSource': 'Remove source {number}',
+  'food.addSource': 'Source',
+  'food.addPreset': 'Add {name}',
+  'food.presetCash': 'Cash',
+  'food.presetVouchers': 'Meal vouchers',
+  'food.total': 'Total for food',
+  'food.needSource': 'Add at least one source.',
+  'food.sourceIncomplete': 'Each source needs a name and an amount.',
+
+  'error.food_budget_not_found': 'This month has no food budget yet.',
+  'error.food_purchase_not_found': 'That purchase no longer exists. Reload the page.',
+  'error.food_duplicate_source': 'Two sources have the same name.',
+  'error.food_unknown_source': 'That source no longer exists. Reload the page.',
+  'error.food_source_in_use': 'A source you removed has purchases. Move them to another source before deleting it.',
+  'error.food_period_out_of_range': 'The period must start between the 15th of last month and the 28th of this one.',
+  'error.food_period_before_previous': 'The period would start before the previous month’s.',
+  'error.food_period_after_next': 'The period would start after the next month’s.',
+  'error.food_purchases_outside_period': 'Some purchases would fall outside the period. Move them or change their date first.',
+  'error.food_date_outside_period': 'The date must be within the budget period.',
+}

@@ -3,6 +3,7 @@
    filled in by t(key, { name }). */
 
 import { roPlans } from './plans.ro.ts'
+import { roFood } from './food.ro.ts'
 import { roReminders } from './reminders.ro.ts'
 
 export const ro = {
@@ -30,7 +31,7 @@ export const ro = {
   'footer.privacy': 'Confidențialitate',
 
   // Sections
-  'food.subtitle': 'Cât ai, cât de repede cheltui și ce ai cumpărat.',
+  'food.subtitle': 'Cât ai la dispoziție, în ce ritm cheltuiești și ce ai cumpărat.',
   'reminders.subtitle': 'ITP, RCA, rovinietă și revizii, în ordinea în care urmează.',
 
   // Pages
@@ -331,6 +332,7 @@ export const ro = {
   'error.unknown': 'Ceva nu a mers. Încearcă din nou.',
   ...roPlans,
   ...roReminders,
+  ...roFood,
 }
 
 export type MessageKey = keyof typeof ro

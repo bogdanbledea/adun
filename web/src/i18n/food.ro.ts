@@ -1,0 +1,53 @@
+/* The food budget (Mâncare). Spread into ro.ts. */
+
+export const roFood = {
+  'food.title': 'Mâncare',
+  'food.previousMonth': 'Luna anterioară',
+  'food.nextMonth': 'Luna următoare',
+  'food.loadFailed': 'Nu am putut încărca bugetul de mâncare.',
+
+  'food.setupTitle': 'Cât pui deoparte pentru mâncare?',
+  'food.setupText': 'Pune suma pentru {month} ({range}) și o împărțim pe săptămâni. Vezi oricând cât mai ai de cheltuit săptămâna asta.',
+  'food.startFrom': 'Pornește de la {month}',
+  'food.setBudget': 'Setează bugetul',
+
+  'food.leftIn': 'Rămas în {month}',
+  'food.spentShare': '{percent}% cheltuit',
+  'food.ofTotal': 'din {amount}',
+  'food.monthProgress': 'Cheltuit din banii lunii',
+
+  'food.sources': 'Surse',
+  'food.editSources': 'Editează',
+  'food.editSourcesLabel': 'Editează sursele și perioada',
+  'food.sourceProgress': 'Cheltuit din {name}',
+
+  'food.moneyTitle': 'Banii de mâncare',
+  'food.newBudgetTitle': 'Buget de mâncare · {month}',
+  'food.sourcesText': 'Unde stau banii pentru {month}: un card, cash sau bonuri de masă. Totalul se împarte pe săptămâni.',
+  'food.coveredFrom': 'Banii acoperă de la',
+  'food.until': 'Până pe {date}, ziua dinaintea lunii următoare.',
+  'food.fromPayday': 'Data vine din ziua de salariu din Setări.',
+  'food.backToPayday': 'Ziua de salariu ({date})',
+  'food.backToFirst': 'De la 1 ({date})',
+  'food.sourceName': 'Nume sursă {number}',
+  'food.sourceAmount': 'Sumă sursa {number} (lei)',
+  'food.removeSource': 'Elimină sursa {number}',
+  'food.addSource': 'Sursă',
+  'food.addPreset': 'Adaugă {name}',
+  'food.presetCash': 'Cash',
+  'food.presetVouchers': 'Bonuri de masă',
+  'food.total': 'Total pentru mâncare',
+  'food.needSource': 'Adaugă cel puțin o sursă.',
+  'food.sourceIncomplete': 'Fiecare sursă are nevoie de un nume și o sumă.',
+
+  'error.food_budget_not_found': 'Luna aceasta nu are încă buget de mâncare.',
+  'error.food_purchase_not_found': 'Cumpărătura nu mai există. Reîncarcă pagina.',
+  'error.food_duplicate_source': 'Două surse au același nume.',
+  'error.food_unknown_source': 'Sursa nu mai există. Reîncarcă pagina.',
+  'error.food_source_in_use': 'O sursă scoasă din listă are cumpărături. Mută-le pe altă sursă înainte să o ștergi.',
+  'error.food_period_out_of_range': 'Începutul perioadei trebuie să fie între 15 ale lunii trecute și 28 ale lunii.',
+  'error.food_period_before_previous': 'Perioada ar începe înaintea lunii anterioare.',
+  'error.food_period_after_next': 'Perioada ar începe după luna următoare.',
+  'error.food_purchases_outside_period': 'Există cumpărături care ar rămâne în afara perioadei. Mută-le sau schimbă data lor întâi.',
+  'error.food_date_outside_period': 'Data trebuie să fie în perioada bugetului.',
+}

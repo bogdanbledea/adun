@@ -28,10 +28,12 @@ interface MoneyProps {
   tone?: MoneyTone
   /** Print a minus for negative values; off by default so callers can show magnitudes. */
   signed?: boolean
+  /** Leave out the "lei" unit, as in "−20 lei / 1.500". */
+  bare?: boolean
   className?: string
 }
 
-export function Money({ bani, tone = 'plain', signed = false, className }: MoneyProps) {
+export function Money({ bani, tone = 'plain', signed = false, bare = false, className }: MoneyProps) {
   const { amountsHidden } = usePrivacy()
   const { language, t } = useI18n()
   return (
@@ -42,7 +44,7 @@ export function Money({ bani, tone = 'plain', signed = false, className }: Money
         {formatLei(Math.abs(bani), language)}
       </span>
       {amountsHidden && <span className="sr-only">{t('amounts.hidden')}</span>}
-      <span className="ml-1 font-normal opacity-70">{t('amounts.currency')}</span>
+      {!bare && <span className="ml-1 font-normal opacity-70">{t('amounts.currency')}</span>}
     </span>
   )
 }

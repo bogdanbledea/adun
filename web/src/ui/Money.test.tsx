@@ -46,3 +46,12 @@ test('a visit starts with amounts hidden when that was the last choice', () => {
   renderWithProviders(<Probe />)
   expect(document.querySelector('.amount-masked')).not.toBeNull()
 })
+
+test('can leave out the unit', () => {
+  renderWithProviders(
+    <p data-testid="bare">
+      <Money bani={150000} bare />
+    </p>,
+  )
+  expect(screen.getByTestId('bare').textContent).toBe('1.500')
+})

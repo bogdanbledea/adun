@@ -1,4 +1,5 @@
 import { enPlans } from './plans.en.ts'
+import { enFood } from './food.en.ts'
 import { enReminders } from './reminders.en.ts'
 import type { MessageKey } from './ro.ts'
 
@@ -314,6 +315,7 @@ export const en: Record<MessageKey, string> = {
   'error.unknown': 'Something went wrong. Try again.',
   ...enPlans,
   ...enReminders,
+  ...enFood,
 }
 
 export const enMottos = ['the family’s money', 'monthly peace of mind', 'what matters', 'money, not worries', 'today for tomorrow']

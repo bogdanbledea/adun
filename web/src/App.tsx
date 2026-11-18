@@ -3,6 +3,7 @@ import { ResetPasswordPage } from './features/auth/ResetPasswordPage.tsx'
 import { SignInPage } from './features/auth/SignInPage.tsx'
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage.tsx'
 import { BudgetPage } from './features/budget/BudgetPage.tsx'
+import { FoodPage } from './features/food/FoodPage.tsx'
 import { PrivacyPage } from './features/privacy/PrivacyPage.tsx'
 import { SettingsPage } from './features/settings/SettingsPage.tsx'
 import { PlansPage } from './features/plans/PlansPage.tsx'
@@ -10,17 +11,14 @@ import { RemindersPage } from './features/reminders/RemindersPage.tsx'
 import { TemplatePage } from './features/template/TemplatePage.tsx'
 import { AppShell } from './layout/AppShell.tsx'
 import { NotFound } from './layout/NotFound.tsx'
-import { PageHeader } from './layout/PageHeader.tsx'
 import { PageLoading } from './layout/PageLoading.tsx'
 import { PublicFrame } from './layout/PublicFrame.tsx'
 import { useAuth } from './lib/auth.tsx'
-import { useT, type MessageKey } from './lib/i18n.tsx'
 
 /* The route table. URLs are Romanian in both languages. Pages are behind
    RequireAuth, which shows the sign-in page in place (keeping the URL) when
    there is no session. The privacy page is open to everyone, inside the shell
-   when signed in; the page an email link opens works signed in or out.
-   Sections not built yet show their page header. */
+   when signed in; the page an email link opens works signed in or out. */
 
 function RequireAuth() {
   const { state } = useAuth()
@@ -54,11 +52,6 @@ function ForgotPassword() {
   return <Navigate to="/buget" replace />
 }
 
-function Section({ title, subtitle }: { title: MessageKey; subtitle: MessageKey }) {
-  const t = useT()
-  return <PageHeader title={t(title)} subtitle={t(subtitle)} />
-}
-
 export function App() {
   return (
     <Routes>
@@ -72,7 +65,8 @@ export function App() {
         <Route path="/buget/:month" element={<BudgetPage />} />
         <Route path="/sablon" element={<TemplatePage />} />
         <Route path="/planuri-de-rate" element={<PlansPage />} />
-        <Route path="/mancare" element={<Section title="nav.food" subtitle="food.subtitle" />} />
+        <Route path="/mancare" element={<FoodPage />} />
+        <Route path="/mancare/:month" element={<FoodPage />} />
         <Route path="/scadente" element={<RemindersPage />} />
         <Route path="/setari" element={<SettingsPage />} />
         <Route path="*" element={<NotFound />} />

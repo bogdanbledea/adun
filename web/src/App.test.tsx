@@ -26,7 +26,7 @@ test('the root opens the budget, with its tab marked as current', async () => {
 test('the tabs move between sections', async () => {
   renderApp('/buget')
   await userEvent.click(await screen.findByRole('link', { name: 'Mâncare' }))
-  expect(screen.getByRole('heading', { level: 1, name: 'Mâncare' })).toBeDefined()
+  expect(await screen.findByRole('heading', { level: 1, name: 'Mâncare' })).toBeDefined()
   await userEvent.click(screen.getByRole('link', { name: 'Scadențe' }))
   expect(screen.getByRole('heading', { level: 1, name: 'Scadențe' })).toBeDefined()
 })
