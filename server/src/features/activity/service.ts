@@ -18,6 +18,7 @@ export type ActivityAction =
   | 'account.logged_out_everywhere'
   | 'month.created'
   | 'month.deleted'
+  | 'month.cleared'
   | 'month.imported'
   | 'entry.created'
   | 'entry.updated'

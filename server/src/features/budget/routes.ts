@@ -81,9 +81,9 @@ export function monthRoutes({ db, config }: Deps): Router {
   router.delete('/:monthKey', (req, res) => {
     const { userId } = currentSession(res)
     const { monthKey } = validate(monthParams, req.params)
-    const entries = budget.deleteMonth(db, userId, monthKey)
-    req.log.warn({ userId, entries }, 'budget.month_deleted')
-    res.json({ ok: true })
+    const { entries, keptInstallments } = budget.deleteMonth(db, userId, monthKey)
+    req.log.warn({ userId, entries, keptInstallments }, 'budget.month_deleted')
+    res.json({ ok: true, cleared: keptInstallments > 0, keptInstallments })
   })
 
   return router

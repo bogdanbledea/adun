@@ -55,7 +55,7 @@ await send('POST', '/api/months', ion, { monthKey: '2026-01' })
 describe('POST /api/entries', () => {
   test('adds an entry, its category, and records it', async () => {
     const entry = await add()
-    assert.deepEqual({ ...entry, id: undefined }, { ...rent, id: undefined })
+    assert.deepEqual({ ...entry, id: undefined }, { ...rent, id: undefined, plan: null })
     assert.deepEqual(lastActivity(), {
       action: 'entry.created',
       metadata: { description: 'Rent', category: 'Home', type: 'expense', amountBani: 150_000, monthKey: '2026-01' },

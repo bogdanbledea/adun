@@ -230,3 +230,65 @@ describe('closing and deleting a plan', () => {
     assert.equal(installmentsOf(id), 2)
   })
 })
+
+describe('instalments in the budget', () => {
+  interface MonthEntry {
+    id: string
+    description: string
+    plan: { name: string; index: number; total: number } | null
+  }
+  const entriesOf = async (monthKey: string) =>
+    ((await (await send('GET', `/api/months/${monthKey}`, ana)).json()) as { categories: { entries: MonthEntry[] }[] })
+      .categories.flatMap((category) => category.entries)
+
+  test('show their plan and number', async () => {
+    await create({ name: 'Bike', installmentCount: 2, firstMonthKey: '2028-01' })
+    const [installment] = await entriesOf('2028-01')
+    assert.deepEqual(installment?.plan && { ...installment.plan, id: undefined }, { id: undefined, name: 'Bike', index: 1, total: 2 })
+  })
+
+  test('can be edited but not moved or made income', async () => {
+    const [installment] = await entriesOf('2028-01')
+    const path = `/api/entries/${String(installment?.id)}`
+    assert.equal((await send('PATCH', path, ana, { amountBani: 90_000 })).status, 200)
+    for (const [body, code] of [
+      [{ monthKey: '2028-03' }, 'installment_move'],
+      [{ type: 'income' }, 'installment_type'],
+    ] as const) {
+      const res = await send('PATCH', path, ana, body)
+      assert.equal(res.status, 400)
+      assert.equal(await codeOf(res), code)
+    }
+  })
+
+  test('are left out of copies and imports', async () => {
+    await send('POST', '/api/entries', ana, {
+      monthKey: '2028-01',
+      categoryName: 'Home',
+      description: 'Rent',
+      type: 'expense',
+      amountBani: 150_000,
+    })
+    await send('POST', '/api/months', ana, { monthKey: '2028-05', from: '2028-01' })
+    assert.deepEqual((await entriesOf('2028-05')).map((entry) => entry.description), ['Rent'])
+    await send('POST', '/api/months/2028-05/import', ana, { from: '2028-02' })
+    assert.deepEqual((await entriesOf('2028-05')).map((entry) => entry.description), ['Rent'])
+  })
+
+  test('keep their month when it is deleted, which loses only its own entries', async () => {
+    const res = await send('DELETE', '/api/months/2028-01', ana)
+    assert.deepEqual(await res.json(), { ok: true, cleared: true, keptInstallments: 1 })
+    assert.deepEqual((await entriesOf('2028-01')).map((entry) => entry.description), ['Bike'])
+    const row = db.prepare('SELECT action, metadata FROM activity_logs WHERE user_id = ? ORDER BY id DESC').get(anaId)
+    assert.deepEqual([row?.action, JSON.parse(row?.metadata as string)], [
+      'month.cleared',
+      { monthKey: '2028-01', entries: 1, keptInstallments: 1 },
+    ])
+    // A month without instalments still goes.
+    assert.deepEqual(await (await send('DELETE', '/api/months/2028-05', ana)).json(), {
+      ok: true,
+      cleared: false,
+      keptInstallments: 0,
+    })
+  })
+})

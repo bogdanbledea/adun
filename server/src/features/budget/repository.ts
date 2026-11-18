@@ -23,6 +23,8 @@ export interface EntryRow {
   description: string
   type: EntryType
   amountBani: number
+  /** Set on a payment plan's instalment: number `index` of `total`. */
+  plan: { id: string; name: string; index: number; total: number } | null
 }
 
 /** An entry with its month and category. */
@@ -155,8 +157,10 @@ export function countEntries(db: Database, userId: string, monthId: string): num
 export function listEntries(db: Database, userId: string, monthId: string): EntryRow[] {
   return db
     .prepare(
-      `SELECT id, category_id, description, type, amount_bani FROM entries
-       WHERE month_id = ? AND user_id = ? ORDER BY sort_order, rowid`,
+      `SELECT e.id, e.category_id, e.description, e.type, e.amount_bani, e.plan_id, e.installment_index,
+              p.name AS plan_name, p.installments AS plan_total
+       FROM entries e LEFT JOIN payment_plans p ON p.id = e.plan_id AND p.user_id = e.user_id
+       WHERE e.month_id = ? AND e.user_id = ? ORDER BY e.sort_order, e.rowid`,
     )
     .all(monthId, userId)
     .map((row) => ({
@@ -165,16 +169,48 @@ export function listEntries(db: Database, userId: string, monthId: string): Entr
       description: row.description as string,
       type: row.type as EntryType,
       amountBani: row.amount_bani as number,
+      plan: planOf(row),
     }))
+}
+
+function planOf(row: Record<string, unknown>): EntryRow['plan'] {
+  if (row.plan_id === null) return null
+  return {
+    id: row.plan_id as string,
+    name: row.plan_name as string,
+    index: row.installment_index as number,
+    total: row.plan_total as number,
+  }
+}
+
+/** How many of the month's entries are payment plan instalments. */
+export function countInstallments(db: Database, userId: string, monthId: string): number {
+  return db
+    .prepare('SELECT count(*) AS n FROM entries WHERE month_id = ? AND user_id = ? AND plan_id IS NOT NULL')
+    .get(monthId, userId)?.n as number
+}
+
+/** Deletes the month's entries that are not instalments, and the categories left empty; returns how many entries. */
+export function deleteOwnEntries(db: Database, userId: string, monthId: string): number {
+  const { changes } = db
+    .prepare('DELETE FROM entries WHERE month_id = ? AND user_id = ? AND plan_id IS NULL')
+    .run(monthId, userId)
+  db.prepare(
+    `DELETE FROM categories
+     WHERE month_id = ? AND user_id = ? AND NOT EXISTS (SELECT 1 FROM entries WHERE category_id = categories.id)`,
+  ).run(monthId, userId)
+  return Number(changes)
 }
 
 export function findEntry(db: Database, userId: string, id: string): FullEntryRow | null {
   const row = db
     .prepare(
-      `SELECT e.id, e.month_id, m.month_key, e.category_id, c.name AS category_name, e.description, e.type, e.amount_bani
+      `SELECT e.id, e.month_id, m.month_key, e.category_id, c.name AS category_name, e.description, e.type, e.amount_bani,
+              e.plan_id, e.installment_index, p.name AS plan_name, p.installments AS plan_total
        FROM entries e
        JOIN months m ON m.id = e.month_id
        JOIN categories c ON c.id = e.category_id
+       LEFT JOIN payment_plans p ON p.id = e.plan_id AND p.user_id = e.user_id
        WHERE e.id = ? AND e.user_id = ?`,
     )
     .get(id, userId)
@@ -188,6 +224,7 @@ export function findEntry(db: Database, userId: string, id: string): FullEntryRo
     description: row.description as string,
     type: row.type as EntryType,
     amountBani: row.amount_bani as number,
+    plan: planOf(row),
   }
 }
 

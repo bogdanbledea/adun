@@ -19,6 +19,7 @@ import {
      its order. The target's category of the same name is used, or one is
      added after its last; entries go after the category's own. A new month
      is empty, so it ends up an exact copy.
+   - A payment plan's instalments are not copied: they belong to their plan.
    - The source is a month, which must exist, or the template, which may be
      empty. A month is not imported into itself.
    - The limits are checked once everything is copied: a copy that would
@@ -33,7 +34,7 @@ function sourceId(db: Database, userId: string, from: Source): string | null {
 
 // Returns how many entries were copied.
 function copyEntries(db: Database, userId: string, fromId: string, toId: string): number {
-  const entries = repo.listEntries(db, userId, fromId)
+  const entries = repo.listEntries(db, userId, fromId).filter((entry) => entry.plan === null)
   const now = new Date().toISOString()
   for (const category of repo.listCategories(db, userId, fromId)) {
     const categoryId = findOrCreateCategory(db, userId, toId, category.name)

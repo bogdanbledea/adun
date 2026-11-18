@@ -22,6 +22,10 @@ import * as repo from './repository.ts'
      reordered like a month's, but stay in the template. It counts as a
      month for the limits on categories and entries, not for the number of
      months.
+   - A payment plan's instalments are expenses in the plan's months: one
+     can be edited, reordered or deleted, but not moved to another month or
+     made income. Copies leave them out. Deleting a month that holds some
+     keeps the month with them, and deletes only its own entries.
    - Balance = income − expenses, summed in SQL as integers.
    - An account holds at most LIMITS.months months, a month
      LIMITS.entriesPerMonth entries in LIMITS.categoriesPerMonth categories;
@@ -33,6 +37,8 @@ export interface Entry {
   description: string
   type: repo.EntryType
   amountBani: number
+  /** Set on a payment plan's instalment. */
+  plan: repo.EntryRow['plan']
 }
 
 export interface Category {
@@ -96,7 +102,7 @@ function categoriesOf(db: Database, userId: string, monthId: string): Category[]
     ...category,
     entries: entries
       .filter((entry) => entry.categoryId === category.id)
-      .map(({ id, description, type, amountBani }) => ({ id, description, type, amountBani })),
+      .map(({ id, description, type, amountBani, plan }) => ({ id, description, type, amountBani, plan })),
   }))
 }
 
@@ -135,22 +141,36 @@ export function createMonth(db: Database, userId: string, monthKey: string): Mon
   })
 }
 
-/** Removes the month with all its categories and entries; returns how many entries went. */
-export function deleteMonth(db: Database, userId: string, monthKey: string): number {
+export interface MonthDeletion {
+  entries: number
+  /** Instalments kept, with the month; 0 when the month went. */
+  keptInstallments: number
+}
+
+/** Removes the month with all its categories and entries. A month holding
+    instalments stays with them: only its own entries and the categories
+    left empty go, since the instalments belong to their plan. */
+export function deleteMonth(db: Database, userId: string, monthKey: string): MonthDeletion {
   return transaction(db, () => {
     const month = requireMonth(db, userId, monthKey)
+    const keptInstallments = repo.countInstallments(db, userId, month.id)
+    if (keptInstallments > 0) {
+      const entries = repo.deleteOwnEntries(db, userId, month.id)
+      logActivity(db, userId, 'month.cleared', { monthKey, entries, keptInstallments })
+      return { entries, keptInstallments }
+    }
     const entries = repo.countEntries(db, userId, month.id)
     repo.deleteMonth(db, userId, month.id)
     logActivity(db, userId, 'month.deleted', { monthKey, entries })
-    return entries
+    return { entries, keptInstallments }
   })
 }
 
 // ── Entries ──────────────────────────────────────────────────────────────────
 
 function toSavedEntry(row: repo.FullEntryRow): SavedEntry {
-  const { id, monthKey, categoryName, description, type, amountBani } = row
-  return { id, monthKey, categoryName, description, type, amountBani }
+  const { id, monthKey, categoryName, description, type, amountBani, plan } = row
+  return { id, monthKey, categoryName, description, type, amountBani, plan }
 }
 
 // What the activity history shows for an entry: the user's own data, never
@@ -212,6 +232,12 @@ export function updateEntry(db: Database, userId: string, id: string, update: En
     if (!current) throw entryNotFound()
     if (current.monthKey === null && update.monthKey !== undefined) {
       throw badRequest('template_entry_move', 'A template entry stays in the template.')
+    }
+    if (current.plan && update.monthKey !== undefined && update.monthKey !== current.monthKey) {
+      throw badRequest('installment_move', 'An instalment stays in the month its plan gave it.')
+    }
+    if (current.plan && update.type === 'income') {
+      throw badRequest('installment_type', 'An instalment is an expense.')
     }
 
     let monthId = current.monthId
