@@ -1,4 +1,4 @@
-import { CalendarPlus, EllipsisVertical, Trash2 } from 'lucide-react'
+import { CalendarPlus, EllipsisVertical, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ApiError, errorText } from '../../lib/api.ts'
 import { useI18n } from '../../lib/i18n.tsx'
@@ -7,15 +7,17 @@ import { EmptyState } from '../../ui/EmptyState.tsx'
 import { Menu } from '../../ui/Menu.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
-import { budgetApi, type Month } from './budget-api.ts'
+import { budgetApi, type Month, type SavedEntry } from './budget-api.ts'
 import { CategoryList } from './CategoryList.tsx'
+import { EntryForm, type EditedEntry } from './EntryForm.tsx'
 import { monthName } from './month-key.ts'
 import { MonthSummary } from './MonthSummary.tsx'
 
 /* One month: an offer to create its budget when it has none, otherwise its
-   totals and its entries by category, with a menu to delete the month. After
-   a change the month is read again from the server, so what is shown is what
-   is stored. */
+   totals and its entries by category, a form to add or change entries, and
+   a menu to delete the month. After a change the month is read again from
+   the server, so what is shown is what is stored. An entry moved to another
+   month leaves a notice naming it. */
 
 type State =
   | { kind: 'loading' }
@@ -25,10 +27,12 @@ type State =
 
 type Deleting = { kind: 'idle' } | { kind: 'asking'; busy: boolean; error: unknown }
 
+type Open = { kind: 'add'; categoryName?: string } | { kind: 'edit'; entry: EditedEntry } | null
+
 interface MonthViewProps {
   monthKey: string
-  /** Called when the month's budget is created or deleted. */
-  onHasBudget: (has: boolean) => void
+  /** Called when a month's budget is created or deleted. */
+  onHasBudget: (monthKey: string, has: boolean) => void
 }
 
 export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
@@ -36,6 +40,8 @@ export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
   const [state, setState] = useState<State>({ kind: 'loading' })
   const [attempt, setAttempt] = useState(0)
   const [deleting, setDeleting] = useState<Deleting>({ kind: 'idle' })
+  const [open, setOpen] = useState<Open>(null)
+  const [movedTo, setMovedTo] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -57,7 +63,7 @@ export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
     setState({ kind: 'none', creating: true, error: null })
     try {
       setState({ kind: 'ready', month: await budgetApi.createMonth(monthKey) })
-      onHasBudget(true)
+      onHasBudget(monthKey, true)
     } catch (error) {
       setState({ kind: 'none', creating: false, error })
     }
@@ -69,10 +75,32 @@ export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
       await budgetApi.deleteMonth(monthKey)
       setDeleting({ kind: 'idle' })
       setState({ kind: 'none', creating: false, error: null })
-      onHasBudget(false)
+      onHasBudget(monthKey, false)
     } catch (error) {
       setDeleting({ kind: 'asking', busy: false, error })
     }
+  }
+
+  const reload = async () => {
+    try {
+      setState({ kind: 'ready', month: await budgetApi.month(monthKey) })
+    } catch (error) {
+      setState({ kind: 'failed', error })
+    }
+  }
+
+  const saved = async (entry: SavedEntry) => {
+    setOpen(null)
+    if (entry.monthKey !== monthKey) {
+      setMovedTo(entry.monthKey)
+      onHasBudget(entry.monthKey, true)
+    }
+    await reload()
+  }
+
+  const deleted = async () => {
+    setOpen(null)
+    await reload()
   }
 
   const name = monthName(monthKey, language)
@@ -122,11 +150,28 @@ export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
   }
 
   const { month } = state
+  const categoryNames = month.categories.map((category) => category.name)
+  const form = (
+    <EntryForm
+      key={open?.kind === 'edit' ? open.entry.id : `add-${open?.categoryName ?? ''}`}
+      monthKey={monthKey}
+      entry={open?.kind === 'edit' ? open.entry : undefined}
+      categoryName={open?.kind === 'add' ? open.categoryName : undefined}
+      categoryNames={categoryNames}
+      onSaved={(entry) => void saved(entry)}
+      onDeleted={() => void deleted()}
+      onCancel={() => { setOpen(null) }}
+    />
+  )
 
   return (
     <section aria-label={name} className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">{name}</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="mr-auto text-lg font-semibold">{name}</h2>
+        <Button onClick={() => { setMovedTo(null); setOpen({ kind: 'add' }) }}>
+          <Plus />
+          {t('budget.add')}
+        </Button>
         <Menu
           label={t('budget.monthMenu')}
           trigger={<EllipsisVertical />}
@@ -155,9 +200,19 @@ export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
           </div>
         </div>
       )}
+      {movedTo !== null && (
+        <Notice tone="success">{t('budget.moved', { month: monthName(movedTo, language) })}</Notice>
+      )}
+      {open?.kind === 'add' && <div className="card">{form}</div>}
       <MonthSummary totals={month.totals} />
       {month.categories.length > 0 ? (
-        <CategoryList categories={month.categories} />
+        <CategoryList
+          categories={month.categories}
+          editingId={open?.kind === 'edit' ? open.entry.id : null}
+          editor={form}
+          onAdd={(categoryName) => { setMovedTo(null); setOpen({ kind: 'add', categoryName }) }}
+          onEdit={(entry, categoryName) => { setMovedTo(null); setOpen({ kind: 'edit', entry: { ...entry, categoryName } }) }}
+        />
       ) : (
         <p className="card px-4 py-8 text-center text-sm text-muted">{t('budget.noEntries')}</p>
       )}

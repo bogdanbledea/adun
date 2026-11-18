@@ -42,7 +42,7 @@ export function BudgetPage() {
     <>
       <PageHeader title={t('nav.budget')} subtitle={t('budget.subtitle')} />
       <MonthStrip selected={monthKey} withBudget={withBudget} />
-      <MonthView key={monthKey} monthKey={monthKey} onHasBudget={(has) => { mark(monthKey, has) }} />
+      <MonthView key={monthKey} monthKey={monthKey} onHasBudget={mark} />
     </>
   )
 }
