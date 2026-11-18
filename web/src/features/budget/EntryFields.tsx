@@ -18,12 +18,14 @@ interface AmountPanelProps {
   type: EntryType
   amount: string
   error?: string
+  /** An instalment is always an expense. */
+  typeFixed?: boolean
   onTypeChange: (type: EntryType) => void
   onAmountChange: (amount: string) => void
 }
 
 /** The type and the amount are one decision, so they come first, together. */
-export function AmountPanel({ type, amount, error, onTypeChange, onAmountChange }: AmountPanelProps) {
+export function AmountPanel({ type, amount, error, typeFixed, onTypeChange, onAmountChange }: AmountPanelProps) {
   const t = useT()
   const amountId = useId()
   return (
@@ -32,6 +34,7 @@ export function AmountPanel({ type, amount, error, onTypeChange, onAmountChange 
         label={t('budget.type')}
         hint={t(`kind.${type}Hint`)}
         value={type}
+        disabled={typeFixed}
         onChange={(event) => { onTypeChange(event.target.value as EntryType) }}
       >
         {TYPES.map((option) => (

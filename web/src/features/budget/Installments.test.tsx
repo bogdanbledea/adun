@@ -80,6 +80,8 @@ test('an instalment shows its number and opens its plan, from where it can be ed
   expect(within(edit).getByText('Rata 2/3 din planul „Telefon”')).toBeDefined()
   expect(within(edit).getByText('Ratele urmează planul de plată și nu pot fi mutate în altă lună.')).toBeDefined()
   expect(within(edit).queryByRole('combobox', { name: 'Luna' })).toBeNull()
+  // An instalment stays an expense.
+  expect(within(edit).getByLabelText<HTMLSelectElement>('Tip').disabled).toBe(true)
 })
 
 test('deleting a month with instalments clears it and says why it stays', async () => {

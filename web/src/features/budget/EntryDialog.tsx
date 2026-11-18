@@ -126,7 +126,14 @@ export function EntryDialog({
               ? t('plans.installmentOf', { index: entry.plan.index, total: entry.plan.total, name: entry.plan.name })
               : monthLong(monthKey, language)}
         </p>
-        <AmountPanel type={type} amount={amount} error={errors.amount} onTypeChange={setType} onAmountChange={setAmount} />
+        <AmountPanel
+          type={type}
+          amount={amount}
+          error={errors.amount}
+          typeFixed={Boolean(entry?.plan)}
+          onTypeChange={setType}
+          onAmountChange={setAmount}
+        />
         <Field
           label={t('budget.description')}
           value={description}
