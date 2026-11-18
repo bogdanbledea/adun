@@ -16,6 +16,22 @@ export const KINDS: Record<ReminderKind, { Icon: LucideIcon; intervalMonths: num
   altele: { Icon: CalendarClock, intervalMonths: null, leadDays: [3] },
 }
 
+export const LEAD_OPTIONS = [60, 30, 14, 7, 3, 1]
+export const MAX_LEAD_COUNT = 5
+export const INTERVAL_OPTIONS = [1, 3, 6, 12, 24, 36] as const
+
+export function intervalLabel(months: number, t: Translate): string {
+  if ((INTERVAL_OPTIONS as readonly number[]).includes(months)) {
+    return t(`reminders.every${String(months) as '1' | '3' | '6' | '12' | '24' | '36'}`)
+  }
+  return t(takesDe(months) ? 'reminders.everyMonthsDe' : 'reminders.everyMonths', { months })
+}
+
+export function leadLabel(days: number, t: Translate): string {
+  if (days === 1) return t('reminders.leadDay')
+  return t(takesDe(days) ? 'reminders.leadDaysDe' : 'reminders.leadDays', { days })
+}
+
 /** Romanian puts "de" after 20 and up, unless the number ends in 01–19
     ("7 zile", "30 de zile", "101 zile"); the texts come in both forms. */
 export const takesDe = (count: number) => count % 100 === 0 || count % 100 >= 20

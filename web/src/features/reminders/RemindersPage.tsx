@@ -1,4 +1,4 @@
-import { BellRing } from 'lucide-react'
+import { BellRing, Plus } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '../../layout/PageHeader.tsx'
 import { errorText } from '../../lib/api.ts'
@@ -11,6 +11,7 @@ import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
 import { todayDate } from '../budget/month-key.ts'
 import { urgencyOf } from './kinds.ts'
+import { ReminderDialog } from './ReminderDialog.tsx'
 import { ReminderRow } from './ReminderRow.tsx'
 import { remindersApi, type Reminder } from './reminders-api.ts'
 
@@ -19,6 +20,8 @@ import { remindersApi, type Reminder } from './reminders-api.ts'
    hourly sweep; with email off the page says so and works the same. After
    each change the list is read again. */
 
+type Open = { dialog: 'create' } | { dialog: 'edit'; reminder: Reminder } | { dialog: 'delete'; reminder: Reminder } | null
+
 export function RemindersPage() {
   const t = useT()
   const status = useServerStatus()
@@ -26,7 +29,7 @@ export function RemindersPage() {
   const emailEnabled = status?.emailEnabled ?? true
   const [reminders, setReminders] = useState<Reminder[] | null>(null)
   const [loadError, setLoadError] = useState<unknown>(null)
-  const [deleting, setDeleting] = useState<Reminder | null>(null)
+  const [open, setOpen] = useState<Open>(null)
   const [failure, setFailure] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
   const today = todayDate()
@@ -61,8 +64,10 @@ export function RemindersPage() {
       setFailure(error)
     }
     setBusy(false)
-    setDeleting(null)
+    setOpen(null)
   }
+
+  const create = () => { setOpen({ dialog: 'create' }) }
 
   const attention = reminders?.filter((reminder) => ['overdue', 'soon'].includes(urgencyOf(reminder, today))).length ?? 0
 
@@ -94,7 +99,16 @@ export function RemindersPage() {
     )
   } else if (reminders.length === 0) {
     body = (
-      <EmptyState icon={<BellRing />} title={t('reminders.empty')}>
+      <EmptyState
+        icon={<BellRing />}
+        title={t('reminders.empty')}
+        action={
+          <Button onClick={create}>
+            <Plus />
+            {t('reminders.addFirst')}
+          </Button>
+        }
+      >
         {emailEnabled ? t('reminders.emptyText') : t('reminders.emptyTextNoEmail')}
       </EmptyState>
     )
@@ -106,7 +120,13 @@ export function RemindersPage() {
         </h2>
         <ul>
           {reminders.map((reminder) => (
-            <ReminderRow key={reminder.id} reminder={reminder} today={today} onDelete={setDeleting} />
+            <ReminderRow
+              key={reminder.id}
+              reminder={reminder}
+              today={today}
+              onEdit={(target) => { setOpen({ dialog: 'edit', reminder: target }) }}
+              onDelete={(target) => { setOpen({ dialog: 'delete', reminder: target }) }}
+            />
           ))}
         </ul>
       </section>
@@ -124,6 +144,16 @@ export function RemindersPage() {
               ? t('reminders.attentionOne')
               : t('reminders.attentionMany', { count: attention })
         }
+        // An empty page has its own button in the empty state.
+        action={
+          reminders !== null &&
+          reminders.length > 0 && (
+            <Button className="self-start sm:self-auto" onClick={create}>
+              <Plus />
+              {t('reminders.add')}
+            </Button>
+          )
+        }
       />
       {!emailEnabled && (
         <div className="mb-4">
@@ -138,14 +168,22 @@ export function RemindersPage() {
         </div>
       )}
       {body}
+      {(open?.dialog === 'create' || open?.dialog === 'edit') && (
+        <ReminderDialog
+          reminder={open.dialog === 'edit' ? open.reminder : null}
+          emailEnabled={emailEnabled}
+          onClose={() => { setOpen(null) }}
+          onSaved={() => void load()}
+        />
+      )}
       <ConfirmDialog
-        open={deleting !== null}
-        title={deleting ? t('reminders.deleteTitle', { name: deleting.name }) : ''}
+        open={open?.dialog === 'delete'}
+        title={open?.dialog === 'delete' ? t('reminders.deleteTitle', { name: open.reminder.name }) : ''}
         confirmLabel={t('common.delete')}
         destructive
         busy={busy}
-        onConfirm={() => { if (deleting) void remove(deleting) }}
-        onCancel={() => { setDeleting(null) }}
+        onConfirm={() => { if (open?.dialog === 'delete') void remove(open.reminder) }}
+        onCancel={() => { setOpen(null) }}
       >
         {t('reminders.deleteText')}
       </ConfirmDialog>

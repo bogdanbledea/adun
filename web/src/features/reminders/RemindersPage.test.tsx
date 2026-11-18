@@ -1,10 +1,10 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { App } from '../../App.tsx'
 import { testAccount } from '../../test/account.ts'
 import { renderWithProviders } from '../../test/render.tsx'
-import { fakeServer } from '../../test/server.ts'
+import { fakeServer, sentBody } from '../../test/server.ts'
 import { todayDate } from '../budget/month-key.ts'
 import type { Reminder } from './reminders-api.ts'
 
@@ -112,4 +112,94 @@ test('a list that cannot be loaded can be asked for again', async () => {
   expect(await screen.findByText(/Scadențele nu au putut fi încărcate/)).toBeDefined()
   await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }))
   expect(await screen.findByText('ITP Logan')).toBeDefined()
+})
+
+describe('the reminder dialog', () => {
+  const serve = (reminders: Reminder[]) =>
+    fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/auth/status': status(),
+      '/api/reminders': [200, reminders],
+      'POST /api/reminders': [201, itp],
+      'PATCH /api/reminders/r1': [200, itp],
+    })
+
+  test('adds a reminder with the defaults of the type picked', async () => {
+    const fetchMock = serve([])
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Adaugă prima scadență' }))
+    const dialog = screen.getByRole('dialog', { name: 'Adaugă o scadență' })
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'RCA' }))
+    expect(within(dialog).getByLabelText<HTMLInputElement>('Nume').value).toBe('RCA')
+    expect(within(dialog).getByLabelText<HTMLSelectElement>('Se repetă').value).toBe('12')
+    expect(within(dialog).getByRole<HTMLInputElement>('checkbox', { name: '30 de zile' }).checked).toBe(true)
+
+    await userEvent.type(within(dialog).getByLabelText('Pentru (opțional)'), 'B 123 ABC')
+    await userEvent.type(within(dialog).getByLabelText('Expiră la'), inDays(100))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Adaugă' }))
+
+    await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull() })
+    expect(sentBody(fetchMock, '/api/reminders')).toEqual({
+      kind: 'rca',
+      name: 'RCA',
+      subject: 'B 123 ABC',
+      dueDate: inDays(100),
+      intervalMonths: 12,
+      leadDays: [7, 30],
+      notes: null,
+    })
+  })
+
+  test('asks for a name and a date', async () => {
+    const fetchMock = serve([])
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Adaugă prima scadență' }))
+    const dialog = screen.getByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Adaugă' }))
+
+    expect(within(dialog).getByText('Scrie un nume.')).toBeDefined()
+    expect(within(dialog).getByText('Alege data la care expiră.')).toBeDefined()
+    expect(sentBody(fetchMock, '/api/reminders')).toBeUndefined()
+  })
+
+  test('keeps between one and five warnings', async () => {
+    serve([])
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Adaugă prima scadență' }))
+    const dialog = screen.getByRole('dialog')
+    const chip = (name: string) => within(dialog).getByRole<HTMLInputElement>('checkbox', { name })
+    // ITP starts with 7 and 30; down to one, which stays.
+    await userEvent.click(chip('30 de zile'))
+    await userEvent.click(chip('7 zile'))
+    expect(chip('7 zile').checked).toBe(true)
+
+    for (const name of ['60 de zile', '30 de zile', '14 zile', '3 zile']) await userEvent.click(chip(name))
+    expect(chip('1 zi').disabled).toBe(true)
+  })
+
+  test('edits a reminder and can turn it off', async () => {
+    const fetchMock = serve([itp])
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Editează ITP Logan' }))
+    const dialog = screen.getByRole('dialog', { name: 'Editează scadența' })
+    expect(within(dialog).getByLabelText<HTMLSelectElement>('Se repetă').value).toBe('24')
+    await userEvent.click(within(dialog).getByRole('switch', { name: 'Activă' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvează' }))
+
+    await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull() })
+    expect(sentBody(fetchMock, '/api/reminders/r1')).toEqual({
+      kind: 'itp',
+      name: 'ITP Logan',
+      subject: 'B 123 ABC',
+      dueDate: itp.dueDate,
+      intervalMonths: 24,
+      leadDays: [7, 30],
+      notes: 'Service-ul din Berceni',
+      isActive: false,
+    })
+  })
 })
