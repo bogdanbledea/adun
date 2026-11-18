@@ -42,11 +42,16 @@ export const budgetNotFound = () => notFound('food_budget_not_found', 'This mont
 /** "Kaufland" and "kaufland" are the same name. */
 export const sameName = (name: string) => name.toLocaleLowerCase('ro-RO')
 
-/** The user's pay-period rule. */
+/** The user's pay-period rule, with their calendar corrections when it counts working days. */
 export function periodRule(db: Database, userId: string): PeriodRule {
   const user = findUser(db, userId)
   if (!user) throw notFound()
-  return { rule: user.foodPeriodRule, paydayWorkingDay: user.foodPaydayWorkingDay }
+  if (user.foodPeriodRule === 'calendar') return { rule: 'calendar', paydayWorkingDay: user.foodPaydayWorkingDay }
+  return {
+    rule: 'working_day',
+    paydayWorkingDay: user.foodPaydayWorkingDay,
+    overrides: repo.overrideMap(repo.listOverrides(db, userId)),
+  }
 }
 
 /** Each month's start: stored, else by the rule. */

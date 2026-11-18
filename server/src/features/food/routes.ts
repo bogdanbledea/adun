@@ -4,6 +4,7 @@ import type { Config } from '../../config.ts'
 import type { Database } from '../../db.ts'
 import { validate } from '../../http/validate.ts'
 import { currentSession, requireAuth } from '../auth/require-auth.ts'
+import { calendarYear, FIRST_YEAR, LAST_YEAR, resetDay, setDay } from './calendar.ts'
 import * as purchases from './purchases.ts'
 import * as food from './service.ts'
 
@@ -28,6 +29,22 @@ const sourcesBody = z.object({
     .max(food.MAX_SOURCES),
   // Left out, the month keeps its start; a new budget starts by the rule.
   periodStart: z.iso.date().optional(),
+})
+
+const yearParams = z.object({ year: z.coerce.number().int().min(FIRST_YEAR).max(LAST_YEAR) })
+const dateParams = z.object({
+  date: z.iso.date().refine((date) => Number(date.slice(0, 4)) >= FIRST_YEAR && Number(date.slice(0, 4)) <= LAST_YEAR),
+})
+const calendarBody = z.object({
+  kind: z.enum(['off', 'working']),
+  // Empty after trimming means no note.
+  note: z
+    .string()
+    .trim()
+    .max(64)
+    .nullable()
+    .transform((text) => text || null)
+    .default(null),
 })
 
 const purchaseParams = z.object({ id: z.uuid() })
@@ -61,10 +78,29 @@ interface Deps {
   config: Config
 }
 
-/* /api/food: food budgets and their purchases. */
+/* /api/food: food budgets, their purchases, and the working calendar payday
+   is counted on. */
 export function foodRoutes({ db, config }: Deps): Router {
   const router = Router()
   router.use(requireAuth(db, config))
+
+  router.get('/calendar/:year', (req, res) => {
+    const { year } = validate(yearParams, req.params)
+    res.json(calendarYear(db, currentSession(res).userId, year))
+  })
+
+  router.put('/calendar/:date', (req, res) => {
+    const { date } = validate(dateParams, req.params)
+    const { kind, note } = validate(calendarBody, req.body)
+    setDay(db, currentSession(res).userId, date, kind, note)
+    res.json({ ok: true })
+  })
+
+  router.delete('/calendar/:date', (req, res) => {
+    const { date } = validate(dateParams, req.params)
+    resetDay(db, currentSession(res).userId, date)
+    res.json({ ok: true })
+  })
 
   router.get('/current', (req, res) => {
     const { today } = validate(todayQuery, req.query)

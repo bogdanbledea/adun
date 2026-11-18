@@ -14,6 +14,8 @@ export const LIMITS = {
   plans: 200,
   reminders: 200,
   foodPurchasesPerMonth: 2000,
+  /** Working-calendar corrections per account. */
+  calendarDays: 500,
 } as const
 
 export const limitReached = () =>

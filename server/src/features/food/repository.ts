@@ -1,8 +1,10 @@
 import type { Database } from '../../db.ts'
+import type { CalendarOverrides } from './workdays.ts'
 
-/* SQL for food budgets, their sources and purchases. Every function takes the
-   user ID and filters by it: budgets by their user_id, sources and purchases
-   by belonging to one of the user's budgets. */
+/* SQL for food budgets, their sources and purchases, and the user's
+   corrections to the working calendar. Every function takes the user ID and
+   filters by it: budgets and corrections by their user_id, sources and
+   purchases by belonging to one of the user's budgets. */
 
 export interface BudgetRow {
   id: string
@@ -235,4 +237,38 @@ export function hasPurchasesOutside(
 /** Deletes every purchase of the budget and returns how many there were. */
 export function deletePurchases(db: Database, userId: string, budgetId: string): number {
   return Number(db.prepare(`DELETE FROM food_purchases WHERE budget_id = ? AND ${OWN_BUDGET}`).run(budgetId, userId).changes)
+}
+
+// ── Working calendar ─────────────────────────────────────────────────────────
+
+export interface OverrideRow {
+  date: string
+  kind: 'off' | 'working'
+  note: string | null
+}
+
+export function listOverrides(db: Database, userId: string): OverrideRow[] {
+  return db
+    .prepare('SELECT date, kind, note FROM work_calendar_overrides WHERE user_id = ? ORDER BY date')
+    .all(userId)
+    .map((row) => ({ date: row.date as string, kind: row.kind as 'off' | 'working', note: row.note as string | null }))
+}
+
+export const overrideMap = (rows: OverrideRow[]): CalendarOverrides => new Map(rows.map((row) => [row.date, row.kind]))
+
+export function countOverrides(db: Database, userId: string): number {
+  return db.prepare('SELECT count(*) AS n FROM work_calendar_overrides WHERE user_id = ?').get(userId)?.n as number
+}
+
+/** Sets the day, replacing a correction it had. */
+export function upsertOverride(db: Database, userId: string, override: OverrideRow & { now: string }): void {
+  db.prepare(
+    `INSERT INTO work_calendar_overrides (user_id, date, kind, note, created_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (user_id, date) DO UPDATE SET kind = excluded.kind, note = excluded.note`,
+  ).run(userId, override.date, override.kind, override.note, override.now)
+}
+
+/** Returns whether there was one to delete. */
+export function deleteOverride(db: Database, userId: string, date: string): boolean {
+  return db.prepare('DELETE FROM work_calendar_overrides WHERE user_id = ? AND date = ?').run(userId, date).changes === 1
 }

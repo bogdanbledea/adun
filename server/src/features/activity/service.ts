@@ -38,6 +38,8 @@ export type ActivityAction =
   | 'food.purchase_deleted'
   | 'food.purchases_cleared'
   | 'food.period_rule_set'
+  | 'calendar.day_set'
+  | 'calendar.day_reset'
 
 /** Records an action, with what it was about when that helps the user
     recognise it. Call it inside the transaction that makes the change. */
