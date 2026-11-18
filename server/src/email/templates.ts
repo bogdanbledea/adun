@@ -1,3 +1,5 @@
+import type { ReminderKind } from '../features/reminders/repository.ts'
+
 /* The emails the app sends, in Romanian and English, as plain text and simple
    HTML. Each is a greeting, a few paragraphs, one button and what follows it;
    the HTML uses inline styles only, since mail clients drop stylesheets. */
@@ -184,5 +186,66 @@ export function passwordChanged(
     ],
     button: { label: 'Cere o parolă nouă', url: resetUrl },
     after: [],
+  })
+}
+
+// "Other" says nothing in an email, so it is left out.
+const KIND_LABELS: Record<Language, Record<ReminderKind, string | null>> = {
+  ro: { itp: 'ITP', rca: 'RCA', casco: 'CASCO', rovinieta: 'Rovinietă', revizie_gaz: 'Revizie gaze', extinctor: 'Extinctor', altele: null },
+  en: { itp: 'ITP', rca: 'RCA', casco: 'CASCO', rovinieta: 'Road tax', revizie_gaz: 'Gas check', extinctor: 'Extinguisher', altele: null },
+}
+
+const DATE_LOCALES: Record<Language, string> = { ro: 'ro-RO', en: 'en-GB' }
+
+// "1 December 2026", from a YYYY-MM-DD day.
+function longDate(language: Language, date: string): string {
+  const format = new Intl.DateTimeFormat(DATE_LOCALES[language], { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+  return format.format(new Date(`${date}T00:00:00Z`))
+}
+
+function countdown(language: Language, days: number): string {
+  if (language === 'en') return days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${String(days)} days`
+  return days <= 0 ? 'azi' : days === 1 ? 'mâine' : `în ${String(days)} zile`
+}
+
+export interface ReminderDue {
+  displayName: string
+  name: string
+  kind: ReminderKind
+  subject: string | null
+  dueDate: string
+  daysLeft: number
+  url: string
+}
+
+/** Sent by the hourly sweep as a due date comes near. */
+export function reminderDue(language: Language, reminder: ReminderDue): RenderedEmail {
+  const detail = [KIND_LABELS[language][reminder.kind], reminder.subject].filter(Boolean).join(' · ')
+  const what = detail ? `${reminder.name} (${detail})` : reminder.name
+  const date = longDate(language, reminder.dueDate)
+  const when = countdown(language, reminder.daysLeft)
+  if (language === 'en') {
+    return render({
+      language,
+      subject: `${reminder.name} is due ${when}`,
+      greeting: greet(language, reminder.displayName),
+      before: [
+        `${what} is due on ${date}, ${when}.`,
+        'Once it is renewed, press “I renewed” next to it in adun, so the due date moves on.',
+      ],
+      button: { label: 'See your due dates', url: reminder.url },
+      after: ['You can change when these emails come, or turn them off, from the due date in adun.'],
+    })
+  }
+  return render({
+    language,
+    subject: `${reminder.name} expiră ${when}`,
+    greeting: greet(language, reminder.displayName),
+    before: [
+      `${what} expiră pe ${date}, ${when}.`,
+      'După ce o reînnoiești, apasă „Am reînnoit” lângă ea în adun, ca scadența să treacă mai departe.',
+    ],
+    button: { label: 'Vezi scadențele', url: reminder.url },
+    after: ['Poți schimba când vin aceste emailuri, sau le poți opri, din scadența respectivă în adun.'],
   })
 }

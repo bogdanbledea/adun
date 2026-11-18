@@ -27,6 +27,9 @@ export interface Config {
   registrationsEnabled: boolean
   // null means email is off.
   email: EmailConfig | null
+  // IANA name, such as Europe/Bucharest: decides which day it is for the
+  // reminder emails, and the hour they go out.
+  timeZone: string
   logLevel: LogLevel
 }
 
@@ -117,6 +120,16 @@ function email(env: Env): EmailConfig | null {
   }
 }
 
+function timeZone(env: Env): string {
+  const raw = read(env, 'TIME_ZONE') ?? 'Europe/Bucharest'
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: raw })
+  } catch {
+    throw new ConfigError('TIME_ZONE must be a time zone name such as Europe/Bucharest')
+  }
+  return raw
+}
+
 function logLevel(env: Env): LogLevel {
   const raw = read(env, 'LOG_LEVEL') ?? 'info'
   if (!(LOG_LEVELS as readonly string[]).includes(raw)) {
@@ -135,6 +148,7 @@ export function loadConfig(env: Env): Config {
     trustProxyHops: integer(env, 'TRUST_PROXY_HOPS', 0, 0, 10),
     registrationsEnabled: boolean(env, 'REGISTRATIONS_ENABLED', true),
     email: email(env),
+    timeZone: timeZone(env),
     logLevel: logLevel(env),
   }
 }

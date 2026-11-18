@@ -80,6 +80,7 @@ start on an invalid value, naming the variable. Empty values count as unset.
 | `PORT`                  | `8080`                  | Port the server listens on                                        |
 | `TRUST_PROXY_HOPS`      | `0`                     | Reverse proxies in front; `1` behind one proxy or tunnel          |
 | `REGISTRATIONS_ENABLED` | `true`                  | Set to `false` once everyone who should have an account has one   |
+| `TIME_ZONE`             | `Europe/Bucharest`      | Decides the day and hour reminder emails go out                   |
 | `LOG_LEVEL`             | `info`                  | `debug`, `info`, `warn` or `error`                                |
 
 Logs go to stdout, one JSON object per line ([pino](https://getpino.io));

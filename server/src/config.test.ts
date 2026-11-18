@@ -19,6 +19,7 @@ test('development defaults', () => {
     trustProxyHops: 0,
     registrationsEnabled: true,
     email: null,
+    timeZone: 'Europe/Bucharest',
     logLevel: 'info',
   })
 })
@@ -37,6 +38,7 @@ test('reads every variable', () => {
     SMTP_PASSWORD: 'secret',
     EMAIL_FROM: 'adun@example.com',
     EMAIL_FROM_NAME: 'Adun',
+    TIME_ZONE: 'America/New_York',
     LOG_LEVEL: 'warn',
   })
   assert.deepEqual(config, {
@@ -54,6 +56,7 @@ test('reads every variable', () => {
       fromAddress: 'adun@example.com',
       fromName: 'Adun',
     },
+    timeZone: 'America/New_York',
     logLevel: 'warn',
   })
 })
@@ -79,6 +82,7 @@ test('refuses invalid values and names the variable', () => {
   rejects({ TRUST_PROXY_HOPS: '11' }, 'TRUST_PROXY_HOPS')
   rejects({ REGISTRATIONS_ENABLED: 'yes' }, 'REGISTRATIONS_ENABLED')
   rejects({ LOG_LEVEL: 'verbose' }, 'LOG_LEVEL')
+  rejects({ TIME_ZONE: 'Europe/Nowhere' }, 'TIME_ZONE')
 })
 
 test('email: a relay without sign-in, on the default port, with the default name', () => {
