@@ -12,6 +12,7 @@ export const LIMITS = {
   entriesPerMonth: 500,
   /** Payment plans per account, closed ones included. */
   plans: 200,
+  reminders: 200,
 } as const
 
 export const limitReached = () =>
