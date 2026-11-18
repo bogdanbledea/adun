@@ -115,3 +115,57 @@ export function revokeOldestSessions(db: Database, userId: string, keep: number,
 export function revokeUserSessions(db: Database, userId: string, now: string): void {
   db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, userId)
 }
+
+// ── Email link tokens ───────────────────────────────────────────────────────
+
+export type TokenPurpose = 'email_verification' | 'password_reset'
+
+export interface NewToken {
+  id: string
+  userId: string
+  purpose: TokenPurpose
+  tokenHash: string
+  browserHash: string | null
+  expiresAt: string
+  now: string
+}
+
+export function insertToken(db: Database, token: NewToken): void {
+  db.prepare(
+    `INSERT INTO auth_tokens (id, user_id, purpose, token_hash, browser_hash, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(token.id, token.userId, token.purpose, token.tokenHash, token.browserHash, token.expiresAt, token.now)
+}
+
+export function deleteTokens(db: Database, userId: string, purpose: TokenPurpose): void {
+  db.prepare('DELETE FROM auth_tokens WHERE user_id = ? AND purpose = ?').run(userId, purpose)
+}
+
+export interface LiveToken {
+  userId: string
+  browserHash: string | null
+}
+
+/** The user of an unused, unexpired token, without using it up. */
+export function findLiveToken(db: Database, tokenHash: string, purpose: TokenPurpose, now: string): LiveToken | null {
+  const row = db
+    .prepare(
+      `SELECT user_id, browser_hash FROM auth_tokens
+       WHERE token_hash = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > ?`,
+    )
+    .get(tokenHash, purpose, now)
+  return row ? { userId: row.user_id as string, browserHash: row.browser_hash as string | null } : null
+}
+
+/** Marks an unused, unexpired token as used and returns its user. One
+    statement, so two requests cannot both use the same token. */
+export function consumeToken(db: Database, tokenHash: string, purpose: TokenPurpose, now: string): LiveToken | null {
+  const row = db
+    .prepare(
+      `UPDATE auth_tokens SET consumed_at = :now
+       WHERE token_hash = :tokenHash AND purpose = :purpose AND consumed_at IS NULL AND expires_at > :now
+       RETURNING user_id, browser_hash`,
+    )
+    .get({ tokenHash, purpose, now })
+  return row ? { userId: row.user_id as string, browserHash: row.browser_hash as string | null } : null
+}
