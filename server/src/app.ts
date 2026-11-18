@@ -7,6 +7,7 @@ import type { Config } from './config.ts'
 import type { Database } from './db.ts'
 import { createMailer, type Mailer } from './email/mailer.ts'
 import type { Logger } from './lib/log.ts'
+import { activityRoutes } from './features/activity/routes.ts'
 import { authRoutes } from './features/auth/routes.ts'
 import { userRoutes } from './features/user/routes.ts'
 import { errorHandler, notFoundHandler } from './http/errors.ts'
@@ -89,6 +90,7 @@ export function createApp({
 
   app.use('/api/auth', authRoutes({ db, config, mailer }))
   app.use('/api/user', userRoutes({ db, config }))
+  app.use('/api/activity', activityRoutes({ db, config }))
 
   // An unknown /api path is a 404 here, before the web app's files.
   app.use('/api', notFoundHandler)
