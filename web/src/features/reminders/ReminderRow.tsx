@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import { useI18n } from '../../lib/i18n.tsx'
 import { IconButton } from '../../ui/Button.tsx'
 import { cx } from '../../ui/cx.ts'
@@ -19,11 +19,12 @@ const URGENCY: Record<Urgency, { bar: string; icon: string; text: string }> = {
 interface ReminderRowProps {
   reminder: Reminder
   today: string
+  onRenew: (reminder: Reminder) => void
   onEdit: (reminder: Reminder) => void
   onDelete: (reminder: Reminder) => void
 }
 
-export function ReminderRow({ reminder, today, onEdit, onDelete }: ReminderRowProps) {
+export function ReminderRow({ reminder, today, onRenew, onEdit, onDelete }: ReminderRowProps) {
   const { t, language } = useI18n()
   const style = URGENCY[urgencyOf(reminder, today)]
   const { Icon } = KINDS[reminder.kind]
@@ -52,6 +53,9 @@ export function ReminderRow({ reminder, today, onEdit, onDelete }: ReminderRowPr
               {reminder.isActive ? countdown(daysLeft(reminder, today), t) : '—'}
             </p>
           </div>
+          <IconButton label={t('reminders.renew', { name: reminder.name })} onClick={() => { onRenew(reminder) }}>
+            <RotateCcw />
+          </IconButton>
           <IconButton label={t('reminders.edit', { name: reminder.name })} onClick={() => { onEdit(reminder) }}>
             <Pencil />
           </IconButton>

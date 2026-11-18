@@ -5,12 +5,13 @@ import { Button } from '../../ui/Button.tsx'
 import { Money } from '../../ui/Money.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
-import { monthLong } from '../budget/month-key.ts'
+import { dayLong, monthLong } from '../budget/month-key.ts'
 import { SettingsSection } from './SettingsSection.tsx'
 
 /* The newest 50 entries, with "show more" for older pages, and a way to erase
    them all. An action this version has no text for shows its raw name. A
-   budget action also shows what it was about, from the entry's details. */
+   budget or reminder action also shows what it was about, from the entry's
+   details. */
 
 const PAGE = 50
 
@@ -63,6 +64,17 @@ function detailsOf({ action, metadata }: ActivityEntry, t: Translate, language: 
       typeof installments === 'number' ? t('activity.installments', { count: installments }) : null,
       month(metadata.firstMonthKey),
       typeof deletedInstallments === 'number' ? t('activity.installments', { count: deletedInstallments }) : null,
+    ].filter(present)
+  }
+  if (action.startsWith('reminder.')) {
+    const { name, kind, dueDate, from, to } = metadata
+    const day = (date: unknown) => (typeof date === 'string' ? dayLong(date, language) : null)
+    const kindKey = `reminders.kind.${String(kind)}`
+    return [
+      name,
+      isMessageKey(kindKey) ? t(kindKey) : null,
+      day(dueDate),
+      from && to ? `${day(from) ?? ''} → ${day(to) ?? ''}` : null,
     ].filter(present)
   }
   if (!action.startsWith('entry.')) return []

@@ -14,13 +14,19 @@ import { urgencyOf } from './kinds.ts'
 import { ReminderDialog } from './ReminderDialog.tsx'
 import { ReminderRow } from './ReminderRow.tsx'
 import { remindersApi, type Reminder } from './reminders-api.ts'
+import { RenewDialog } from './RenewDialog.tsx'
 
 /* /scadente: due dates, active ones first and the nearest on top. The days
    left are counted from the browser's date. Emails come from the server's
    hourly sweep; with email off the page says so and works the same. After
    each change the list is read again. */
 
-type Open = { dialog: 'create' } | { dialog: 'edit'; reminder: Reminder } | { dialog: 'delete'; reminder: Reminder } | null
+type Open =
+  | { dialog: 'create' }
+  | { dialog: 'edit'; reminder: Reminder }
+  | { dialog: 'renew'; reminder: Reminder }
+  | { dialog: 'delete'; reminder: Reminder }
+  | null
 
 export function RemindersPage() {
   const t = useT()
@@ -124,6 +130,7 @@ export function RemindersPage() {
               key={reminder.id}
               reminder={reminder}
               today={today}
+              onRenew={(target) => { setOpen({ dialog: 'renew', reminder: target }) }}
               onEdit={(target) => { setOpen({ dialog: 'edit', reminder: target }) }}
               onDelete={(target) => { setOpen({ dialog: 'delete', reminder: target }) }}
             />
@@ -175,6 +182,9 @@ export function RemindersPage() {
           onClose={() => { setOpen(null) }}
           onSaved={() => void load()}
         />
+      )}
+      {open?.dialog === 'renew' && (
+        <RenewDialog reminder={open.reminder} onClose={() => { setOpen(null) }} onRenewed={() => void load()} />
       )}
       <ConfirmDialog
         open={open?.dialog === 'delete'}

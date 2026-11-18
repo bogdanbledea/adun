@@ -203,3 +203,46 @@ describe('the reminder dialog', () => {
     })
   })
 })
+
+describe('renewing', () => {
+  const renewPath = (id: string) => `/api/reminders/${id}/renew?today=${todayDate()}`
+
+  test('moves a repeating reminder by its interval, with no date needed', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/auth/status': status(),
+      '/api/reminders': [200, [itp]],
+      [`POST ${renewPath('r1')}`]: [200, itp],
+    })
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Am reînnoit ITP Logan' }))
+    const dialog = screen.getByRole('dialog', { name: 'Am reînnoit ITP Logan' })
+    expect(within(dialog).getByText(/Mutăm scadența cu 24 de luni mai departe/)).toBeDefined()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reînnoiește' }))
+
+    await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull() })
+    expect(sentBody(fetchMock, renewPath('r1'))).toEqual({})
+  })
+
+  test('needs the new date for one that does not repeat', async () => {
+    const once = { ...itp, intervalMonths: null }
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/auth/status': status(),
+      '/api/reminders': [200, [once]],
+      [`POST ${renewPath('r1')}`]: [200, once],
+    })
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Am reînnoit ITP Logan' }))
+    const dialog = screen.getByRole('dialog')
+    const renew = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Reînnoiește' })
+    expect(renew.disabled).toBe(true)
+    await userEvent.type(within(dialog).getByLabelText('Noua dată'), inDays(365))
+    await userEvent.click(renew)
+
+    await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull() })
+    expect(sentBody(fetchMock, renewPath('r1'))).toEqual({ dueDate: inDays(365) })
+  })
+})

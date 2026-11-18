@@ -187,6 +187,30 @@ describe('the activity section', () => {
     ])
   })
 
+  test('shows what a reminder change was about', async () => {
+    fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/activity?limit=50': [
+        200,
+        [
+          entry(4, 'reminder.deleted', { name: 'Gaze', kind: 'revizie_gaz' }),
+          entry(3, 'reminder.renewed', { name: 'ITP Logan', from: '2026-12-01', to: '2028-12-01' }),
+          entry(2, 'reminder.updated', { name: 'ITP Logan' }),
+          entry(1, 'reminder.created', { name: 'ITP Logan', kind: 'itp', dueDate: '2026-12-01' }),
+        ],
+      ],
+    })
+    renderApp()
+    const section = await screen.findByRole('region', { name: 'Activitate' })
+    const items = await within(section).findAllByRole('listitem')
+    expect(items.map((item) => item.firstElementChild?.textContent)).toEqual([
+      'Scadență ștearsăGaze · Revizie gaze',
+      'Scadență reînnoităITP Logan · 1 decembrie 2026 → 1 decembrie 2028',
+      'Scadență modificatăITP Logan',
+      'Scadență creatăITP Logan · ITP · 1 decembrie 2026',
+    ])
+  })
+
   test('hides the amounts in the history with the others', async () => {
     localStorage.setItem('amountsHidden', 'true')
     fakeServer({

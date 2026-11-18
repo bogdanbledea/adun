@@ -33,6 +33,7 @@ export const enReminders: Record<keyof typeof roReminders, string> = {
   'reminders.add': 'Add due date',
   'reminders.addFirst': 'Add your first due date',
   'reminders.edit': 'Edit {name}',
+  'reminders.renew': 'I renewed {name}',
   'reminders.hint.itp': 'Periodic technical inspection',
   'reminders.hint.rca': 'Mandatory car insurance',
   'reminders.hint.casco': 'Optional car insurance',
@@ -74,6 +75,14 @@ export const enReminders: Record<keyof typeof roReminders, string> = {
   'reminders.create': 'Add',
   'reminders.nameRequired': 'Type a name.',
   'reminders.dueDateRequired': 'Choose the expiry date.',
+
+  'reminders.renewTitle': 'I renewed {name}',
+  'reminders.renewRepeating': 'The due date moves {months} months ahead. If the new document has another date, enter it here.',
+  'reminders.renewRepeatingDe': 'The due date moves {months} months ahead. If the new document has another date, enter it here.',
+  'reminders.renewOnce': 'This due date does not repeat, so choose the new date.',
+  'reminders.newDate': 'New date',
+  'reminders.newDateOptional': 'New date (optional)',
+  'reminders.renewConfirm': 'Renew',
 
   'reminders.deleteTitle': 'Delete {name}?',
   'reminders.deleteText': 'The due date and its notification history are deleted for good. This cannot be undone.',

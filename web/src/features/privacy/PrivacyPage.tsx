@@ -26,6 +26,7 @@ export function PrivacyPage() {
           <li>{t('privacyPage.storedAccount')}</li>
           <li>{t('privacyPage.storedSessions')}</li>
           <li>{t('privacyPage.storedBudget')}</li>
+          <li>{t('privacyPage.storedReminders')}</li>
           <li>{t('privacyPage.storedActivity')}</li>
         </ul>
         <p>{t('privacyPage.storedNot')}</p>

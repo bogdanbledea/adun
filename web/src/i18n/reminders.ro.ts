@@ -34,6 +34,7 @@ export const roReminders = {
   'reminders.add': 'Adaugă scadență',
   'reminders.addFirst': 'Adaugă prima scadență',
   'reminders.edit': 'Editează {name}',
+  'reminders.renew': 'Am reînnoit {name}',
   'reminders.hint.itp': 'Inspecția tehnică periodică',
   'reminders.hint.rca': 'Asigurare obligatorie',
   'reminders.hint.casco': 'Asigurare facultativă',
@@ -75,6 +76,14 @@ export const roReminders = {
   'reminders.create': 'Adaugă',
   'reminders.nameRequired': 'Scrie un nume.',
   'reminders.dueDateRequired': 'Alege data la care expiră.',
+
+  'reminders.renewTitle': 'Am reînnoit {name}',
+  'reminders.renewRepeating': 'Mutăm scadența cu {months} luni mai departe. Dacă documentul nou are altă dată, scrie-o aici.',
+  'reminders.renewRepeatingDe': 'Mutăm scadența cu {months} de luni mai departe. Dacă documentul nou are altă dată, scrie-o aici.',
+  'reminders.renewOnce': 'Scadența nu se repetă, așa că trebuie să alegi noua dată.',
+  'reminders.newDate': 'Noua dată',
+  'reminders.newDateOptional': 'Noua dată (opțional)',
+  'reminders.renewConfirm': 'Reînnoiește',
 
   'reminders.deleteTitle': 'Ștergi {name}?',
   'reminders.deleteText': 'Scadența și istoricul notificărilor ei dispar definitiv. Nu se poate anula.',
