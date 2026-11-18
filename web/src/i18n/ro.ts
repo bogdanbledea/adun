@@ -141,6 +141,7 @@ export const ro = {
   'privacyPage.storedTitle': 'Ce se păstrează',
   'privacyPage.storedAccount': 'Contul: adresa de email, numele afișat, parola (doar ca hash Argon2, niciodată în clar) și data la care a fost creat.',
   'privacyPage.storedSessions': 'Sesiunile de autentificare: doar un hash al cookie-ului de sesiune, cu data expirării. O sesiune expiră după 30 de zile fără folosire.',
+  'privacyPage.storedActivity': 'Istoricul activității: ce s-a schimbat în cont (de exemplu numele sau parola) și când. Se păstrează 365 de zile, apoi se șterge singur.',
   'privacyPage.storedNot': 'Aplicația nu se conectează la bancă și nu păstrează adresa IP sau browserul cu care te autentifici.',
   'privacyPage.whereTitle': 'Unde',
   'privacyPage.whereText': 'Toate datele stau într-o singură bază de date pe serverul care rulează aplicația. Aplicația nu le trimite nicăieri altundeva.',
@@ -149,6 +150,9 @@ export const ro = {
   'privacyPage.browserCookie': 'Un singur cookie, cel de sesiune, necesar ca să rămâi autentificat. Nu poate fi citit de scripturi.',
   'privacyPage.browserStorage': 'În memoria locală a browserului: limba și tema alese.',
   'privacyPage.browserNoTracking': 'Fără reclame, fără statistici de trafic, fără scripturi de la terți.',
+  'privacyPage.controlTitle': 'Ce poți face',
+  'privacyPage.controlText': 'Din Setări îți poți schimba numele și parola, poți șterge istoricul activității și poți șterge contul.',
+  'privacyPage.controlDelete': 'Ștergerea contului elimină pe loc tot ce ține de el: datele, sesiunile, linkurile trimise pe email și istoricul. Nu se păstrează nicio copie.',
   'privacyPage.contactTitle': 'Contact',
   'privacyPage.contactAdmin': 'Aplicația rulează pe un server administrat de o anumită persoană, care decide cum sunt folosite datele de pe el. Pentru întrebări sau cereri privind datele tale, adresează-te ei.',
 

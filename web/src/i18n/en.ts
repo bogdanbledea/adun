@@ -129,6 +129,7 @@ export const en: Record<MessageKey, string> = {
   'privacyPage.storedTitle': 'What is kept',
   'privacyPage.storedAccount': 'Your account: email address, display name, password (only as an Argon2 hash, never in plain text) and when it was created.',
   'privacyPage.storedSessions': 'Sign-in sessions: only a hash of the session cookie, with its expiry. A session expires after 30 days without use.',
+  'privacyPage.storedActivity': 'The activity history: what changed in the account (such as the name or the password) and when. It is kept 365 days, then removed on its own.',
   'privacyPage.storedNot': 'The app does not connect to your bank, and does not keep the IP address or browser you sign in with.',
   'privacyPage.whereTitle': 'Where',
   'privacyPage.whereText': 'All data lives in one database on the server that runs the app. The app sends it nowhere else.',
@@ -137,6 +138,9 @@ export const en: Record<MessageKey, string> = {
   'privacyPage.browserCookie': 'One cookie, the session cookie, needed to keep you signed in. Scripts cannot read it.',
   'privacyPage.browserStorage': 'In the browser’s local storage: the language and theme you chose.',
   'privacyPage.browserNoTracking': 'No ads, no traffic analytics, no third-party scripts.',
+  'privacyPage.controlTitle': 'What you can do',
+  'privacyPage.controlText': 'In Settings you can change your name and password, erase the activity history and delete the account.',
+  'privacyPage.controlDelete': 'Deleting the account removes everything in it at once: the data, the sessions, the links sent by email and the history. No copy is kept.',
   'privacyPage.contactTitle': 'Contact',
   'privacyPage.contactAdmin': 'The app runs on a server that someone looks after, and they decide how the data on it is used. For questions or requests about your data, ask them.',
 

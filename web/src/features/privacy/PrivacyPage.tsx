@@ -25,6 +25,7 @@ export function PrivacyPage() {
         <ul>
           <li>{t('privacyPage.storedAccount')}</li>
           <li>{t('privacyPage.storedSessions')}</li>
+          <li>{t('privacyPage.storedActivity')}</li>
         </ul>
         <p>{t('privacyPage.storedNot')}</p>
       </Section>
@@ -40,6 +41,11 @@ export function PrivacyPage() {
           <li>{t('privacyPage.browserStorage')}</li>
         </ul>
         <p>{t('privacyPage.browserNoTracking')}</p>
+      </Section>
+
+      <Section title={t('privacyPage.controlTitle')}>
+        <p>{t('privacyPage.controlText')}</p>
+        <p>{t('privacyPage.controlDelete')}</p>
       </Section>
 
       <Section title={t('privacyPage.contactTitle')}>
