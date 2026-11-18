@@ -1,0 +1,58 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+@layer base {
+  /* The scrollbar's space is always kept, so the page does not jump sideways
+     between a short page and a long one. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    min-width: 320px;
+    background-color: var(--page);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    color: var(--brand-deep);
+  }
+
+  /* 16 px keeps iOS from zooming into a focused field. */
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+  }
+}
+
+/* A raised surface: a section, a panel, a list. Rounded and lightly
+   shadowed; the shadow is a token so dark mode can keep it subtle. */
+@utility card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background-color: var(--paper);
+  box-shadow: var(--shadow-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

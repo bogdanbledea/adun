@@ -24,6 +24,12 @@ export default defineConfig([
     },
   },
   {
+    // Context modules export a provider next to its hook; they are not
+    // components that Fast Refresh needs to preserve state for.
+    files: ['src/lib/**/*.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
+  {
     files: ['**/*.js'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },

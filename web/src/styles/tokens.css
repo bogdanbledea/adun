@@ -1,0 +1,104 @@
+/* Design tokens: a light palette of paper and green, and a neutral near-black
+   dark one with the same accents lightened for contrast.
+
+   Each palette is a set of plain custom properties on a selector, so a theme
+   applies to the whole page (<html class="dark">, or the system preference)
+   or to any subtree. Tailwind maps them to utilities (bg-paper, text-muted,
+   border-line …) through `@theme inline`, which writes var(--paper) into each
+   utility so it resolves on the element that uses it. The default Tailwind
+   palette is switched off: no colour can be used that is not defined here.
+
+   The dark set appears twice with identical contents: for the system
+   preference (unless the user chose light) and for an explicit .dark.
+   tokens.test.ts fails if the two drift apart. */
+
+@theme inline {
+  --color-*: initial;
+
+  --color-page: var(--page);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-on-brand: var(--on-brand);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-gold: var(--gold);
+  --color-danger: var(--danger);
+  --color-on-danger: var(--on-danger);
+  --color-info: var(--info);
+  --color-warning: var(--warning);
+  --color-hover: var(--hover);
+  --color-track: var(--track);
+
+  --font-sans: "Source Sans 3 Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-card: var(--card-shadow);
+}
+
+/* Light. Every text colour passes 4.5:1 on both page and paper. */
+:root,
+.light {
+  color-scheme: light;
+  --page: #f7f8f4;
+  --paper: #fbfcf8;
+  --ink: #1d2521;
+  --brand: #237450;
+  --brand-deep: #173f35;
+  --on-brand: #ffffff;
+  --muted: #52625a;
+  --line: #d6e0d9;
+  --line-strong: #b8c8bd;
+  --gold: #d6a646;
+  --danger: #a8352a;
+  --on-danger: #ffffff;
+  --info: #2f6683;
+  --warning: #8a6214;
+  --hover: #edf3ed;
+  --track: #e6ece7;
+  --card-shadow: 0 1px 2px rgb(23 63 53 / 0.05), 0 2px 8px rgb(23 63 53 / 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    color-scheme: dark;
+    --page: #0e1110;
+    --paper: #161a18;
+    --ink: #eef1ef;
+    --brand: #8fd1aa;
+    --brand-deep: #e3ece6;
+    --on-brand: #0e1110;
+    --muted: #a9b2ad;
+    --line: rgb(255 255 255 / 0.12);
+    --line-strong: rgb(255 255 255 / 0.22);
+    --danger: #f19a8b;
+    --on-danger: #0e1110;
+    --info: #94c7e3;
+    --warning: #e6bf6c;
+    --hover: rgb(255 255 255 / 0.06);
+    --track: rgb(255 255 255 / 0.1);
+    --card-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  }
+}
+
+.dark {
+  color-scheme: dark;
+  --page: #0e1110;
+  --paper: #161a18;
+  --ink: #eef1ef;
+  --brand: #8fd1aa;
+  --brand-deep: #e3ece6;
+  --on-brand: #0e1110;
+  --muted: #a9b2ad;
+  --line: rgb(255 255 255 / 0.12);
+  --line-strong: rgb(255 255 255 / 0.22);
+  --danger: #f19a8b;
+  --on-danger: #0e1110;
+  --info: #94c7e3;
+  --warning: #e6bf6c;
+  --hover: rgb(255 255 255 / 0.06);
+  --track: rgb(255 255 255 / 0.1);
+  --card-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
