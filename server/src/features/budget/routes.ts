@@ -6,6 +6,7 @@ import { validate } from '../../http/validate.ts'
 import { LIMITS } from '../../lib/limits.ts'
 import { currentSession, requireAuth } from '../auth/require-auth.ts'
 import * as copy from './copy.ts'
+import * as order from './order.ts'
 import * as budget from './service.ts'
 
 // YYYY-MM, months 01 to 12.
@@ -97,7 +98,7 @@ export function categoryRoutes({ db, config }: Deps): Router {
 
   router.put('/order', (req, res) => {
     const { ids } = validate(categoryOrderBody, req.body)
-    budget.reorderCategories(db, currentSession(res).userId, ids)
+    order.reorderCategories(db, currentSession(res).userId, ids)
     res.json({ ok: true })
   })
 
@@ -111,7 +112,7 @@ export function entryRoutes({ db, config }: Deps): Router {
 
   router.put('/order', (req, res) => {
     const { ids } = validate(entryOrderBody, req.body)
-    budget.reorderEntries(db, currentSession(res).userId, ids)
+    order.reorderEntries(db, currentSession(res).userId, ids)
     res.json({ ok: true })
   })
 
