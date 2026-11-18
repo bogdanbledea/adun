@@ -50,10 +50,10 @@ cd web && npm run build
 cd server && npm start
 ```
 
-| Package  | Scripts                                                                    |
-| -------- | -------------------------------------------------------------------------- |
-| `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`   |
-| `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`   |
+| Package  | Scripts                                                                                     |
+| -------- | ------------------------------------------------------------------------------------------- |
+| `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`, `send-test-email` |
+| `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`                    |
 
 ## Configure
 
@@ -77,6 +77,32 @@ an ID that is also sent back in the `X-Request-Id` header.
 On `SIGTERM` or `SIGINT` the server stops accepting connections, lets
 requests in progress finish (10 seconds at most), then closes the database
 and exits.
+
+## Email
+
+Email is optional and off by default. Setting `SMTP_HOST` turns it on, and it
+works with any SMTP server: your mail provider's relay, a Gmail account, or a
+server of your own.
+
+| Variable          | Default | Meaning                                                     |
+| ----------------- | ------- | ----------------------------------------------------------- |
+| `SMTP_HOST`       |         | SMTP server; setting it turns email on                      |
+| `SMTP_PORT`       | `587`   | `465` connects with TLS; any other port must offer STARTTLS |
+| `SMTP_USER`       |         | Sign-in name, if the server asks for one                    |
+| `SMTP_PASSWORD`   |         | Its password (with Gmail, an app password)                  |
+| `EMAIL_FROM`      |         | Address emails are sent from; required with `SMTP_HOST`     |
+| `EMAIL_FROM_NAME` | `adun`  | Name shown as the sender                                    |
+
+Mail is never sent unencrypted: a server that offers no TLS gets no message.
+Setting any of these without `SMTP_HOST`, or a user without a password, stops
+startup. To check the settings, send one email:
+
+```sh
+cd server
+SMTP_HOST=smtp.gmail.com SMTP_PORT=465 SMTP_USER=you@gmail.com \
+SMTP_PASSWORD='app password' EMAIL_FROM=you@gmail.com \
+npm run send-test-email -- you@example.com
+```
 
 ## Data
 

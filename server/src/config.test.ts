@@ -18,6 +18,7 @@ test('development defaults', () => {
     port: 8080,
     trustProxyHops: 0,
     registrationsEnabled: true,
+    email: null,
     logLevel: 'info',
   })
 })
@@ -30,6 +31,12 @@ test('reads every variable', () => {
     PORT: '3000',
     TRUST_PROXY_HOPS: '1',
     REGISTRATIONS_ENABLED: 'false',
+    SMTP_HOST: 'smtp.example.com',
+    SMTP_PORT: '465',
+    SMTP_USER: 'adun',
+    SMTP_PASSWORD: 'secret',
+    EMAIL_FROM: 'adun@example.com',
+    EMAIL_FROM_NAME: 'Adun',
     LOG_LEVEL: 'warn',
   })
   assert.deepEqual(config, {
@@ -39,6 +46,14 @@ test('reads every variable', () => {
     port: 3000,
     trustProxyHops: 1,
     registrationsEnabled: false,
+    email: {
+      host: 'smtp.example.com',
+      port: 465,
+      user: 'adun',
+      password: 'secret',
+      fromAddress: 'adun@example.com',
+      fromName: 'Adun',
+    },
     logLevel: 'warn',
   })
 })
@@ -64,4 +79,24 @@ test('refuses invalid values and names the variable', () => {
   rejects({ TRUST_PROXY_HOPS: '11' }, 'TRUST_PROXY_HOPS')
   rejects({ REGISTRATIONS_ENABLED: 'yes' }, 'REGISTRATIONS_ENABLED')
   rejects({ LOG_LEVEL: 'verbose' }, 'LOG_LEVEL')
+})
+
+test('email: a relay without sign-in, on the default port, with the default name', () => {
+  assert.deepEqual(loadConfig({ SMTP_HOST: 'localhost', EMAIL_FROM: 'adun@example.com' }).email, {
+    host: 'localhost',
+    port: 587,
+    user: null,
+    password: null,
+    fromAddress: 'adun@example.com',
+    fromName: 'adun',
+  })
+})
+
+test('email: half a setup stops startup', () => {
+  rejects({ EMAIL_FROM: 'adun@example.com' }, 'SMTP_HOST')
+  rejects({ SMTP_PASSWORD: 'secret' }, 'SMTP_HOST')
+  rejects({ SMTP_HOST: 'smtp.example.com' }, 'EMAIL_FROM')
+  rejects({ SMTP_HOST: 'smtp.example.com', EMAIL_FROM: 'nobody' }, 'EMAIL_FROM')
+  rejects({ SMTP_HOST: 'smtp.example.com', EMAIL_FROM: 'adun@example.com', SMTP_USER: 'adun' }, 'SMTP_PASSWORD')
+  rejects({ SMTP_HOST: 'smtp.example.com', EMAIL_FROM: 'adun@example.com', SMTP_PORT: 'smtp' }, 'SMTP_PORT')
 })

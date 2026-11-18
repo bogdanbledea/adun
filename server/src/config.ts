@@ -4,6 +4,16 @@ import { LOG_LEVELS, type LogLevel } from './lib/log.ts'
 /* Every environment variable the server reads, parsed once at startup. An
    invalid value stops the process with a message naming the variable. */
 
+export interface EmailConfig {
+  host: string
+  port: number
+  // Both set, or both null for a relay that needs no sign-in.
+  user: string | null
+  password: string | null
+  fromAddress: string
+  fromName: string
+}
+
 export interface Config {
   production: boolean
   // Origin only, without a trailing slash, e.g. https://adun.example.com.
@@ -15,6 +25,8 @@ export interface Config {
   trustProxyHops: number
   // Turn off once the household's accounts exist.
   registrationsEnabled: boolean
+  // null means email is off.
+  email: EmailConfig | null
   logLevel: LogLevel
 }
 
@@ -72,6 +84,39 @@ function appUrl(env: Env, production: boolean): string {
   return url.origin
 }
 
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const EMAIL_VARIABLES = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'EMAIL_FROM', 'EMAIL_FROM_NAME']
+
+// SMTP_HOST turns email on. Without it, setting any other email variable is a
+// mistake worth stopping for, rather than an email that silently never goes.
+function email(env: Env): EmailConfig | null {
+  const host = read(env, 'SMTP_HOST')
+  if (host === undefined) {
+    const stray = EMAIL_VARIABLES.filter((name) => read(env, name) !== undefined)
+    if (stray.length > 0) throw new ConfigError(`${stray.join(', ')} set without SMTP_HOST; set SMTP_HOST to turn email on`)
+    return null
+  }
+
+  const fromAddress = read(env, 'EMAIL_FROM')
+  if (fromAddress === undefined || !EMAIL_SHAPE.test(fromAddress)) {
+    throw new ConfigError('EMAIL_FROM must be the address emails are sent from')
+  }
+  const user = read(env, 'SMTP_USER') ?? null
+  const password = read(env, 'SMTP_PASSWORD') ?? null
+  if ((user === null) !== (password === null)) {
+    throw new ConfigError('SMTP_USER and SMTP_PASSWORD must be set together')
+  }
+  return {
+    host,
+    port: integer(env, 'SMTP_PORT', 587, 1, 65535),
+    user,
+    password,
+    fromAddress,
+    fromName: read(env, 'EMAIL_FROM_NAME') ?? 'adun',
+  }
+}
+
 function logLevel(env: Env): LogLevel {
   const raw = read(env, 'LOG_LEVEL') ?? 'info'
   if (!(LOG_LEVELS as readonly string[]).includes(raw)) {
@@ -89,6 +134,7 @@ export function loadConfig(env: Env): Config {
     port: integer(env, 'PORT', 8080, 1, 65535),
     trustProxyHops: integer(env, 'TRUST_PROXY_HOPS', 0, 0, 10),
     registrationsEnabled: boolean(env, 'REGISTRATIONS_ENABLED', true),
+    email: email(env),
     logLevel: logLevel(env),
   }
 }
