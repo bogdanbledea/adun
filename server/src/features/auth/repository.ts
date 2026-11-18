@@ -36,6 +36,28 @@ export function findCredentials(db: Database, email: string): Credentials | null
   return { id: row.id as string, passwordHash: row.password_hash as string }
 }
 
+/** Counts one attempt against the account before its password is checked,
+    unless the account is locked. Returns the new count, or null when locked.
+    One statement, so attempts arriving together cannot all slip past a lock. */
+export function reserveLoginAttempt(db: Database, userId: string, now: string): number | null {
+  const row = db
+    .prepare(
+      `UPDATE users SET failed_login_count = failed_login_count + 1
+       WHERE id = ? AND (locked_until IS NULL OR locked_until <= ?)
+       RETURNING failed_login_count`,
+    )
+    .get(userId, now)
+  return row ? (row.failed_login_count as number) : null
+}
+
+export function setLockedUntil(db: Database, userId: string, lockedUntil: string): void {
+  db.prepare('UPDATE users SET locked_until = ? WHERE id = ?').run(lockedUntil, userId)
+}
+
+export function clearFailedLogins(db: Database, userId: string): void {
+  db.prepare('UPDATE users SET failed_login_count = 0, locked_until = NULL WHERE id = ?').run(userId)
+}
+
 // ── Sessions ────────────────────────────────────────────────────────────────
 
 export interface NewSession {

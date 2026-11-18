@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { Database } from '../../db.ts'
+import { transaction, type Database } from '../../db.ts'
 import { HttpError } from '../../http/errors.ts'
 import type { Logger } from '../../lib/log.ts'
 import { passwords } from './password.ts'
@@ -8,14 +8,26 @@ import { hashToken, newToken, SESSION_TTL_MS } from './session.ts'
 
 /* Sign-in rules:
 
-   - An unknown address and a wrong password answer with the same 401, and
-     both cost one Argon2 verification, so neither the answer nor its timing
-     tells them apart.
+   - Unknown address, locked account and wrong password all answer with the
+     same 401, and all cost one Argon2 verification, so neither the answer nor
+     its timing tells them apart.
+   - 5 consecutive wrong passwords lock the account for 1 minute, doubling with
+     each further failure up to 1 hour. A correct password clears the count.
+     An attempt is counted before its password is checked, so a burst of
+     parallel attempts gets no more guesses than the same attempts in a row.
    - Sessions roll: 30 days from last use, recorded at most once an hour. */
 
+const LOCKOUT_THRESHOLD = 5
+const LOCKOUT_BASE_MS = 60 * 1000
+const LOCKOUT_MAX_MS = 60 * 60 * 1000
 export const SESSION_TOUCH_INTERVAL_MS = 60 * 60 * 1000
 
 const iso = (ms: number) => new Date(ms).toISOString()
+
+export function lockoutDelayMs(failures: number): number {
+  if (failures < LOCKOUT_THRESHOLD) return 0
+  return Math.min(LOCKOUT_BASE_MS * 2 ** (failures - LOCKOUT_THRESHOLD), LOCKOUT_MAX_MS)
+}
 
 const invalidCredentials = () => new HttpError(401, 'invalid_credentials', 'Wrong email or password.')
 
@@ -59,10 +71,24 @@ export async function login(
     log.warn({ reason: 'no_account' }, 'auth.login_failed')
     throw invalidCredentials()
   }
-  if (!(await passwords.verify(account.passwordHash, password))) {
-    log.warn({ userId: account.id, reason: 'wrong_password' }, 'auth.login_failed')
+
+  const attempt = transaction(db, () => {
+    const count = repo.reserveLoginAttempt(db, account.id, iso(Date.now()))
+    if (count === null) return null
+    const delay = lockoutDelayMs(count)
+    if (delay > 0) repo.setLockedUntil(db, account.id, iso(Date.now() + delay))
+    return count
+  })
+  if (attempt === null) {
+    await passwords.verifyDummy(password)
+    log.warn({ userId: account.id, reason: 'locked' }, 'auth.login_failed')
     throw invalidCredentials()
   }
+  if (!(await passwords.verify(account.passwordHash, password))) {
+    log.warn({ userId: account.id, reason: 'wrong_password', failures: attempt }, 'auth.login_failed')
+    throw invalidCredentials()
+  }
+  repo.clearFailedLogins(db, account.id)
 
   const token = newToken()
   const now = Date.now()
