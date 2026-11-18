@@ -28,7 +28,7 @@ export async function shutdown({ server, log, timeoutMs = 10_000 }: ShutdownDeps
   clearTimeout(timer)
   clearInterval(sweep)
   if (outcome === 'timeout') {
-    log.warn('server.shutdown_timeout', { timeoutMs })
+    log.warn({ timeoutMs }, 'server.shutdown_timeout')
     server.closeAllConnections()
     await closed
   }

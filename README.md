@@ -49,7 +49,9 @@ start on an invalid value, naming the variable. Empty values count as unset.
 | `PORT`      | `8080`  | Port the server listens on                  |
 | `LOG_LEVEL` | `info`  | `debug`, `info`, `warn` or `error`          |
 
-Logs go to stdout, one JSON object per line. On `SIGTERM` or `SIGINT` the
+Logs go to stdout, one JSON object per line ([pino](https://getpino.io));
+`npm run dev` pipes them through `pino-pretty`. Each request is logged with
+an ID that is also sent back in the `X-Request-Id` header. On `SIGTERM` or `SIGINT` the
 server stops accepting connections and lets requests in progress finish (10
 seconds at most) before it exits.
 

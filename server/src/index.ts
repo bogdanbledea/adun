@@ -17,8 +17,8 @@ try {
 
 const log = createLogger(config.logLevel)
 
-const server = createApp().listen(config.port, () => {
-  log.info('server.listening', { port: config.port, production: config.production })
+const server = createApp({ log }).listen(config.port, () => {
+  log.info({ port: config.port, production: config.production }, 'server.listening')
 })
 
 let stopping = false
@@ -26,11 +26,11 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     if (stopping) return
     stopping = true
-    log.info('server.stopping', { signal })
+    log.info({ signal }, 'server.stopping')
     shutdown({ server, log }).then(
       () => process.exit(0),
       (error: unknown) => {
-        log.error('server.shutdown_failed', { name: error instanceof Error ? error.name : typeof error })
+        log.error({ err: error }, 'server.shutdown_failed')
         process.exit(1)
       },
     )
