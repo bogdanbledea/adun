@@ -10,6 +10,8 @@ export const LIMITS = {
   months: 600,
   categoriesPerMonth: 200,
   entriesPerMonth: 500,
+  /** Payment plans per account, closed ones included. */
+  plans: 200,
 } as const
 
 export const limitReached = () =>

@@ -200,13 +200,16 @@ export interface NewEntry {
   type: EntryType
   amountBani: number
   now: string
+  /** Set on a payment plan's instalment. */
+  installment?: { planId: string; index: number }
 }
 
 /** Adds an entry after the category's last one. */
 export function insertEntry(db: Database, entry: NewEntry): void {
   db.prepare(
-    `INSERT INTO entries (id, user_id, month_id, category_id, description, type, amount_bani, sort_order, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort_order) + 1, 0) FROM entries WHERE category_id = ?), ?)`,
+    `INSERT INTO entries (id, user_id, month_id, category_id, description, type, amount_bani, plan_id, installment_index,
+                          sort_order, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort_order) + 1, 0) FROM entries WHERE category_id = ?), ?)`,
   ).run(
     entry.id,
     entry.userId,
@@ -215,6 +218,8 @@ export function insertEntry(db: Database, entry: NewEntry): void {
     entry.description,
     entry.type,
     entry.amountBani,
+    entry.installment?.planId ?? null,
+    entry.installment?.index ?? null,
     entry.categoryId,
     entry.now,
   )
