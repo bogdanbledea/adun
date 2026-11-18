@@ -35,7 +35,7 @@ interface Month {
 const send = (method: string, path: string, cookie: string, body?: unknown) =>
   client.request(method, path, { body, headers: { cookie } })
 const codeOf = async (res: Response) => ((await res.json()) as { error: { code: string } }).error.code
-const read = async (monthKey: string, cookie = ana) => (await (await send('GET', `/api/food/${monthKey}`, cookie)).json()) as Month
+const read = async (monthKey: string, cookie = ana) => (await (await send('GET', `/api/food/${monthKey}?today=2026-11-18`, cookie)).json()) as Month
 const lastActivity = () =>
   db.prepare('SELECT action, metadata FROM activity_logs WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(anaId)
 

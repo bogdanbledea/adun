@@ -4,6 +4,7 @@ import { badRequest, conflict, notFound } from '../../http/errors.ts'
 import { addDays, addMonths } from '../../lib/dates.ts'
 import { logActivity } from '../activity/service.ts'
 import * as repo from './repository.ts'
+import { planWeeks } from './weeks.ts'
 
 /* Food budgets: a month's food money and where it sits.
    - A month's budget is a list of 1 to 10 sources (a card, cash, meal
@@ -16,8 +17,9 @@ import * as repo from './repository.ts'
      client's date as the day its weekly plan starts from, or the period's
      first day when that date is outside the period (a month set up after
      the fact).
-   - A month is read whole: its totals, sources, merchants (the most spent
-     first) and purchases. A month without a budget answers its period and
+   - A month is read whole: its totals, sources, the weekly plan for the
+     client's date (weeks.ts), merchants (the most spent first) and
+     purchases. A month without a budget answers its period and
      the sources of the latest earlier budget, so a new month can start from
      them.
    - Every change and its activity entry are one transaction. */
@@ -42,8 +44,9 @@ export function periodOf(db: Database, userId: string, monthKey: string): Period
   return { start: startOf(db, userId, monthKey), end: addDays(startOf(db, userId, addMonths(monthKey, 1)), -1) }
 }
 
-export function monthState(db: Database, userId: string, monthKey: string) {
-  const common = { monthKey, period: periodOf(db, userId, monthKey) }
+export function monthState(db: Database, userId: string, monthKey: string, today: string) {
+  const period = periodOf(db, userId, monthKey)
+  const common = { monthKey, period }
 
   const budget = repo.findBudget(db, userId, monthKey)
   if (!budget) {
@@ -74,6 +77,7 @@ export function monthState(db: Database, userId: string, monthKey: string) {
     byMerchant.set(sameName(p.merchant), merchant)
   }
   const sourceNames = new Map(sources.map((s) => [s.id, s.name]))
+  const { weeks, current } = planWeeks(period, totalBani, purchases, { today, planFrom: budget.planFrom })
 
   return {
     ...common,
@@ -85,6 +89,8 @@ export function monthState(db: Database, userId: string, monthKey: string) {
       const spent = bySource.get(s.id) ?? 0
       return { ...s, spentBani: spent, remainingBani: s.amountBani - spent }
     }),
+    weeks,
+    currentWeek: current,
     merchants: [...byMerchant.values()].sort((a, b) => b.totalBani - a.totalBani),
     purchases: purchases.map((p) => ({ ...p, sourceName: sourceNames.get(p.sourceId) ?? '' })),
   }
@@ -143,7 +149,7 @@ export function saveSources(
 
     const totalBani = sources.reduce((sum, s) => sum + s.amountBani, 0)
     logActivity(db, userId, 'food.budget_set', { monthKey, totalBani, sources: sources.length })
-    return monthState(db, userId, monthKey)
+    return monthState(db, userId, monthKey, today)
   })
 }
 

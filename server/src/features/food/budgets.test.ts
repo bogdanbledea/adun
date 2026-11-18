@@ -31,7 +31,7 @@ interface Month {
 const send = (method: string, path: string, cookie: string, body?: unknown) =>
   client.request(method, path, { body, headers: { cookie } })
 const codeOf = async (res: Response) => ((await res.json()) as { error: { code: string } }).error.code
-const read = async (monthKey: string, cookie = ana) => (await (await send('GET', `/api/food/${monthKey}`, cookie)).json()) as Month
+const read = async (monthKey: string, cookie = ana) => (await (await send('GET', `/api/food/${monthKey}?today=2026-11-18`, cookie)).json()) as Month
 const save = (monthKey: string, sources: unknown[], { today = '2026-11-18', cookie = ana } = {}) =>
   send('PUT', `/api/food/${monthKey}/sources?today=${today}`, cookie, { sources })
 const saved = async (monthKey: string, sources: unknown[], options?: { today?: string }) => {
@@ -155,6 +155,36 @@ describe('saving the sources', () => {
     assert.equal(res.status, 409)
     assert.equal(await codeOf(res), 'food_source_in_use')
     assert.equal((await read('2027-04')).sources?.length, 2)
+  })
+})
+
+describe('the weekly plan', () => {
+  test('is counted from the budget’s first day for the client’s date', async () => {
+    await saved('2026-06', [{ name: 'Card', amountBani: 300000 }], { today: '2026-06-10' })
+    const res = await send('GET', '/api/food/2026-06?today=2026-06-17', ana)
+    const month = (await res.json()) as Month & {
+      weeks: { start: string; allowanceBani: number; state: string; beforeStart: boolean }[]
+      currentWeek: { start: string; daysLeft: number } | null
+    }
+    // June 2026 starts on a Monday; the plan starts on Wednesday the 10th.
+    assert.deepEqual(
+      month.weeks.map((w) => [w.start, w.state, w.beforeStart]),
+      [
+        ['2026-06-01', 'past', true],
+        ['2026-06-08', 'past', false],
+        ['2026-06-15', 'current', false],
+        ['2026-06-22', 'future', false],
+        ['2026-06-29', 'future', false],
+      ],
+    )
+    assert.equal(month.weeks[0]?.allowanceBani, 0)
+    // Nothing was spent yet, so all 3,000 lei share the 16 days left.
+    assert.equal(month.weeks[2]?.allowanceBani, 131250)
+    assert.deepEqual([month.currentWeek?.start, month.currentWeek?.daysLeft], ['2026-06-15', 5])
+  })
+
+  test('needs the client’s date', async () => {
+    assert.equal((await send('GET', '/api/food/2026-06', ana)).status, 400)
   })
 })
 

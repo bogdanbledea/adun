@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { addDays, addMonths } from './dates.ts'
+import { addDays, addMonths, daysBetween, weekday } from './dates.ts'
 
 test('months are counted across years', () => {
   assert.equal(addMonths('2026-11', 2), '2027-01')
@@ -15,4 +15,17 @@ test('days are counted across months, years and leap days', () => {
   assert.equal(addDays('2028-03-01', -1), '2028-02-29')
   // The night the clocks go back is still one day.
   assert.equal(addDays('2026-10-25', 1), '2026-10-26')
+})
+
+test('days between two dates count either way', () => {
+  assert.equal(daysBetween('2026-11-01', '2026-11-30'), 29)
+  assert.equal(daysBetween('2026-11-30', '2026-11-01'), -29)
+  assert.equal(daysBetween('2026-03-28', '2026-03-30'), 2)
+  assert.equal(daysBetween('2027-12-31', '2028-03-01'), 61)
+})
+
+test('the week starts on Monday', () => {
+  assert.equal(weekday('2026-11-16'), 0)
+  assert.equal(weekday('2026-11-21'), 5)
+  assert.equal(weekday('2026-11-22'), 6)
 })

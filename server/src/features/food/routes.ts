@@ -10,7 +10,8 @@ import * as food from './service.ts'
 // YYYY-MM from 2024 to 2099, the years whose working calendar is known.
 const monthKey = z.string().regex(/^(202[4-9]|20[3-9]\d)-(0[1-9]|1[0-2])$/)
 const monthParams = z.object({ monthKey })
-// The client's date, which the weekly plan is counted from.
+// The client's date: the week it falls in is the running one, and a new
+// budget's plan starts from it.
 const todayQuery = z.object({ today: z.iso.date() })
 
 const sourcesBody = z.object({
@@ -65,7 +66,8 @@ export function foodRoutes({ db, config }: Deps): Router {
 
   router.get('/:monthKey', (req, res) => {
     const params = validate(monthParams, req.params)
-    res.json(food.monthState(db, currentSession(res).userId, params.monthKey))
+    const { today } = validate(todayQuery, req.query)
+    res.json(food.monthState(db, currentSession(res).userId, params.monthKey, today))
   })
 
   router.put('/:monthKey/sources', (req, res) => {
