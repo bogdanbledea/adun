@@ -53,6 +53,9 @@ export const budgetApi = {
   updateEntry: (id: string, fields: Partial<EntryFields>) =>
     api<SavedEntry>(`/api/entries/${id}`, { method: 'PATCH', body: fields }),
   deleteEntry: (id: string) => api(`/api/entries/${id}`, { method: 'DELETE' }),
+  // Whole lists in their new order: a month's categories, a category's entries.
+  reorderCategories: (ids: string[]) => api('/api/categories/order', { method: 'PUT', body: { ids } }),
+  reorderEntries: (ids: string[]) => api('/api/entries/order', { method: 'PUT', body: { ids } }),
 }
 
 /** What a category adds up to: its income less its expenses. */

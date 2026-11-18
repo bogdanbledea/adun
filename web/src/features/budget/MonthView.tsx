@@ -18,8 +18,9 @@ import { MonthSkeleton } from './MonthSkeleton.tsx'
 
 /* One month with a budget: the summary, the entries by category, and the
    dialogs that change them. After every change the month is read again from
-   the server, which keeps totals and order exactly as stored. An entry moved
-   to another month leaves a notice with a link there. */
+   the server, which keeps totals and order exactly as stored; a new order
+   shows at once and is saved behind. An entry moved to another month leaves
+   a notice with a link there. */
 
 type Open =
   | { dialog: 'add'; categoryName?: string }
@@ -28,7 +29,7 @@ type Open =
   | { dialog: 'deleteMonth' }
   | null
 
-type Message = { tone: 'moved'; description: string; monthKey: string } | { tone: 'error'; error: unknown }
+type Message = { tone: 'moved'; description: string; monthKey: string } | { tone: 'error'; error: unknown; lead?: string }
 
 interface MonthViewProps {
   monthKey: string
@@ -99,6 +100,27 @@ export function MonthView({ monthKey, months, monthsWithBudget, onMonthCreated, 
     setBusy(false)
   }
 
+  // A failure to save the order puts back what is stored.
+  const saveOrder = async (save: () => Promise<unknown>) => {
+    try {
+      await save()
+    } catch (error) {
+      setMessage({ tone: 'error', error, lead: t('budget.reorderFailed') })
+      await load()
+    }
+  }
+  const reorderCategories = (next: Category[]) => {
+    setMonth({ ...month, categories: next })
+    void saveOrder(() => budgetApi.reorderCategories(next.map((category) => category.id)))
+  }
+  const reorderEntries = (categoryId: string, next: Entry[]) => {
+    setMonth({
+      ...month,
+      categories: month.categories.map((category) => (category.id === categoryId ? { ...category, entries: next } : category)),
+    })
+    void saveOrder(() => budgetApi.reorderEntries(next.map((entry) => entry.id)))
+  }
+
   const deleteEntry = (entry: Entry) =>
     run(async () => {
       await budgetApi.deleteEntry(entry.id)
@@ -131,7 +153,9 @@ export function MonthView({ monthKey, months, monthsWithBudget, onMonthCreated, 
               </Link>
             </Notice>
           ) : (
-            <Notice tone="error">{errorText(message.error, t)}</Notice>
+            <Notice tone="error">
+              {message.lead} {errorText(message.error, t)}
+            </Notice>
           )}
         </div>
       )}
@@ -190,6 +214,8 @@ export function MonthView({ monthKey, months, monthsWithBudget, onMonthCreated, 
           <CategoryList
             categories={month.categories}
             filter={filter}
+            onReorderCategories={reorderCategories}
+            onReorderEntries={reorderEntries}
             onAdd={(categoryName) => { setOpen({ dialog: 'add', categoryName }) }}
             onEdit={(entry, categoryName) => { setOpen({ dialog: 'edit', entry: { ...entry, categoryName } }) }}
             onDelete={(entry) => { setOpen({ dialog: 'deleteEntry', entry }) }}

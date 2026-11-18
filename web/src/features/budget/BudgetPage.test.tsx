@@ -14,6 +14,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
@@ -152,4 +153,45 @@ test('says why the months could not be loaded, and tries again', async () => {
   fail = false
   await userEvent.click(screen.getByRole('button', { name: 'Încearcă din nou' }))
   expect(await screen.findByText('Foaie nouă')).toBeDefined()
+})
+
+// jsdom lays nothing out, so each list item gets a 40px row from its place among its siblings.
+function stackListItems() {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    const item = this.closest('li')
+    const index = item?.parentElement ? [...item.parentElement.children].indexOf(item) : 0
+    return DOMRect.fromRect({ x: 0, y: index * 40, width: 300, height: 40 })
+  })
+}
+
+test('a category is moved with the keyboard, and the new order is saved', async () => {
+  stackListItems()
+  const fetchMock = withDecember({ 'PUT /api/categories/order': [200, { ok: true }] })
+  renderApp('/buget/12-26')
+
+  const handle = await screen.findByRole('button', { name: 'Mută categoria Salariu' })
+  handle.focus()
+  await userEvent.keyboard(' ')
+  await userEvent.keyboard('{ArrowUp}')
+  await userEvent.keyboard(' ')
+
+  expect(sentBody(fetchMock, '/api/categories/order')).toEqual({ ids: ['c2', 'c1'] })
+  const names = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
+  expect(names).toEqual(['Salariu', 'Casă'])
+})
+
+test('an order that cannot be saved puts back the stored one', async () => {
+  stackListItems()
+  withDecember({ 'PUT /api/entries/order': [409, { error: { code: 'order_changed', message: 'x' } }] })
+  renderApp('/buget/12-26')
+
+  const handle = await screen.findByRole('button', { name: 'Mută Curent' })
+  handle.focus()
+  await userEvent.keyboard(' ')
+  await userEvent.keyboard('{ArrowUp}')
+  await userEvent.keyboard(' ')
+
+  expect(await screen.findByText(/Ordinea nu a putut fi salvată\. Lista s-a schimbat între timp/)).toBeDefined()
+  const rows = screen.getAllByRole('button', { name: /^Mută (Chirie|Curent)$/ }).map((button) => button.getAttribute('aria-label'))
+  expect(rows).toEqual(['Mută Chirie', 'Mută Curent'])
 })
