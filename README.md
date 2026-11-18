@@ -4,11 +4,23 @@ Adun is a budgeting app for a household. The name is Romanian for "I gather".
 
 It is available in Romanian and English.
 
+> This project is open source because you shouldn't pay money for an app that
+> helps you save money.
+
+## Host it yourself, or use ours
+
+Adun is made to be self-hosted: run it on your own server, for yourself and
+the people you live with, and your data stays with you. Everything needed to
+run it is in this repository.
+
+If you would rather not run a server, there will also be a hosted Adun that
+you can simply sign up to. It is not in production yet.
+
 ## What it does
 
-- **Budget** — one page per month with income, expenses and credits grouped
-  in categories, and the totals that matter: what came in, what went out,
-  what is left. A new month can start empty, as a copy of another month, or
+- **Budget** — one page per month with income and expenses grouped in
+  categories, and the totals that matter: what came in, what went out, what
+  is left. A new month can start empty, as a copy of another month, or
   from a template of the things that repeat every month.
 - **Payment plans** — buy something in instalments once, and each instalment
   shows up in the right month until it is paid off.
