@@ -76,6 +76,16 @@ export const en: Record<MessageKey, string> = {
   'auth.verifyConfirm': 'Confirm and sign in',
   'auth.linkIncomplete': 'The link is incomplete. Open it again from the email, exactly as it was sent.',
 
+  'auth.forgotLink': 'Forgot your password?',
+  'auth.forgotTitle': 'Forgotten password',
+  'auth.forgotText': "Enter your account's email address and we will send a link to choose a new password.",
+  'auth.sendResetLink': 'Send the link',
+  'auth.sending': 'Sending...',
+  'auth.forgotNoEmailTitle': 'The password cannot be reset by email',
+  'auth.forgotNoEmailText': 'This server does not send email, so it cannot send a link for a new password. Ask whoever runs it for help.',
+  'auth.resetSentText': 'If {email} has an account, we have sent it a link to choose a new password. The link works for one hour.',
+  'auth.resetResent': 'If the address has an account, we have sent a new link. You can ask for another in a minute.',
+
   'privacyPage.title': 'Privacy',
   'privacyPage.intro': 'What the app keeps about you, where, and who you can ask.',
   'privacyPage.storedTitle': 'What is kept',

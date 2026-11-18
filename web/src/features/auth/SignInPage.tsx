@@ -3,13 +3,15 @@ import { useEffect, useState } from 'react'
 import { api } from '../../lib/api.ts'
 import { useT } from '../../lib/i18n.tsx'
 import { AuthLayout } from './AuthLayout.tsx'
+import { ForgotPasswordForm } from './ForgotPasswordForm.tsx'
 import { MailSent } from './MailSent.tsx'
 import { SignInForm } from './SignInForm.tsx'
 import { SignUpForm } from './SignUpForm.tsx'
 
 /* Shown in place of any signed-in page when there is no session, keeping the
    URL, so signing in lands exactly where the user was going. Sign-in,
-   sign-up and "check your email" are modes of this one page. */
+   sign-up, "forgot password" and "check your email" are modes of this one
+   page. */
 
 interface AuthStatus {
   registrationsEnabled: boolean
@@ -67,14 +69,43 @@ export function SignInPage() {
   const t = useT()
   const status = useAuthStatus()
   const registrationsEnabled = status?.registrationsEnabled ?? null
-  const [mode, setMode] = useState<'signin' | 'signup' | 'check-email'>('signin')
+  const [mode, setMode] = useState<'signin' | 'signup' | 'check-email' | 'forgot' | 'reset-sent'>('signin')
   const [email, setEmail] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
 
   if (mode === 'check-email') {
     return (
       <AuthLayout title={t('auth.checkEmailTitle')} aside={<Hero />}>
-        <MailSent text={t('auth.checkEmailText', { email })} resendTo={email} />
+        <MailSent
+          text={t('auth.checkEmailText', { email })}
+          resend={{ path: '/api/auth/resend-verification', email, doneText: t('auth.resent') }}
+        />
+        <SwitchLine question="" action={t('auth.backToSignIn')} onClick={() => { setMode('signin') }} />
+      </AuthLayout>
+    )
+  }
+
+  if (mode === 'forgot') {
+    return (
+      <AuthLayout title={t('auth.forgotTitle')} aside={<Hero />}>
+        <ForgotPasswordForm
+          emailEnabled={status?.emailEnabled ?? true}
+          email={email}
+          onEmailChange={setEmail}
+          onSent={() => { setMode('reset-sent') }}
+        />
+        <SwitchLine question="" action={t('auth.backToSignIn')} onClick={() => { setMode('signin') }} />
+      </AuthLayout>
+    )
+  }
+
+  if (mode === 'reset-sent') {
+    return (
+      <AuthLayout title={t('auth.checkEmailTitle')} aside={<Hero />}>
+        <MailSent
+          text={t('auth.resetSentText', { email })}
+          resend={{ path: '/api/auth/forgot-password', email, doneText: t('auth.resetResent') }}
+        />
         <SwitchLine question="" action={t('auth.backToSignIn')} onClick={() => { setMode('signin') }} />
       </AuthLayout>
     )
@@ -116,6 +147,10 @@ export function SignInPage() {
         onNeedsConfirmation={() => {
           setNotice(null)
           setMode('check-email')
+        }}
+        onForgotPassword={() => {
+          setNotice(null)
+          setMode('forgot')
         }}
       />
       {registrationsEnabled === true && (

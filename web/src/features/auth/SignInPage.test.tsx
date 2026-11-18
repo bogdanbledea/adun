@@ -186,3 +186,62 @@ describe('sign up', () => {
     expect(screen.queryByRole('button', { name: 'Înregistrează-te' })).toBeNull()
   })
 })
+
+describe('forgotten password', () => {
+  const emailOn: [number, unknown] = [200, { registrationsEnabled: true, emailEnabled: true }]
+
+  async function askForLink(email: string) {
+    await userEvent.click(await screen.findByRole('button', { name: 'Ai uitat parola?' }))
+    expect(await screen.findByRole('heading', { name: 'Parolă uitată' })).toBeDefined()
+    await userEvent.type(screen.getByLabelText('Email'), email)
+    await userEvent.click(screen.getByRole('button', { name: 'Trimite linkul' }))
+  }
+
+  test('asks for a link in the language in use and says where it went', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': signedOut,
+      '/api/auth/status': emailOn,
+      '/api/auth/forgot-password': [200, { ok: true }],
+    })
+    renderApp('/buget')
+    await askForLink('ana@example.com')
+
+    expect(await screen.findByRole('heading', { name: 'Verifică emailul' })).toBeDefined()
+    expect(screen.getByText(/Dacă ana@example\.com are un cont, i-am trimis un link/)).toBeDefined()
+    expect(sentBody(fetchMock, '/api/auth/forgot-password')).toEqual({ email: 'ana@example.com', language: 'ro' })
+  })
+
+  test('the link can be asked for again', async () => {
+    fakeServer({
+      '/api/user/me': signedOut,
+      '/api/auth/status': emailOn,
+      '/api/auth/forgot-password': [200, { ok: true }],
+    })
+    renderApp('/buget')
+    await askForLink('ana@example.com')
+    await userEvent.click(await screen.findByRole('button', { name: 'Trimite din nou' }))
+    expect(await screen.findByText(/Dacă adresa are un cont, am trimis un link nou/)).toBeDefined()
+  })
+
+  test('keeps the address typed at sign-in, and leads back to it', async () => {
+    fakeServer({ '/api/user/me': signedOut, '/api/auth/status': emailOn })
+    renderApp('/buget')
+    await userEvent.type(await screen.findByLabelText('Email'), 'ana@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Ai uitat parola?' }))
+    expect(screen.getByLabelText<HTMLInputElement>('Email').value).toBe('ana@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Înapoi la autentificare' }))
+    expect(await screen.findByRole('heading', { name: 'Autentificare' })).toBeDefined()
+  })
+
+  test('with email off, explains that no link can be sent', async () => {
+    fakeServer({
+      '/api/user/me': signedOut,
+      '/api/auth/status': [200, { registrationsEnabled: true, emailEnabled: false }],
+    })
+    renderApp('/buget')
+    await screen.findByRole('button', { name: 'Înregistrează-te' })
+    await userEvent.click(screen.getByRole('button', { name: 'Ai uitat parola?' }))
+    expect(await screen.findByText('Parola nu poate fi schimbată prin email')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Trimite linkul' })).toBeNull()
+  })
+})

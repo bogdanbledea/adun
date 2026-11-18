@@ -85,6 +85,17 @@ export const ro = {
   'auth.verifyConfirm': 'Confirmă și intră în cont',
   'auth.linkIncomplete': 'Linkul este incomplet. Deschide-l din nou din email, așa cum a fost trimis.',
 
+  // Forgotten password
+  'auth.forgotLink': 'Ai uitat parola?',
+  'auth.forgotTitle': 'Parolă uitată',
+  'auth.forgotText': 'Scrie adresa de email a contului și îți trimitem un link pentru o parolă nouă.',
+  'auth.sendResetLink': 'Trimite linkul',
+  'auth.sending': 'Se trimite...',
+  'auth.forgotNoEmailTitle': 'Parola nu poate fi schimbată prin email',
+  'auth.forgotNoEmailText': 'Acest server nu trimite emailuri, deci nu poate trimite un link pentru o parolă nouă. Cere ajutor celui care îl administrează.',
+  'auth.resetSentText': 'Dacă {email} are un cont, i-am trimis un link pentru o parolă nouă. Linkul funcționează o oră.',
+  'auth.resetResent': 'Dacă adresa are un cont, am trimis un link nou. Poți cere altul peste un minut.',
+
   // Privacy page
   'privacyPage.title': 'Confidențialitate',
   'privacyPage.intro': 'Ce păstrează aplicația despre tine, unde și pe cine poți întreba.',

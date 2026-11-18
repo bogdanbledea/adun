@@ -14,9 +14,10 @@ interface SignInFormProps {
   notice: string | null
   /** The password was right but the address is not confirmed yet. */
   onNeedsConfirmation: () => void
+  onForgotPassword: () => void
 }
 
-export function SignInForm({ email, onEmailChange, notice, onNeedsConfirmation }: SignInFormProps) {
+export function SignInForm({ email, onEmailChange, notice, onNeedsConfirmation, onForgotPassword }: SignInFormProps) {
   const t = useT()
   const { signedIn } = useAuth()
   const [password, setPassword] = useState('')
@@ -58,6 +59,13 @@ export function SignInForm({ email, onEmailChange, notice, onNeedsConfirmation }
         value={password}
         onChange={(event) => { setPassword(event.target.value) }}
       />
+      <button
+        type="button"
+        onClick={onForgotPassword}
+        className="-mt-2 self-end text-sm font-semibold text-brand underline-offset-2 hover:underline"
+      >
+        {t('auth.forgotLink')}
+      </button>
       {error && <Notice tone="error">{error}</Notice>}
       <Button type="submit" disabled={busy} className="mt-2 w-full">
         {busy ? t('auth.signingIn') : t('auth.signIn')}

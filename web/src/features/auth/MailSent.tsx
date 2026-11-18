@@ -4,17 +4,18 @@ import { api, errorText } from '../../lib/api.ts'
 import { useI18n } from '../../lib/i18n.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 
-/* "Check your email", after signing up or signing in unconfirmed. Nothing
-   more happens in this tab until the user opens their inbox. The link can be
-   sent again; the server limits how often, but answers the same either way. */
+/* "Check your email", after signing up, signing in unconfirmed or asking for
+   a new password. Nothing more happens in this tab until the user opens their
+   inbox. The link can be sent again; the server limits how often, but answers
+   the same either way. */
 
 interface MailSentProps {
   text: string
-  /** The address to send the confirmation link to again. */
-  resendTo: string
+  /** Where to ask for the email again, for which address, and what to say once asked. */
+  resend: { path: string; email: string; doneText: string }
 }
 
-export function MailSent({ text, resendTo }: MailSentProps) {
+export function MailSent({ text, resend: { path, email, doneText } }: MailSentProps) {
   const { t, language } = useI18n()
   const [result, setResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -23,8 +24,8 @@ export function MailSent({ text, resendTo }: MailSentProps) {
     setResult(null)
     setBusy(true)
     try {
-      await api('/api/auth/resend-verification', { method: 'POST', body: { email: resendTo, language } })
-      setResult({ tone: 'success', text: t('auth.resent') })
+      await api(path, { method: 'POST', body: { email, language } })
+      setResult({ tone: 'success', text: doneText })
     } catch (err) {
       setResult({ tone: 'error', text: errorText(err, t) })
     }
