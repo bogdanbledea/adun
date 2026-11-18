@@ -117,6 +117,12 @@ export const ro = {
   'budget.income': 'Venituri',
   'budget.expenses': 'Cheltuieli',
   'budget.balance': 'Rămân',
+  'budget.monthMenu': 'Opțiunile lunii',
+  'budget.deleteMonth': 'Șterge luna',
+  'budget.deleteMonthConfirm': 'Ștergi {month} și toate înregistrările ei? Nu se poate anula.',
+  'budget.deleteMonthYes': 'Da, șterge',
+  'budget.cancel': 'Renunță',
+  'budget.noEntries': 'Nicio înregistrare încă.',
 
   // Settings
   'settings.title': 'Setări',

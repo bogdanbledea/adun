@@ -1,24 +1,29 @@
-import { CalendarPlus } from 'lucide-react'
+import { CalendarPlus, EllipsisVertical, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ApiError, errorText } from '../../lib/api.ts'
 import { useI18n } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
 import { EmptyState } from '../../ui/EmptyState.tsx'
+import { Menu } from '../../ui/Menu.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
 import { budgetApi, type Month } from './budget-api.ts'
+import { CategoryList } from './CategoryList.tsx'
 import { monthName } from './month-key.ts'
 import { MonthSummary } from './MonthSummary.tsx'
 
 /* One month: an offer to create its budget when it has none, otherwise its
-   totals. After a change the month is read again from the server, so what is
-   shown is what is stored. */
+   totals and its entries by category, with a menu to delete the month. After
+   a change the month is read again from the server, so what is shown is what
+   is stored. */
 
 type State =
   | { kind: 'loading' }
   | { kind: 'none'; creating: boolean; error: unknown }
   | { kind: 'failed'; error: unknown }
   | { kind: 'ready'; month: Month }
+
+type Deleting = { kind: 'idle' } | { kind: 'asking'; busy: boolean; error: unknown }
 
 interface MonthViewProps {
   monthKey: string
@@ -30,6 +35,7 @@ export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
   const { t, language } = useI18n()
   const [state, setState] = useState<State>({ kind: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const [deleting, setDeleting] = useState<Deleting>({ kind: 'idle' })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -54,6 +60,18 @@ export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
       onHasBudget(true)
     } catch (error) {
       setState({ kind: 'none', creating: false, error })
+    }
+  }
+
+  const deleteMonth = async () => {
+    setDeleting({ kind: 'asking', busy: true, error: null })
+    try {
+      await budgetApi.deleteMonth(monthKey)
+      setDeleting({ kind: 'idle' })
+      setState({ kind: 'none', creating: false, error: null })
+      onHasBudget(false)
+    } catch (error) {
+      setDeleting({ kind: 'asking', busy: false, error })
     }
   }
 
@@ -103,10 +121,46 @@ export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
     )
   }
 
+  const { month } = state
+
   return (
     <section aria-label={name} className="space-y-4">
-      <h2 className="text-lg font-semibold">{name}</h2>
-      <MonthSummary totals={state.month.totals} />
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{name}</h2>
+        <Menu
+          label={t('budget.monthMenu')}
+          trigger={<EllipsisVertical />}
+          triggerClassName="grid size-11 place-items-center rounded-lg text-muted transition-colors duration-150 hover:bg-hover hover:text-ink pointer-fine:size-9 [&_svg]:size-[18px]"
+          items={[
+            {
+              label: t('budget.deleteMonth'),
+              icon: <Trash2 />,
+              tone: 'danger',
+              onSelect: () => { setDeleting({ kind: 'asking', busy: false, error: null }) },
+            },
+          ]}
+        />
+      </div>
+      {deleting.kind === 'asking' && (
+        <div className="card flex flex-col gap-3 px-4 py-3">
+          <p className="text-sm">{t('budget.deleteMonthConfirm', { month: name })}</p>
+          {deleting.error !== null && <Notice tone="error">{errorText(deleting.error, t)}</Notice>}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="quiet" disabled={deleting.busy} onClick={() => { setDeleting({ kind: 'idle' }) }}>
+              {t('budget.cancel')}
+            </Button>
+            <Button variant="danger" disabled={deleting.busy} onClick={() => void deleteMonth()}>
+              {t('budget.deleteMonthYes')}
+            </Button>
+          </div>
+        </div>
+      )}
+      <MonthSummary totals={month.totals} />
+      {month.categories.length > 0 ? (
+        <CategoryList categories={month.categories} />
+      ) : (
+        <p className="card px-4 py-8 text-center text-sm text-muted">{t('budget.noEntries')}</p>
+      )}
     </section>
   )
 }

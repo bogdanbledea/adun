@@ -106,6 +106,12 @@ export const en: Record<MessageKey, string> = {
   'budget.income': 'Income',
   'budget.expenses': 'Expenses',
   'budget.balance': 'Left',
+  'budget.monthMenu': 'Month options',
+  'budget.deleteMonth': 'Delete the month',
+  'budget.deleteMonthConfirm': 'Delete {month} and all its entries? This cannot be undone.',
+  'budget.deleteMonthYes': 'Yes, delete it',
+  'budget.cancel': 'Cancel',
+  'budget.noEntries': 'No entries yet.',
 
   'settings.title': 'Settings',
   'settings.subtitle': 'Your account, your password and what changed in it.',
