@@ -26,6 +26,11 @@ export function currentMonthKey(now = new Date()): string {
   return `${String(now.getFullYear())}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
+/** Today as YYYY-MM-DD, in the browser's time zone. */
+export function todayDate(now = new Date()): string {
+  return `${currentMonthKey(now)}-${String(now.getDate()).padStart(2, '0')}`
+}
+
 /** The month `count` months after (or before, when negative). */
 export function shiftMonth(monthKey: string, count: number): string {
   const [year = 0, month = 1] = monthKey.split('-').map(Number)

@@ -1,7 +1,7 @@
 import { CircleCheck } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { api } from '../../lib/api.ts'
+import { useState } from 'react'
 import { useT } from '../../lib/i18n.tsx'
+import { useServerStatus } from '../../lib/server-status.ts'
 import { AuthLayout } from './AuthLayout.tsx'
 import { ForgotPasswordForm } from './ForgotPasswordForm.tsx'
 import { MailSent } from './MailSent.tsx'
@@ -13,26 +13,6 @@ import { SignUpForm } from './SignUpForm.tsx'
    sign-up, "forgot password" and "check your email" are modes of this one
    page. /parola-uitata opens it in "forgot password", for the link in the
    "this address already has an account" email. */
-
-interface AuthStatus {
-  registrationsEnabled: boolean
-  emailEnabled: boolean
-}
-
-function useAuthStatus(): AuthStatus | null {
-  const [status, setStatus] = useState<AuthStatus | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    api<AuthStatus>('/api/auth/status', { signal: controller.signal })
-      .then(setStatus)
-      .catch(() => {
-        // Offer sign-up anyway; the server refuses it if registrations are off.
-        if (!controller.signal.aborted) setStatus({ registrationsEnabled: true, emailEnabled: false })
-      })
-    return () => { controller.abort() }
-  }, [])
-  return status
-}
 
 function Hero() {
   const t = useT()
@@ -70,7 +50,7 @@ type Mode = 'signin' | 'signup' | 'check-email' | 'forgot' | 'reset-sent'
 
 export function SignInPage({ initialMode = 'signin' }: { initialMode?: Mode }) {
   const t = useT()
-  const status = useAuthStatus()
+  const status = useServerStatus()
   const registrationsEnabled = status?.registrationsEnabled ?? null
   const [mode, setMode] = useState<Mode>(initialMode)
   const [email, setEmail] = useState('')

@@ -3,6 +3,7 @@
    filled in by t(key, { name }). */
 
 import { roPlans } from './plans.ro.ts'
+import { roReminders } from './reminders.ro.ts'
 
 export const ro = {
   // Language and theme controls
@@ -30,7 +31,7 @@ export const ro = {
 
   // Sections
   'food.subtitle': 'Cât ai, cât de repede cheltui și ce ai cumpărat.',
-  'reminders.subtitle': 'ITP, RCA, rovinietă și verificări, în ordinea în care vin.',
+  'reminders.subtitle': 'ITP, RCA, rovinietă și revizii, în ordinea în care urmează.',
 
   // Pages
   'page.notFoundTitle': 'Pagina nu există',
@@ -320,6 +321,7 @@ export const ro = {
   'error.internal_error': 'A apărut o eroare neașteptată.',
   'error.unknown': 'Ceva nu a mers. Încearcă din nou.',
   ...roPlans,
+  ...roReminders,
 }
 
 export type MessageKey = keyof typeof ro

@@ -1,4 +1,5 @@
 import { enPlans } from './plans.en.ts'
+import { enReminders } from './reminders.en.ts'
 import type { MessageKey } from './ro.ts'
 
 export const en: Record<MessageKey, string> = {
@@ -303,6 +304,7 @@ export const en: Record<MessageKey, string> = {
   'error.internal_error': 'An unexpected error occurred.',
   'error.unknown': 'Something went wrong. Try again.',
   ...enPlans,
+  ...enReminders,
 }
 
 export const enMottos = ['the family’s money', 'monthly peace of mind', 'what matters', 'money, not worries', 'today for tomorrow']
