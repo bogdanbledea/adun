@@ -17,6 +17,7 @@ test('development defaults', () => {
     dataDir: path.resolve('data'),
     port: 8080,
     trustProxyHops: 0,
+    registrationsEnabled: true,
     logLevel: 'info',
   })
 })
@@ -28,6 +29,7 @@ test('reads every variable', () => {
     ADUN_DATA_DIR: '/data',
     PORT: '3000',
     TRUST_PROXY_HOPS: '1',
+    REGISTRATIONS_ENABLED: 'false',
     LOG_LEVEL: 'warn',
   })
   assert.deepEqual(config, {
@@ -36,6 +38,7 @@ test('reads every variable', () => {
     dataDir: '/data',
     port: 3000,
     trustProxyHops: 1,
+    registrationsEnabled: false,
     logLevel: 'warn',
   })
 })
@@ -59,5 +62,6 @@ test('refuses invalid values and names the variable', () => {
   rejects({ PORT: '80.5' }, 'PORT')
   rejects({ TRUST_PROXY_HOPS: '1.5' }, 'TRUST_PROXY_HOPS')
   rejects({ TRUST_PROXY_HOPS: '11' }, 'TRUST_PROXY_HOPS')
+  rejects({ REGISTRATIONS_ENABLED: 'yes' }, 'REGISTRATIONS_ENABLED')
   rejects({ LOG_LEVEL: 'verbose' }, 'LOG_LEVEL')
 })

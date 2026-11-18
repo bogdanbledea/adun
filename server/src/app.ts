@@ -6,6 +6,7 @@ import { pinoHttp } from 'pino-http'
 import type { Config } from './config.ts'
 import type { Database } from './db.ts'
 import type { Logger } from './lib/log.ts'
+import { authRoutes } from './features/auth/routes.ts'
 import { errorHandler, notFoundHandler } from './http/errors.ts'
 import { authLimit, generalLimit } from './http/rate-limits.ts'
 import { sameOriginGuard } from './http/same-origin.ts'
@@ -75,6 +76,8 @@ export function createApp({ config, db, log, webRoot = DEFAULT_WEB_ROOT }: AppDe
       res.status(503).json({ status: 'unavailable' })
     }
   })
+
+  app.use('/api/auth', authRoutes({ db, config }))
 
   // An unknown /api path is a 404 here, before the web app's files.
   app.use('/api', notFoundHandler)

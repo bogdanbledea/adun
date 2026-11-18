@@ -13,6 +13,8 @@ export interface Config {
   port: number
   // How many reverse proxies sit in front; decides which address is the client's.
   trustProxyHops: number
+  // Turn off once the household's accounts exist.
+  registrationsEnabled: boolean
   logLevel: LogLevel
 }
 
@@ -36,6 +38,14 @@ function integer(env: Env, name: string, fallback: number, min: number, max: num
     throw new ConfigError(`${name} must be a whole number from ${String(min)} to ${String(max)}`)
   }
   return value
+}
+
+function boolean(env: Env, name: string, fallback: boolean): boolean {
+  const raw = read(env, name)
+  if (raw === undefined) return fallback
+  if (raw === 'true') return true
+  if (raw === 'false') return false
+  throw new ConfigError(`${name} must be true or false`)
 }
 
 function appUrl(env: Env, production: boolean): string {
@@ -78,6 +88,7 @@ export function loadConfig(env: Env): Config {
     dataDir: path.resolve(read(env, 'ADUN_DATA_DIR') ?? 'data'),
     port: integer(env, 'PORT', 8080, 1, 65535),
     trustProxyHops: integer(env, 'TRUST_PROXY_HOPS', 0, 0, 10),
+    registrationsEnabled: boolean(env, 'REGISTRATIONS_ENABLED', true),
     logLevel: logLevel(env),
   }
 }
