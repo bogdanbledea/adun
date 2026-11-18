@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test } from 'vitest'
-import { ThemeProvider, useTheme } from './theme.tsx'
+import { renderWithProviders } from '../test/render.tsx'
+import { useTheme } from './theme.tsx'
 
 function Probe() {
   const { theme, preference, toggleTheme, setPreference } = useTheme()
@@ -21,7 +22,7 @@ function Probe() {
 }
 
 test('follows the system until a choice is made; the choice is a class on <html> and remembered', async () => {
-  render(<ThemeProvider><Probe /></ThemeProvider>)
+  renderWithProviders(<Probe />)
   const root = document.documentElement
   expect(screen.getByText('system/light')).toBeDefined()
   expect(root.className).toBe('')
@@ -43,7 +44,7 @@ test('follows the system until a choice is made; the choice is a class on <html>
 
 test('starts from a remembered choice', () => {
   localStorage.setItem('theme', 'dark')
-  render(<ThemeProvider><Probe /></ThemeProvider>)
+  renderWithProviders(<Probe />)
   expect(screen.getByText('dark/dark')).toBeDefined()
   expect(document.documentElement.classList.contains('dark')).toBe(true)
 })

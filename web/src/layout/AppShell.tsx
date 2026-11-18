@@ -1,0 +1,51 @@
+import { BellRing, Moon, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
+import { Outlet } from 'react-router'
+import { useI18n } from '../lib/i18n.tsx'
+import { useTheme } from '../lib/theme.tsx'
+import { IconButton } from '../ui/Button.tsx'
+import { Tabs } from '../ui/Tabs.tsx'
+import { Brand } from './Brand.tsx'
+import { Footer } from './Footer.tsx'
+
+/* The frame around every page: the brand, the three section tabs and the
+   controls (theme, language) in one row on wide screens, the tabs on a row of
+   their own below on narrow ones; then the page, then the footer. */
+
+export function AppShell() {
+  const { t, toggleLanguage } = useI18n()
+  const { theme, toggleTheme } = useTheme()
+
+  return (
+    <div className="flex min-h-dvh flex-col overflow-x-clip bg-page text-ink">
+      <header className="sticky top-0 z-40 border-b border-line bg-page/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 px-4 sm:px-6 lg:flex-nowrap">
+          <div className="py-2">
+            <Brand withMotto />
+          </div>
+          <div className="order-last -mx-4 w-[calc(100%+2rem)] sm:mx-0 sm:w-full lg:order-none lg:w-auto lg:self-end">
+            <Tabs
+              label={t('nav.sections')}
+              tabs={[
+                { to: '/buget', label: t('nav.budget'), icon: <Wallet /> },
+                { to: '/mancare', label: t('nav.food'), icon: <UtensilsCrossed /> },
+                { to: '/scadente', label: t('nav.reminders'), icon: <BellRing /> },
+              ]}
+            />
+          </div>
+          <div className="ml-auto flex shrink-0 items-center py-2">
+            <IconButton label={theme === 'dark' ? t('theme.toLight') : t('theme.toDark')} onClick={toggleTheme}>
+              {theme === 'dark' ? <Sun /> : <Moon />}
+            </IconButton>
+            <IconButton label={t('language.switch')} onClick={toggleLanguage} className="w-auto px-2.5 text-xs font-semibold">
+              {t('language.short')}
+            </IconButton>
+          </div>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 sm:px-6 sm:py-6">
+        <Outlet />
+      </main>
+      <Footer />
+    </div>
+  )
+}

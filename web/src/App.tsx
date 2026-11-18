@@ -1,55 +1,27 @@
-import { useEffect, useState } from 'react'
-import { useTheme } from './lib/theme.tsx'
+import { Navigate, Route, Routes } from 'react-router'
+import { AppShell } from './layout/AppShell.tsx'
+import { NotFound } from './layout/NotFound.tsx'
+import { PageHeader } from './layout/PageHeader.tsx'
+import { useT, type MessageKey } from './lib/i18n.tsx'
 
-type ServerStatus = 'checking' | 'ok' | 'unreachable'
+/* The route table. URLs are Romanian in both languages. Each section has its
+   page header for now; the features fill them in. */
 
-const STATUS_TEXT: Record<ServerStatus, string> = {
-  checking: 'Checking the server…',
-  ok: 'The server is up.',
-  unreachable: 'The server cannot be reached.',
-}
-
-const STATUS_COLOUR: Record<ServerStatus, string> = {
-  checking: 'text-muted',
-  ok: 'text-brand',
-  unreachable: 'text-danger',
+function Section({ title, subtitle }: { title: MessageKey; subtitle: MessageKey }) {
+  const t = useT()
+  return <PageHeader title={t(title)} subtitle={t(subtitle)} />
 }
 
 export function App() {
-  const [status, setStatus] = useState<ServerStatus>('checking')
-  const { theme, toggleTheme } = useTheme()
-
-  useEffect(() => {
-    const controller = new AbortController()
-    fetch('/health', { signal: controller.signal })
-      .then((res) => {
-        setStatus(res.ok ? 'ok' : 'unreachable')
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        console.error(error)
-        setStatus('unreachable')
-      })
-    return () => {
-      controller.abort()
-    }
-  }, [])
-
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4">
-      <section className="card flex flex-col gap-2 p-6">
-        <h1 className="text-3xl font-bold">Adun</h1>
-        <p role="status" className={STATUS_COLOUR[status]}>
-          {STATUS_TEXT[status]}
-        </p>
-      </section>
-      <button
-        type="button"
-        onClick={toggleTheme}
-        className="self-center rounded-full border border-line-strong px-4 py-1.5 text-sm text-muted hover:bg-hover"
-      >
-        {theme === 'dark' ? 'Use the light theme' : 'Use the dark theme'}
-      </button>
-    </main>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route index element={<Navigate to="/buget" replace />} />
+        <Route path="/buget" element={<Section title="nav.budget" subtitle="budget.subtitle" />} />
+        <Route path="/mancare" element={<Section title="nav.food" subtitle="food.subtitle" />} />
+        <Route path="/scadente" element={<Section title="nav.reminders" subtitle="reminders.subtitle" />} />
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
   )
 }

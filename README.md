@@ -42,6 +42,14 @@ The Vite dev server forwards `/api` and `/health` to the API, so the browser
 sees a single origin, as in production. Set `ADUN_API_URL` to proxy to an API
 on another address.
 
+To run the app the way it is deployed, build the web app; the server then
+serves it from `web/dist` alongside the API, on http://localhost:8080:
+
+```sh
+cd web && npm run build
+cd server && npm start
+```
+
 | Package  | Scripts                                                                    |
 | -------- | -------------------------------------------------------------------------- |
 | `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`   |

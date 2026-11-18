@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
 import express from 'express'
 import { pinoHttp } from 'pino-http'
 import type { Config } from './config.ts'
@@ -8,17 +10,22 @@ import { errorHandler, notFoundHandler } from './http/errors.ts'
 import { authLimit, generalLimit } from './http/rate-limits.ts'
 import { sameOriginGuard } from './http/same-origin.ts'
 import { noStore, securityHeaders } from './http/security.ts'
+import { staticFiles } from './http/static-files.ts'
+
+export const DEFAULT_WEB_ROOT = path.resolve(import.meta.dirname, '..', '..', 'web', 'dist')
 
 export interface AppDeps {
   config: Config
   db: Database
   log: Logger
+  // The built web app. Skipped when the folder does not exist (development).
+  webRoot?: string
 }
 
 // Middleware order and route mounting. The order is part of the security model:
 // every response gets a request ID and security headers, and the body limit,
 // rate limits and same-origin guard all run before any route.
-export function createApp({ config, db, log }: AppDeps): express.Express {
+export function createApp({ config, db, log, webRoot = DEFAULT_WEB_ROOT }: AppDeps): express.Express {
   const app = express()
   app.disable('x-powered-by')
   app.set('trust proxy', config.trustProxyHops)
@@ -69,6 +76,12 @@ export function createApp({ config, db, log }: AppDeps): express.Express {
     }
   })
 
+  // An unknown /api path is a 404 here, before the web app's files.
+  app.use('/api', notFoundHandler)
+
+  if (fs.existsSync(webRoot)) app.use(staticFiles(webRoot))
+  // Whatever is left (an unknown file, a non-GET outside /api) is a 404 in the
+  // same JSON shape.
   app.use(notFoundHandler)
   app.use(errorHandler)
 

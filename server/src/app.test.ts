@@ -1,12 +1,22 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
 import { beforeEach, describe, test } from 'node:test'
-import { captureLogger, tempDatabase, TEST_APP_URL, testClient, testConfig } from '../test/helpers.ts'
+import { captureLogger, tempDatabase, tempDir, TEST_APP_URL, testClient, testConfig } from '../test/helpers.ts'
 import { createApp } from './app.ts'
 import { silentLogger } from './lib/log.ts'
 
 const { db, dataDir } = tempDatabase()
 const { log, lines } = captureLogger()
-const client = await testClient(createApp({ config: testConfig(dataDir), db, log }))
+
+// A stand-in for the built web app.
+const webRoot = tempDir()
+fs.mkdirSync(path.join(webRoot, 'assets'))
+fs.writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>adun</title>')
+fs.writeFileSync(path.join(webRoot, 'assets', 'index-abc123.js'), 'console.log(1)')
+fs.writeFileSync(path.join(webRoot, 'favicon.svg'), '<svg/>')
+
+const client = await testClient(createApp({ config: testConfig(dataDir), db, log, webRoot }))
 
 beforeEach(() => { lines.length = 0 })
 
@@ -19,7 +29,7 @@ describe('health', () => {
 
   test('answers 503 when it is not', async () => {
     const other = tempDatabase()
-    const app = createApp({ config: testConfig(other.dataDir), db: other.db, log: silentLogger })
+    const app = createApp({ config: testConfig(other.dataDir), db: other.db, log: silentLogger, webRoot })
     const otherClient = await testClient(app)
     other.db.close()
     const res = await otherClient.request('GET', '/health')
@@ -52,8 +62,8 @@ describe('request log', () => {
 
 describe('security headers', () => {
   test('are present on every response', async () => {
-    for (const url of ['/health', '/api/nothing', '/nothing']) {
-      const res = await client.request('GET', url)
+    for (const url of ['/health', '/api/nothing', '/assets/index-abc123.js', '/buget']) {
+      const res = await client.request('GET', url, { headers: { accept: 'text/html' } })
       assert.equal(
         res.headers.get('content-security-policy'),
         "default-src 'self';script-src 'self';style-src 'self';img-src 'self' data:;font-src 'self';" +
@@ -126,5 +136,38 @@ describe('same-origin guard', () => {
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
     })
     assert.equal(res.status, 415)
+  })
+})
+
+describe('web app', () => {
+  const html = { headers: { accept: 'text/html' } }
+
+  test('hashed assets are cached for a year, other files are revalidated', async () => {
+    const asset = await client.request('GET', '/assets/index-abc123.js')
+    assert.equal(asset.status, 200)
+    assert.equal(asset.headers.get('cache-control'), 'public, max-age=31536000, immutable')
+
+    const icon = await client.request('GET', '/favicon.svg')
+    assert.equal(icon.status, 200)
+    assert.equal(icon.headers.get('cache-control'), 'no-cache')
+  })
+
+  test("the app's own routes get index.html, so a reload works", async () => {
+    for (const url of ['/', '/buget', '/mancare/2026-11']) {
+      const res = await client.request('GET', url, html)
+      assert.equal(res.status, 200, url)
+      assert.equal(res.headers.get('cache-control'), 'no-cache', url)
+      assert.match(await res.text(), /<title>adun<\/title>/, url)
+    }
+  })
+
+  test('a missing asset, an unknown API path and a non-HTML request stay 404s', async () => {
+    for (const url of ['/assets/missing.js', '/api/nothing']) {
+      const res = await client.request('GET', url, html)
+      assert.equal(res.status, 404, url)
+      assert.deepEqual(await res.json(), { error: { code: 'not_found', message: 'Not found.' } }, url)
+    }
+    const json = await client.request('GET', '/buget', { headers: { accept: 'application/json' } })
+    assert.equal(json.status, 404)
   })
 })

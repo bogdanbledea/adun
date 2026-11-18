@@ -1,56 +1,37 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { expect, test } from 'vitest'
 import { App } from './App.tsx'
-import { ThemeProvider } from './lib/theme.tsx'
+import { renderWithProviders } from './test/render.tsx'
 
-function renderApp() {
-  return render(
-    <ThemeProvider>
-      <App />
-    </ThemeProvider>,
-  )
-}
-
-function serverAnswers(status: number) {
-  const fetchMock = vi.fn(() => Promise.resolve(Response.json({}, { status })))
-  vi.stubGlobal('fetch', fetchMock)
-  return fetchMock
-}
-
-afterEach(() => {
-  vi.unstubAllGlobals()
+test('the root opens the budget, with its tab marked as current', () => {
+  renderWithProviders(<App />, { path: '/' })
+  expect(screen.getByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
+  expect(screen.getByRole('link', { name: 'Buget' }).getAttribute('aria-current')).toBe('page')
 })
 
-test('says the server is up when /health answers', async () => {
-  const fetchMock = serverAnswers(200)
-  renderApp()
-
-  expect(screen.getByRole('status').textContent).toBe('Checking the server…')
-  expect(await screen.findByText('The server is up.')).toBeDefined()
-  expect(fetchMock).toHaveBeenCalledWith('/health', expect.anything())
+test('the tabs move between sections', async () => {
+  renderWithProviders(<App />, { path: '/buget' })
+  await userEvent.click(screen.getByRole('link', { name: 'Mâncare' }))
+  expect(screen.getByRole('heading', { level: 1, name: 'Mâncare' })).toBeDefined()
+  await userEvent.click(screen.getByRole('link', { name: 'Scadențe' }))
+  expect(screen.getByRole('heading', { level: 1, name: 'Scadențe' })).toBeDefined()
 })
 
-test('says the server cannot be reached when /health fails', async () => {
-  serverAnswers(503)
-  renderApp()
-  expect(await screen.findByText('The server cannot be reached.')).toBeDefined()
-})
+test('the shell switches language and theme', async () => {
+  renderWithProviders(<App />, { path: '/buget' })
 
-test('says the server cannot be reached when the request fails', async () => {
-  vi.spyOn(console, 'error').mockImplementation(() => undefined)
-  vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
-  renderApp()
-  expect(await screen.findByText('The server cannot be reached.')).toBeDefined()
-})
+  await userEvent.click(screen.getByRole('button', { name: 'Switch to English' }))
+  expect(screen.getByRole('heading', { level: 1, name: 'Budget' })).toBeDefined()
 
-test('switches between the light and dark theme', async () => {
-  serverAnswers(200)
-  renderApp()
-
-  await userEvent.click(screen.getByRole('button', { name: 'Use the dark theme' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Switch to dark theme' }))
   expect(document.documentElement.classList.contains('dark')).toBe(true)
+  expect(screen.getByRole('button', { name: 'Switch to light theme' })).toBeDefined()
+})
 
-  await userEvent.click(screen.getByRole('button', { name: 'Use the light theme' }))
-  expect(document.documentElement.classList.contains('light')).toBe(true)
+test('an unknown address shows a page not found with a way back', async () => {
+  renderWithProviders(<App />, { path: '/nicaieri' })
+  expect(screen.getByRole('heading', { name: 'Pagina nu există' })).toBeDefined()
+  await userEvent.click(screen.getByRole('link', { name: 'Înapoi la buget' }))
+  expect(screen.getByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
 })
