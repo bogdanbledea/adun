@@ -22,6 +22,7 @@ interface SavedEntry {
   description: string
   type: string
   amountBani: number
+  paymentDate: string | null
 }
 
 interface Month {
@@ -43,7 +44,7 @@ const lastActivity = () => {
 
 const rent = { monthKey: '2026-01', categoryName: 'Home', description: 'Rent', type: 'expense', amountBani: 150_000 }
 
-async function add(fields: Partial<typeof rent> = {}, cookie = ana): Promise<SavedEntry> {
+async function add(fields: Partial<typeof rent> & { paymentDate?: string | null } = {}, cookie = ana): Promise<SavedEntry> {
   const res = await send('POST', '/api/entries', cookie, { ...rent, ...fields })
   assert.equal(res.status, 201)
   return (await res.json()) as SavedEntry
@@ -55,7 +56,7 @@ await send('POST', '/api/months', ion, { monthKey: '2026-01' })
 describe('POST /api/entries', () => {
   test('adds an entry, its category, and records it', async () => {
     const entry = await add()
-    assert.deepEqual({ ...entry, id: undefined }, { ...rent, id: undefined, plan: null })
+    assert.deepEqual({ ...entry, id: undefined }, { ...rent, id: undefined, paymentDate: null, plan: null })
     assert.deepEqual(lastActivity(), {
       action: 'entry.created',
       metadata: { description: 'Rent', category: 'Home', type: 'expense', amountBani: 150_000, monthKey: '2026-01' },
@@ -182,6 +183,52 @@ describe('PATCH /api/entries/:id', () => {
     for (const body of [{}, { amountBani: -5 }, { type: 'credit' }, { monthKey: '2026-1' }]) {
       assert.equal((await send('PATCH', `/api/entries/${entry.id}`, ana, body)).status, 400, JSON.stringify(body))
     }
+  })
+})
+
+describe('the payment date', () => {
+  interface Paid {
+    categories: { entries: { description: string; paymentDate: string | null }[] }[]
+  }
+  const dates = async (monthKey: string) =>
+    ((await readMonth(monthKey)) as unknown as Paid).categories.flatMap((category) =>
+      category.entries.map((entry) => [entry.description, entry.paymentDate]),
+    )
+
+  test('is kept, may fall in another month, and can be changed or cleared', async () => {
+    const entry = await add({ description: 'Card', paymentDate: '2026-02-03' })
+    assert.equal(entry.paymentDate, '2026-02-03')
+    const change = (paymentDate: string | null) => send('PATCH', `/api/entries/${entry.id}`, ana, { paymentDate })
+    assert.equal(((await (await change('2026-01-28')).json()) as SavedEntry).paymentDate, '2026-01-28')
+    // Changing something else leaves it alone.
+    const renamed = await send('PATCH', `/api/entries/${entry.id}`, ana, { description: 'Card bill' })
+    assert.equal(((await renamed.json()) as SavedEntry).paymentDate, '2026-01-28')
+    assert.equal(((await (await change(null)).json()) as SavedEntry).paymentDate, null)
+  })
+
+  test('must be a calendar day', async () => {
+    for (const paymentDate of ['2026-02-30', '3 Feb', '']) {
+      const res = await send('POST', '/api/entries', ana, { ...rent, paymentDate })
+      assert.equal(res.status, 400, paymentDate)
+      assert.equal(await codeOf(res), 'invalid_input')
+    }
+  })
+
+  test('is not copied into a new month', async () => {
+    await send('POST', '/api/months', ana, { monthKey: '2030-04' })
+    await add({ monthKey: '2030-04', description: 'Phone', paymentDate: '2030-04-10' })
+    await send('POST', '/api/months', ana, { monthKey: '2030-05', from: '2030-04' })
+    assert.deepEqual(await dates('2030-04'), [['Phone', '2030-04-10']])
+    assert.deepEqual(await dates('2030-05'), [['Phone', null]])
+  })
+
+  test('is never on a template entry', async () => {
+    const created = await send('POST', '/api/template/entries', ana, { ...rent, paymentDate: '2026-01-05' })
+    const entry = (await created.json()) as SavedEntry
+    assert.equal(entry.paymentDate, null)
+    const res = await send('PATCH', `/api/entries/${entry.id}`, ana, { paymentDate: '2026-01-05' })
+    assert.equal(res.status, 400)
+    assert.equal(await codeOf(res), 'template_payment_date')
   })
 })
 

@@ -25,8 +25,10 @@ const type = z.enum(['income', 'expense'])
 const amountBani = z.number().int().min(0).max(999_999_999_900)
 
 const entryParams = z.object({ id: z.uuid() })
-const createEntryBody = z.object({ monthKey, categoryName, description, type, amountBani })
-const createTemplateEntryBody = createEntryBody.omit({ monthKey: true })
+// When it was actually paid; optional.
+const paymentDate = z.iso.date().nullable()
+const createEntryBody = z.object({ monthKey, categoryName, description, type, amountBani, paymentDate: paymentDate.optional() })
+const createTemplateEntryBody = createEntryBody.omit({ monthKey: true, paymentDate: true })
 // Any of the fields; another month moves the entry there.
 const updateEntryBody = createEntryBody.partial().refine((body) => Object.keys(body).length > 0)
 

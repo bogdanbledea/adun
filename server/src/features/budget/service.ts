@@ -34,6 +34,7 @@ export interface Entry {
   description: string
   type: repo.EntryType
   amountBani: number
+  paymentDate: string | null
   /** Set on a payment plan's instalment. */
   plan: repo.EntryRow['plan']
 }
@@ -97,7 +98,7 @@ function categoriesOf(db: Database, userId: string, monthId: string): Category[]
     ...category,
     entries: entries
       .filter((entry) => entry.categoryId === category.id)
-      .map(({ id, description, type, amountBani, plan }) => ({ id, description, type, amountBani, plan })),
+      .map(({ id, description, type, amountBani, paymentDate, plan }) => ({ id, description, type, amountBani, paymentDate, plan })),
   }))
 }
 
@@ -164,8 +165,8 @@ export function deleteMonth(db: Database, userId: string, monthKey: string): Mon
 // ── Entries ──────────────────────────────────────────────────────────────────
 
 function toSavedEntry(row: repo.FullEntryRow): SavedEntry {
-  const { id, monthKey, categoryName, description, type, amountBani, plan } = row
-  return { id, monthKey, categoryName, description, type, amountBani, plan }
+  const { id, monthKey, categoryName, description, type, amountBani, paymentDate, plan } = row
+  return { id, monthKey, categoryName, description, type, amountBani, paymentDate, plan }
 }
 
 // What the activity history shows for an entry: the user's own data, never
@@ -195,10 +196,15 @@ export interface NewEntryInput {
   description: string
   type: repo.EntryType
   amountBani: number
+  /** Never on a template entry. */
+  paymentDate?: string | null
 }
+
+const templatePaymentDate = () => badRequest('template_payment_date', 'A template entry has no payment date.')
 
 export function createEntry(db: Database, userId: string, input: NewEntryInput): SavedEntry {
   return transaction(db, () => {
+    if (input.monthKey === null && input.paymentDate) throw templatePaymentDate()
     const monthId = input.monthKey === null ? templateId(db, userId) : requireMonth(db, userId, input.monthKey).id
     const id = randomUUID()
     repo.insertEntry(db, {
@@ -209,6 +215,7 @@ export function createEntry(db: Database, userId: string, input: NewEntryInput):
       description: input.description,
       type: input.type,
       amountBani: input.amountBani,
+      paymentDate: input.paymentDate ?? null,
       now: new Date().toISOString(),
     })
     checkMonthLimits(db, userId, monthId)
@@ -228,6 +235,7 @@ export function updateEntry(db: Database, userId: string, id: string, update: En
     if (current.monthKey === null && update.monthKey !== undefined) {
       throw badRequest('template_entry_move', 'A template entry stays in the template.')
     }
+    if (current.monthKey === null && update.paymentDate) throw templatePaymentDate()
     if (current.plan && update.monthKey !== undefined && update.monthKey !== current.monthKey) {
       throw badRequest('installment_move', 'An instalment stays in the month its plan gave it.')
     }
@@ -261,6 +269,7 @@ export function updateEntry(db: Database, userId: string, id: string, update: En
       description: update.description ?? current.description,
       type: update.type ?? current.type,
       amountBani: update.amountBani ?? current.amountBani,
+      paymentDate: update.paymentDate === undefined ? current.paymentDate : update.paymentDate,
       appendLast: categoryId !== current.categoryId,
     })
     if (categoryId !== current.categoryId) {

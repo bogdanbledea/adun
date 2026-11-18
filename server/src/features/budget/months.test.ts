@@ -127,7 +127,7 @@ describe('GET /api/months/:monthKey', () => {
         ['Salary', [650_000]],
       ],
     )
-    assert.deepEqual(Object.keys(month.categories[0]?.entries[0] ?? {}).sort(), ['amountBani', 'description', 'id', 'plan', 'type'])
+    assert.deepEqual(Object.keys(month.categories[0]?.entries[0] ?? {}).sort(), ['amountBani', 'description', 'id', 'paymentDate', 'plan', 'type'])
     assert.deepEqual(month.totals, { incomeBani: 650_000, expenseBani: 180_050, balanceBani: 469_950 })
   })
 

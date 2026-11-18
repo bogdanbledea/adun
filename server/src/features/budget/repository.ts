@@ -23,6 +23,8 @@ export interface EntryRow {
   description: string
   type: EntryType
   amountBani: number
+  /** When it was actually paid; null when not given, and always in the template. */
+  paymentDate: string | null
   /** Set on a payment plan's instalment: number `index` of `total`. */
   plan: { id: string; name: string; index: number; total: number } | null
 }
@@ -157,7 +159,7 @@ export function countEntries(db: Database, userId: string, monthId: string): num
 export function listEntries(db: Database, userId: string, monthId: string): EntryRow[] {
   return db
     .prepare(
-      `SELECT e.id, e.category_id, e.description, e.type, e.amount_bani, e.plan_id, e.installment_index,
+      `SELECT e.id, e.category_id, e.description, e.type, e.amount_bani, e.payment_date, e.plan_id, e.installment_index,
               p.name AS plan_name, p.installments AS plan_total
        FROM entries e LEFT JOIN payment_plans p ON p.id = e.plan_id AND p.user_id = e.user_id
        WHERE e.month_id = ? AND e.user_id = ? ORDER BY e.sort_order, e.rowid`,
@@ -169,6 +171,7 @@ export function listEntries(db: Database, userId: string, monthId: string): Entr
       description: row.description as string,
       type: row.type as EntryType,
       amountBani: row.amount_bani as number,
+      paymentDate: row.payment_date as string | null,
       plan: planOf(row),
     }))
 }
@@ -206,7 +209,7 @@ export function findEntry(db: Database, userId: string, id: string): FullEntryRo
   const row = db
     .prepare(
       `SELECT e.id, e.month_id, m.month_key, e.category_id, c.name AS category_name, e.description, e.type, e.amount_bani,
-              e.plan_id, e.installment_index, p.name AS plan_name, p.installments AS plan_total
+              e.payment_date, e.plan_id, e.installment_index, p.name AS plan_name, p.installments AS plan_total
        FROM entries e
        JOIN months m ON m.id = e.month_id
        JOIN categories c ON c.id = e.category_id
@@ -224,6 +227,7 @@ export function findEntry(db: Database, userId: string, id: string): FullEntryRo
     description: row.description as string,
     type: row.type as EntryType,
     amountBani: row.amount_bani as number,
+    paymentDate: row.payment_date as string | null,
     plan: planOf(row),
   }
 }
@@ -236,6 +240,7 @@ export interface NewEntry {
   description: string
   type: EntryType
   amountBani: number
+  paymentDate?: string | null
   now: string
   /** Set on a payment plan's instalment. */
   installment?: { planId: string; index: number }
@@ -244,9 +249,9 @@ export interface NewEntry {
 /** Adds an entry after the category's last one. */
 export function insertEntry(db: Database, entry: NewEntry): void {
   db.prepare(
-    `INSERT INTO entries (id, user_id, month_id, category_id, description, type, amount_bani, plan_id, installment_index,
-                          sort_order, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort_order) + 1, 0) FROM entries WHERE category_id = ?), ?)`,
+    `INSERT INTO entries (id, user_id, month_id, category_id, description, type, amount_bani, payment_date, plan_id,
+                          installment_index, sort_order, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(sort_order) + 1, 0) FROM entries WHERE category_id = ?), ?)`,
   ).run(
     entry.id,
     entry.userId,
@@ -255,6 +260,7 @@ export function insertEntry(db: Database, entry: NewEntry): void {
     entry.description,
     entry.type,
     entry.amountBani,
+    entry.paymentDate ?? null,
     entry.installment?.planId ?? null,
     entry.installment?.index ?? null,
     entry.categoryId,
@@ -268,6 +274,7 @@ export interface EntryChanges {
   description: string
   type: EntryType
   amountBani: number
+  paymentDate: string | null
   /** Puts the entry after the last one of its (new) category. */
   appendLast: boolean
 }
@@ -276,7 +283,7 @@ export interface EntryChanges {
 export function updateEntry(db: Database, userId: string, id: string, changes: EntryChanges): void {
   db.prepare(
     `UPDATE entries
-     SET month_id = ?, category_id = ?, description = ?, type = ?, amount_bani = ?,
+     SET month_id = ?, category_id = ?, description = ?, type = ?, amount_bani = ?, payment_date = ?,
          sort_order = CASE WHEN ? THEN
            (SELECT coalesce(max(sort_order) + 1, 0) FROM entries WHERE category_id = ? AND id <> ?)
          ELSE sort_order END
@@ -287,6 +294,7 @@ export function updateEntry(db: Database, userId: string, id: string, changes: E
     changes.description,
     changes.type,
     changes.amountBani,
+    changes.paymentDate,
     Number(changes.appendLast),
     changes.categoryId,
     id,
