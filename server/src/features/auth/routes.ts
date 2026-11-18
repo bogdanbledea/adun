@@ -15,7 +15,6 @@ const registerBody = z.object({
   // Length and character rules are checked by passwordProblem, with their own code.
   password: z.string(),
   displayName: z.string().trim().min(1).max(256),
-  acceptPrivacyVersion: z.string().trim().min(1).max(16),
 })
 
 const loginBody = z.object({

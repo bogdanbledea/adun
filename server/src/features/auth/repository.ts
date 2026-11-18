@@ -8,7 +8,6 @@ export interface NewUser {
   email: string
   displayName: string
   passwordHash: string
-  privacyPolicyVersion: string
   now: string
 }
 
@@ -16,12 +15,11 @@ export interface NewUser {
 export function insertUser(db: Database, user: NewUser): boolean {
   const result = db
     .prepare(
-      `INSERT INTO users (id, email, display_name, password_hash,
-                          privacy_accepted_at, privacy_policy_version, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO users (id, email, display_name, password_hash, created_at)
+       VALUES (?, ?, ?, ?, ?)
        ON CONFLICT DO NOTHING`,
     )
-    .run(user.id, user.email, user.displayName, user.passwordHash, user.now, user.privacyPolicyVersion, user.now)
+    .run(user.id, user.email, user.displayName, user.passwordHash, user.now)
   return result.changes === 1
 }
 

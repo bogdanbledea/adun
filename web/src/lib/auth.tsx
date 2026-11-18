@@ -12,8 +12,6 @@ export interface AuthUser {
   id: string
   email: string
   displayName: string
-  privacyAcceptedAt: string
-  privacyPolicyVersion: string
   createdAt: string
 }
 

@@ -37,7 +37,6 @@ export interface Registration {
   email: string
   password: string
   displayName: string
-  acceptPrivacyVersion: string
 }
 
 /** Creates the account unless the address is taken, and says which happened.
@@ -51,7 +50,6 @@ export async function register(db: Database, log: Logger, input: Registration): 
     email: input.email,
     displayName: input.displayName,
     passwordHash,
-    privacyPolicyVersion: input.acceptPrivacyVersion,
     now: new Date().toISOString(),
   })
   if (created) log.info({ userId: id }, 'auth.registered')

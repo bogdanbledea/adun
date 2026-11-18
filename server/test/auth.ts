@@ -9,7 +9,7 @@ import { testClient, testConfig, type TestClient } from './helpers.ts'
 export const TEST_PASSWORD = 'Corect-cal-baterie-1'
 
 export async function createUser(db: Database, email: string, displayName = 'Ana Popescu'): Promise<void> {
-  await register(db, silentLogger, { email, password: TEST_PASSWORD, displayName, acceptPrivacyVersion: '2026-11-18' })
+  await register(db, silentLogger, { email, password: TEST_PASSWORD, displayName })
 }
 
 /** A new app instance, so each group of tests has its own rate-limit budget. */

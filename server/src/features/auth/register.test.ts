@@ -12,7 +12,6 @@ const registration = (overrides: Record<string, string> = {}) => ({
   email: 'ana@example.com',
   password: 'Corect-cal-baterie-1',
   displayName: 'Ana Popescu',
-  acceptPrivacyVersion: '2026-11-18',
   ...overrides,
 })
 
@@ -33,7 +32,7 @@ describe('POST /api/auth/register', async () => {
   const api = await client()
   const register = (body: unknown) => api.request('POST', '/api/auth/register', { body })
 
-  test('creates the account with a hashed password and the accepted privacy version', async () => {
+  test('creates the account with a hashed password', async () => {
     const res = await register(registration({ email: ' Ana@Example.com ' }))
     assert.equal(res.status, 201)
     assert.deepEqual(await res.json(), { ok: true })
@@ -43,7 +42,6 @@ describe('POST /api/auth/register', async () => {
     assert.equal(user.display_name, 'Ana Popescu')
     assert.match(String(user.password_hash), /^\$argon2id\$/)
     assert.equal(await passwords.verify(String(user.password_hash), 'Corect-cal-baterie-1'), true)
-    assert.equal(user.privacy_policy_version, '2026-11-18')
   })
 
   test('a taken address gets the same answer, at the same cost, and changes nothing', async (t) => {
@@ -64,12 +62,8 @@ describe('POST /api/auth/register', async () => {
     assert.equal(await codeOf(res), 'weak_password')
   })
 
-  test('refuses an invalid address, an empty name and a missing consent', async () => {
-    for (const body of [
-      registration({ email: 'not-an-email' }),
-      registration({ displayName: '   ' }),
-      { ...registration(), acceptPrivacyVersion: undefined },
-    ]) {
+  test('refuses an invalid address and an empty name', async () => {
+    for (const body of [registration({ email: 'not-an-email' }), registration({ displayName: '   ' })]) {
       const res = await register(body)
       assert.equal(res.status, 400)
       assert.equal(await codeOf(res), 'invalid_input')
