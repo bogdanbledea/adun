@@ -116,7 +116,7 @@ test('a row opens its entry for editing', async () => {
   await userEvent.click(await screen.findByText('Chirie'))
   const dialog = screen.getByRole('dialog', { name: 'Editează tranzacția' })
   const amount = within(dialog).getByLabelText('Sumă')
-  expect(amount).toHaveProperty('value', '1500,00')
+  expect(amount).toHaveProperty('value', '1500')
   await userEvent.clear(amount)
   await userEvent.type(amount, '1600')
   await userEvent.click(within(dialog).getByRole('button', { name: 'Salvează' }))

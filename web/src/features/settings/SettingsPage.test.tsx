@@ -180,9 +180,9 @@ describe('the activity section', () => {
     const section = await screen.findByRole('region', { name: 'Activitate' })
     const items = await within(section).findAllByRole('listitem')
     expect(items.map((item) => item.firstElementChild?.textContent)).toEqual([
-      'Înregistrare mutată în altă lunăChirie · Casă · 1.500,00 lei · Noiembrie 2026 → Decembrie 2026',
-      'Înregistrare adăugatăSalariu · Venituri · +1.500,00 lei · Noiembrie 2026',
-      'Înregistrare ștearsăChirie · Casă · 1.500,00 lei · Noiembrie 2026',
+      'Înregistrare mutată în altă lunăChirie · Casă · 1.500 lei · Noiembrie 2026 → Decembrie 2026',
+      'Înregistrare adăugatăSalariu · Venituri · +1.500 lei · Noiembrie 2026',
+      'Înregistrare ștearsăChirie · Casă · 1.500 lei · Noiembrie 2026',
       'Lună adăugată în bugetNoiembrie 2026',
     ])
   })
@@ -204,7 +204,7 @@ describe('the activity section', () => {
     const section = await screen.findByRole('region', { name: 'Activitate' })
     const items = await within(section).findAllByRole('listitem')
     expect(items.map((item) => item.firstElementChild?.textContent)).toEqual([
-      'Înregistrare adăugatăChirie · Casă · 1.500,00 lei · Șablon',
+      'Înregistrare adăugatăChirie · Casă · 1.500 lei · Șablon',
       'Intrări importateDecembrie 2026 · din Șablon · intrări: 2',
       'Lună adăugată în bugetDecembrie 2026 · din Noiembrie 2026 · intrări: 5',
       'Lună ștearsă din bugetOctombrie 2026',

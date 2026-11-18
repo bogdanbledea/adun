@@ -152,7 +152,7 @@ test('the summary shows what is left and how much of the income is spent', async
   expect(within(summary).getByRole('heading').textContent).toBe('Rămas în decembrie')
   expect(within(summary).getByText('4.749,50')).toBeDefined()
   expect(within(summary).getByRole('progressbar', { name: '27% din venituri cheltuite' })).toBeDefined()
-  expect(within(summary).getByText('6.500,00').closest('dd')).toBeDefined()
+  expect(within(summary).getByText('6.500').closest('dd')).toBeDefined()
 })
 
 test('a month spending more than came in is over budget', async () => {

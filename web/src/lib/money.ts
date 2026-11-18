@@ -7,9 +7,11 @@ export const MAX_BANI = 999_999_999_900
 
 const locale = (language: Language) => (language === 'ro' ? 'ro-RO' : 'en-GB')
 
-/** "1.234,50" in Romanian, "1,234.50" in English: the number, without the unit. */
+/** "1.234,50" in Romanian, "1,234.50" in English: the number, without the unit.
+    Whole lei have no decimals ("1.234"); otherwise there are always two. */
 export function formatLei(bani: number, language: Language): string {
-  const number = new Intl.NumberFormat(locale(language), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const digits = bani % 100 === 0 ? 0 : 2
+  const number = new Intl.NumberFormat(locale(language), { minimumFractionDigits: digits, maximumFractionDigits: digits })
   // Whole lei and bani apart, so a large amount loses nothing on the way.
   const sign = bani < 0 ? '-' : ''
   const abs = Math.abs(bani)
@@ -21,9 +23,9 @@ export function formatBani(bani: number, language: Language): string {
   return `${formatLei(bani, language)} lei`
 }
 
-/** The amount as typed into a field: "1234.5" or "1234,50", no grouping. */
+/** The amount as typed into a field: "1234" or "1234,50", no grouping. */
 export function baniToInput(bani: number, language: Language): string {
-  const text = (bani / 100).toFixed(2)
+  const text = (bani / 100).toFixed(bani % 100 === 0 ? 0 : 2)
   return language === 'ro' ? text.replace('.', ',') : text
 }
 

@@ -29,11 +29,17 @@ describe('parseAmount', () => {
 })
 
 describe('formatBani', () => {
-  test('writes lei with two decimals in the language’s style', () => {
+  test('writes lei in the language’s style', () => {
     expect(formatBani(123_450, 'ro')).toBe('1.234,50 lei')
     expect(formatBani(123_450, 'en')).toBe('1,234.50 lei')
     expect(formatBani(5, 'en')).toBe('0.05 lei')
     expect(formatBani(-1250, 'ro')).toBe('-12,50 lei')
+  })
+
+  test('leaves the decimals out of whole lei, and keeps both otherwise', () => {
+    expect(formatBani(150_000, 'ro')).toBe('1.500 lei')
+    expect(formatBani(300_010, 'ro')).toBe('3.000,10 lei')
+    expect(formatBani(0, 'en')).toBe('0 lei')
   })
 
   test('formatLei leaves the unit out', () => {
@@ -41,7 +47,7 @@ describe('formatBani', () => {
   })
 
   test('keeps every bani of the largest amount', () => {
-    expect(formatBani(MAX_BANI, 'en')).toBe('9,999,999,999.00 lei')
+    expect(formatBani(MAX_BANI, 'en')).toBe('9,999,999,999 lei')
     expect(formatBani(MAX_BANI - 1, 'en')).toBe('9,999,999,998.99 lei')
   })
 })
@@ -49,5 +55,6 @@ describe('formatBani', () => {
 test('baniToInput gives back text that parseAmount reads', () => {
   expect(baniToInput(123_450, 'ro')).toBe('1234,50')
   expect(baniToInput(123_450, 'en')).toBe('1234.50')
+  expect(baniToInput(150_000, 'ro')).toBe('1500')
   expect(parseAmount(baniToInput(99, 'ro'))).toBe(99)
 })
