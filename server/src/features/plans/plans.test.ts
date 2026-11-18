@@ -3,7 +3,7 @@ import { describe, test } from 'node:test'
 import { appClient, createUser, signIn } from '../../../test/auth.ts'
 import { tempDatabase } from '../../../test/helpers.ts'
 import { LIMITS } from '../../lib/limits.ts'
-import { addMonths, splitInstallments } from './service.ts'
+import { splitInstallments } from './service.ts'
 
 const { db, dataDir } = tempDatabase()
 await createUser(db, 'ana@example.com')
@@ -44,12 +44,6 @@ test('a total is split in whole bani, the first instalment taking the remainder'
   assert.deepEqual(splitInstallments(200_000, 3), [66_668, 66_666, 66_666])
   assert.deepEqual(splitInstallments(100, 1), [100])
   assert.deepEqual(splitInstallments(2, 3), [2, 0, 0])
-})
-
-test('months are counted across years', () => {
-  assert.equal(addMonths('2026-11', 2), '2027-01')
-  assert.equal(addMonths('2026-01', 0), '2026-01')
-  assert.equal(addMonths('9999-01', 11), '9999-12')
 })
 
 describe('creating a plan', () => {

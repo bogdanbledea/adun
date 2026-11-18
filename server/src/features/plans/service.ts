@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { transaction, type Database } from '../../db.ts'
 import { conflict, notFound } from '../../http/errors.ts'
+import { addMonths } from '../../lib/dates.ts'
 import { LIMITS, limitReached } from '../../lib/limits.ts'
 import { logActivity } from '../activity/service.ts'
 import * as budget from '../budget/repository.ts'
@@ -61,12 +62,6 @@ const planOpen = () => conflict('plan_open', 'Close the payment plan before dele
 export function splitInstallments(totalBani: number, n: number): number[] {
   const regular = Math.floor(totalBani / n)
   return Array.from({ length: n }, (_, i) => (i === 0 ? totalBani - regular * (n - 1) : regular))
-}
-
-/** The month key `count` months after `monthKey`. */
-export function addMonths(monthKey: string, count: number): string {
-  const index = Number(monthKey.slice(0, 4)) * 12 + Number(monthKey.slice(5, 7)) - 1 + count
-  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`
 }
 
 function toPlan(row: repo.PlanRow): Plan {
