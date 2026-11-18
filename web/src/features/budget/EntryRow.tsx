@@ -58,29 +58,33 @@ export function EntryRow({ entry, onEdit, onDelete, onViewPlan }: EntryRowProps)
         >
           <GripVertical />
         </button>
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {/* Phones: the badge under the description, which keeps its room. Wider: one line. */}
+        <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-1.5">
           <span className="truncate">{entry.description}</span>
-          {plan &&
-            (viewPlan ? (
-              <button
-                type="button"
-                aria-label={`${installmentLabel}. ${t('plans.openPlan', { name: entry.description })}`}
-                title={installmentLabel}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  viewPlan()
-                }}
-                className={cx(INSTALLMENT_BADGE, 'min-h-6 hover:bg-hover')}
-              >
-                <CreditCard aria-hidden="true" className="size-3" />
-                {plan.index}/{plan.total}
-              </button>
-            ) : (
-              <span title={installmentLabel} className={INSTALLMENT_BADGE}>
-                <CreditCard aria-hidden="true" className="size-3" />
-                {plan.index}/{plan.total}
-              </span>
-            ))}
+          {plan && (
+            <div className="flex items-center">
+              {viewPlan ? (
+                <button
+                  type="button"
+                  aria-label={`${installmentLabel}. ${t('plans.openPlan', { name: entry.description })}`}
+                  title={installmentLabel}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    viewPlan()
+                  }}
+                  className={cx(INSTALLMENT_BADGE, 'min-h-6 hover:bg-hover')}
+                >
+                  <CreditCard aria-hidden="true" className="size-3" />
+                  {plan.index}/{plan.total}
+                </button>
+              ) : (
+                <span title={installmentLabel} className={INSTALLMENT_BADGE}>
+                  <CreditCard aria-hidden="true" className="size-3" />
+                  {plan.index}/{plan.total}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
