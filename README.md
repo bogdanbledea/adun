@@ -38,6 +38,21 @@ npm run dev     # http://localhost:8080/health
 
 Other scripts: `npm test`, `npm run check` (types) and `npm run lint`.
 
+## Configure
+
+The server reads these environment variables once at startup and refuses to
+start on an invalid value, naming the variable. Empty values count as unset.
+
+| Variable    | Default | Meaning                                     |
+| ----------- | ------- | ------------------------------------------- |
+| `NODE_ENV`  |         | `production` when deployed                  |
+| `PORT`      | `8080`  | Port the server listens on                  |
+| `LOG_LEVEL` | `info`  | `debug`, `info`, `warn` or `error`          |
+
+Logs go to stdout, one JSON object per line. On `SIGTERM` or `SIGINT` the
+server stops accepting connections and lets requests in progress finish (10
+seconds at most) before it exits.
+
 ## License
 
 Adun is free software under the GNU Affero General Public License v3.0. See
