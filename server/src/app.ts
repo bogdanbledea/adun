@@ -7,6 +7,7 @@ import type { Config } from './config.ts'
 import type { Database } from './db.ts'
 import type { Logger } from './lib/log.ts'
 import { authRoutes } from './features/auth/routes.ts'
+import { userRoutes } from './features/user/routes.ts'
 import { errorHandler, notFoundHandler } from './http/errors.ts'
 import { authLimit, generalLimit } from './http/rate-limits.ts'
 import { sameOriginGuard } from './http/same-origin.ts'
@@ -78,6 +79,7 @@ export function createApp({ config, db, log, webRoot = DEFAULT_WEB_ROOT }: AppDe
   })
 
   app.use('/api/auth', authRoutes({ db, config }))
+  app.use('/api/user', userRoutes({ db, config }))
 
   // An unknown /api path is a 404 here, before the web app's files.
   app.use('/api', notFoundHandler)

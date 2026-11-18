@@ -1,14 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, mock, test } from 'node:test'
-import { tempDatabase, testClient, testConfig } from '../../../test/helpers.ts'
-import { createApp } from '../../app.ts'
-import { silentLogger } from '../../lib/log.ts'
+import { appClient } from '../../../test/auth.ts'
+import { tempDatabase } from '../../../test/helpers.ts'
 import { passwords } from './password.ts'
 
 const { db, dataDir } = tempDatabase()
 
-const client = (env: Record<string, string> = {}) =>
-  testClient(createApp({ config: testConfig(dataDir, env), db, log: silentLogger, webRoot: '/nonexistent' }))
+const client = (env: Record<string, string> = {}) => appClient(db, dataDir, env)
 
 const registration = (overrides: Record<string, string> = {}) => ({
   email: 'ana@example.com',
