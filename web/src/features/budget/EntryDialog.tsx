@@ -13,7 +13,8 @@ import { monthLong } from './month-key.ts'
 
 /* Adds an entry to the month or the template, or edits one. Editing a
    month's entry can also move it to another month of the strip; the server
-   creates that month's budget if it has none. The amount is read by
+   creates that month's budget if it has none. An instalment stays in the
+   month its plan gave it. The amount is read by
    parseAmount, so "12,50" and "12.50" both work. */
 
 interface EntryDialogProps {
@@ -119,7 +120,11 @@ export function EntryDialog({
     >
       <form id={formId} noValidate onSubmit={(event) => void submit(event)} className="flex flex-col gap-5">
         <p className="-mt-1 text-sm text-muted">
-          {monthKey === null ? t('template.dialogHint') : monthLong(monthKey, language)}
+          {monthKey === null
+            ? t('template.dialogHint')
+            : entry?.plan
+              ? t('plans.installmentOf', { index: entry.plan.index, total: entry.plan.total, name: entry.plan.name })
+              : monthLong(monthKey, language)}
         </p>
         <AmountPanel type={type} amount={amount} error={errors.amount} onTypeChange={setType} onAmountChange={setAmount} />
         <Field
@@ -130,7 +135,13 @@ export function EntryDialog({
           onChange={(event) => { setDescription(event.target.value) }}
         />
         <CategoryPicker value={category} onChange={setCategory} suggestions={categoryNames} error={errors.category} />
-        {entry && monthKey !== null && (
+        {entry?.plan && (
+          <div>
+            <p className="text-sm font-semibold">{t('budget.month')}</p>
+            <p className="mt-1 text-sm text-muted">{t('plans.installmentCannotMove')}</p>
+          </div>
+        )}
+        {entry && !entry.plan && monthKey !== null && (
           <div className="flex flex-col gap-2">
             <Select label={t('budget.month')} value={targetMonth} onChange={(event) => { setTargetMonth(event.target.value) }}>
               {moveOptions.map((option) => (

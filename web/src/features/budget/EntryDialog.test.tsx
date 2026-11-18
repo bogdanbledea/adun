@@ -21,7 +21,7 @@ const json = (status: number, body: unknown) => Promise.resolve(new Response(JSO
 
 const before: Month = {
   monthKey: '2026-12',
-  categories: [{ id: 'c1', name: 'Casă', entries: [{ id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000 }] }],
+  categories: [{ id: 'c1', name: 'Casă', entries: [{ id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, plan: null }] }],
   totals: { incomeBani: 0, expenseBani: 150_000, balanceBani: -150_000 },
 }
 const after: Month = {
@@ -31,13 +31,13 @@ const after: Month = {
       id: 'c1',
       name: 'Casă',
       entries: [
-        { id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000 },
-        { id: 'e2', description: 'Curent', type: 'expense', amountBani: 4550 },
+        { id: 'e1', description: 'Chirie', type: 'expense', amountBani: 150_000, plan: null },
+        { id: 'e2', description: 'Curent', type: 'expense', amountBani: 4550, plan: null },
       ],
     },
   ],
 }
-const saved = { id: 'e2', monthKey: '2026-12', categoryName: 'Casă', description: 'Curent', type: 'expense', amountBani: 4550 }
+const saved = { id: 'e2', monthKey: '2026-12', categoryName: 'Casă', description: 'Curent', type: 'expense', amountBani: 4550, plan: null }
 
 // The month as it was, then as it is after the change.
 function server(routes: Parameters<typeof fakeServer>[0] = {}) {

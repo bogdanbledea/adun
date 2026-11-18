@@ -9,9 +9,11 @@ import { ConfirmDialog } from '../../ui/Dialog.tsx'
 import { Menu } from '../../ui/Menu.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { segmentClass, segmentGroup } from '../../ui/segmented.ts'
+import { PlanInfoDialog } from '../plans/PlanInfoDialog.tsx'
 import { budgetApi, type Category, type Entry } from './budget-api.ts'
 import { BudgetSummary } from './BudgetSummary.tsx'
 import { CategoryList, type Filter } from './CategoryList.tsx'
+import { DeleteMonthDialog } from './DeleteMonthDialog.tsx'
 import { EntryDialog } from './EntryDialog.tsx'
 import { ImportMenu } from './ImportMenu.tsx'
 import { monthKeyToParam, monthLong } from './month-key.ts'
@@ -23,18 +25,21 @@ import { MonthSkeleton } from './MonthSkeleton.tsx'
    shows at once and is saved behind. Entries can be imported from the
    previous month or the template, appended to their categories; the notice
    says how many came. An entry moved to another month leaves a notice with
-   a link there. */
+   a link there. An instalment opens its plan; a month kept for its
+   instalments says so, with a link to the plans. */
 
 type Open =
   | { dialog: 'add'; categoryName?: string }
   | { dialog: 'edit'; entry: Entry & { categoryName: string } }
   | { dialog: 'deleteEntry'; entry: Entry }
   | { dialog: 'deleteMonth' }
+  | { dialog: 'plan'; entry: Entry & { categoryName: string } }
   | null
 
 type Message =
   | { tone: 'moved'; description: string; monthKey: string }
   | { tone: 'imported'; count: number }
+  | { tone: 'cleared'; keptInstallments: number }
   | { tone: 'error'; error: unknown; lead?: string }
 
 interface MonthViewProps {
@@ -144,12 +149,6 @@ export function MonthView({
       await load()
     })
 
-  const deleteMonth = () =>
-    run(async () => {
-      await budgetApi.deleteMonth(monthKey)
-      onMonthDeleted(monthKey)
-    })
-
   const filters: { value: Filter; label: string; icon?: ReactNode }[] = [
     { value: 'all', label: t('budget.filterAll') },
     { value: 'income', label: t('budget.income'), icon: <TrendingUp /> },
@@ -167,6 +166,13 @@ export function MonthView({
               {t('budget.movedNotice', { description: message.description, month: monthLong(message.monthKey, language) })}{' '}
               <Link to={`/buget/${monthKeyToParam(message.monthKey)}`} className="font-semibold text-brand underline-offset-2 hover:underline">
                 {t('budget.viewMonth')}
+              </Link>
+            </Notice>
+          ) : message.tone === 'cleared' ? (
+            <Notice>
+              {t('plans.monthCleared', { count: message.keptInstallments })}{' '}
+              <Link to="/planuri-de-rate" className="font-semibold text-brand underline-offset-2 hover:underline">
+                {t('nav.plans')}
               </Link>
             </Notice>
           ) : message.tone === 'imported' ? (
@@ -250,6 +256,10 @@ export function MonthView({
             onAdd={(categoryName) => { setOpen({ dialog: 'add', categoryName }) }}
             onEdit={(entry, categoryName) => { setOpen({ dialog: 'edit', entry: { ...entry, categoryName } }) }}
             onDelete={(entry) => { setOpen({ dialog: 'deleteEntry', entry }) }}
+            onViewPlan={(entry) => {
+              const categoryName = month.categories.find((category) => category.entries.includes(entry))?.name ?? ''
+              setOpen({ dialog: 'plan', entry: { ...entry, categoryName } })
+            }}
           />
         )}
       </section>
@@ -286,17 +296,32 @@ export function MonthView({
       >
         {open?.dialog === 'deleteEntry' && t('budget.deleteEntryText', { description: open.entry.description })}
       </ConfirmDialog>
-      <ConfirmDialog
+      <DeleteMonthDialog
         open={open?.dialog === 'deleteMonth'}
-        title={`${t('budget.deleteMonth')}: ${monthLong(monthKey, language)}`}
-        confirmLabel={t('budget.deleteMonth')}
-        destructive
-        busy={busy}
-        onConfirm={() => void deleteMonth()}
+        monthKey={monthKey}
+        entries={entries}
         onCancel={() => { setOpen(null) }}
-      >
-        {entries.length === 0 ? t('budget.deleteMonthEmpty') : t('budget.deleteMonthText', { count: entries.length })}
-      </ConfirmDialog>
+        onDone={(result) => {
+          if (!result.cleared) {
+            onMonthDeleted(monthKey)
+            return
+          }
+          setOpen(null)
+          setMessage({ tone: 'cleared', keptInstallments: result.keptInstallments })
+          void load()
+        }}
+        onFailed={(error) => {
+          setOpen(null)
+          setMessage({ tone: 'error', error })
+        }}
+      />
+      {open?.dialog === 'plan' && open.entry.plan && (
+        <PlanInfoDialog
+          planId={open.entry.plan.id}
+          onClose={() => { setOpen(null) }}
+          onEditInstallment={() => { setOpen({ dialog: 'edit', entry: open.entry }) }}
+        />
+      )}
     </div>
   )
 }

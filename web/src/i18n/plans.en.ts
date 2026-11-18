@@ -39,6 +39,21 @@ export const enPlans: Record<keyof typeof roPlans, string> = {
     'Every instalment of the plan is deleted, past months included, and the amounts leave those months’ budgets. The plan cannot be recovered.',
   'plans.actionFailed': 'That did not work.',
 
+  'plans.infoTitle': 'Instalment plan',
+  'plans.openPlan': 'Open the instalment plan for {name}',
+  'plans.totalValue': 'Total amount',
+  'plans.allPlans': 'All plans',
+  'plans.editInstallment': 'Edit instalment',
+  'plans.installmentOf': 'Instalment {index}/{total} of the “{name}” plan',
+  'plans.installmentCannotMove': 'Instalments follow their payment plan and cannot be moved to another month.',
+  'plans.deleteMonthInstallments':
+    '{count} instalments from payment plans are not deleted: they belong to their plan, not the month, so the month keeps them. To remove them, close and permanently delete the plan, then delete the month again.',
+  'plans.deleteMonthOwn': 'The month’s {count} own transactions are deleted, with the categories left empty.',
+  'plans.deleteMonthNoOwn': 'The month has no transactions of its own.',
+  'plans.deleteMonthConfirm': 'Delete transactions',
+  'plans.monthCleared':
+    'The month’s own transactions were deleted. {count} instalments from payment plans remain; delete the plan permanently, then the month.',
+
   'plans.add': 'Add plan',
   'plans.addFirst': 'Add your first plan',
   'plans.newTitle': 'New instalment plan',

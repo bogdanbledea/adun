@@ -15,8 +15,8 @@ const json = (status: number, body: unknown) => Promise.resolve(new Response(JSO
 
 const template: Template = {
   categories: [
-    { id: 'c1', name: 'Salariu', entries: [{ id: 'e1', description: 'Salariu Ana', type: 'income', amountBani: 650_000 }] },
-    { id: 'c2', name: 'Casă', entries: [{ id: 'e2', description: 'Chirie', type: 'expense', amountBani: 150_000 }] },
+    { id: 'c1', name: 'Salariu', entries: [{ id: 'e1', description: 'Salariu Ana', type: 'income', amountBani: 650_000, plan: null }] },
+    { id: 'c2', name: 'Casă', entries: [{ id: 'e2', description: 'Chirie', type: 'expense', amountBani: 150_000, plan: null }] },
   ],
 }
 
@@ -47,9 +47,9 @@ test('is reached from the account menu', async () => {
 })
 
 test('an empty template invites the first entry, which goes to the template', async () => {
-  const added = { categories: [{ id: 'c2', name: 'Casă', entries: [{ id: 'e2', description: 'Chirie', type: 'expense', amountBani: 150_000 }] }] }
+  const added = { categories: [{ id: 'c2', name: 'Casă', entries: [{ id: 'e2', description: 'Chirie', type: 'expense', amountBani: 150_000, plan: null }] }] }
   const fetchMock = server({ categories: [] }, added as Template, {
-    'POST /api/template/entries': [201, { id: 'e2', monthKey: null, categoryName: 'Casă', description: 'Chirie', type: 'expense', amountBani: 150_000 }],
+    'POST /api/template/entries': [201, { id: 'e2', monthKey: null, categoryName: 'Casă', description: 'Chirie', type: 'expense', amountBani: 150_000, plan: null }],
   })
   renderApp()
 
@@ -74,7 +74,7 @@ test('an empty template invites the first entry, which goes to the template', as
 
 test('lists the entries by category, and edits one without offering a month', async () => {
   const fetchMock = server(template, template, {
-    'PATCH /api/entries/e2': [200, { id: 'e2', monthKey: null, categoryName: 'Casă', description: 'Chirie', type: 'expense', amountBani: 160_000 }],
+    'PATCH /api/entries/e2': [200, { id: 'e2', monthKey: null, categoryName: 'Casă', description: 'Chirie', type: 'expense', amountBani: 160_000, plan: null }],
   })
   renderApp()
 

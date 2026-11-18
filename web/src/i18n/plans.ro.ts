@@ -41,6 +41,22 @@ export const roPlans = {
     'Se șterg toate ratele planului, inclusiv cele din lunile trecute, iar sumele dispar din bugetele acelor luni. Planul nu poate fi recuperat.',
   'plans.actionFailed': 'Acțiunea nu a reușit.',
 
+  // From the budget
+  'plans.infoTitle': 'Plan de plată în rate',
+  'plans.openPlan': 'Deschide planul de rate pentru {name}',
+  'plans.totalValue': 'Valoare totală',
+  'plans.allPlans': 'Toate planurile',
+  'plans.editInstallment': 'Editează rata',
+  'plans.installmentOf': 'Rata {index}/{total} din planul „{name}”',
+  'plans.installmentCannotMove': 'Ratele urmează planul de plată și nu pot fi mutate în altă lună.',
+  'plans.deleteMonthInstallments':
+    '{count} rate din planuri de plată nu se șterg: ele aparțin planului, nu lunii, așa că luna rămâne cu ele. Ca să le elimini, închide și șterge definitiv planul, apoi șterge din nou luna.',
+  'plans.deleteMonthOwn': 'Se șterg cele {count} tranzacții proprii ale lunii și categoriile rămase goale.',
+  'plans.deleteMonthNoOwn': 'Luna nu are tranzacții proprii.',
+  'plans.deleteMonthConfirm': 'Șterge tranzacțiile',
+  'plans.monthCleared':
+    'Tranzacțiile proprii au fost șterse. {count} rate rămân din planurile de plată; șterge definitiv planul, apoi luna.',
+
   // Creating
   'plans.add': 'Adaugă plan',
   'plans.addFirst': 'Adaugă primul plan',

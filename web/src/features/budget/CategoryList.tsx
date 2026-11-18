@@ -41,6 +41,8 @@ interface CategoryListProps {
   onAdd: (categoryName: string) => void
   onEdit: (entry: Entry, categoryName: string) => void
   onDelete: (entry: Entry) => void
+  /** Opens an instalment's plan; without it, an instalment opens for editing. */
+  onViewPlan?: (entry: Entry) => void
 }
 
 function useReorderSensors() {
@@ -117,9 +119,10 @@ interface CategoryBlockProps {
   onAdd: (categoryName: string) => void
   onEdit: (entry: Entry, categoryName: string) => void
   onDelete: (entry: Entry) => void
+  onViewPlan?: (entry: Entry) => void
 }
 
-function CategoryBlock({ category, entries, onReorder, onAdd, onEdit, onDelete }: CategoryBlockProps) {
+function CategoryBlock({ category, entries, onReorder, onAdd, onEdit, onDelete, onViewPlan }: CategoryBlockProps) {
   const t = useT()
   const sensors = useReorderSensors()
   const accessibility = useAnnouncements((id) => category.entries.find((entry) => entry.id === id)?.description ?? '')
@@ -176,6 +179,7 @@ function CategoryBlock({ category, entries, onReorder, onAdd, onEdit, onDelete }
                 entry={entry}
                 onEdit={(entry) => { onEdit(entry, category.name) }}
                 onDelete={onDelete}
+                onViewPlan={onViewPlan}
               />
             ))}
           </ul>

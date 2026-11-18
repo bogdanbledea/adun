@@ -10,6 +10,8 @@ export interface Entry {
   description: string
   type: EntryType
   amountBani: number
+  /** Set on a payment plan's instalment: number `index` of `total`. */
+  plan: { id: string; name: string; index: number; total: number } | null
 }
 
 export interface Category {
@@ -53,13 +55,19 @@ export interface SavedEntry extends Entry {
   categoryName: string
 }
 
+export interface MonthDeletion {
+  cleared: boolean
+  keptInstallments: number
+}
+
 export const budgetApi = {
   months: (signal?: AbortSignal) => api<string[]>('/api/months', { signal }),
   month: (monthKey: string, signal?: AbortSignal) => api<Month>(`/api/months/${monthKey}`, { signal }),
   createMonth: (monthKey: string, from?: Source) => api<Month>('/api/months', { method: 'POST', body: { monthKey, from } }),
   importInto: (monthKey: string, from: Source) =>
     api<{ imported: number }>(`/api/months/${monthKey}/import`, { method: 'POST', body: { from } }),
-  deleteMonth: (monthKey: string) => api(`/api/months/${monthKey}`, { method: 'DELETE' }),
+  /** A month holding instalments is cleared instead: only its own entries go. */
+  deleteMonth: (monthKey: string) => api<MonthDeletion>(`/api/months/${monthKey}`, { method: 'DELETE' }),
   addEntry: (fields: EntryFields) => api<SavedEntry>('/api/entries', { method: 'POST', body: fields }),
   updateEntry: (id: string, fields: Partial<EntryFields>) =>
     api<SavedEntry>(`/api/entries/${id}`, { method: 'PATCH', body: fields }),
