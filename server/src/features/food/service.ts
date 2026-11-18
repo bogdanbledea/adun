@@ -16,8 +16,10 @@ import * as repo from './repository.ts'
      client's date as the day its weekly plan starts from, or the period's
      first day when that date is outside the period (a month set up after
      the fact).
-   - A month without a budget answers its period and the sources of the
-     latest earlier budget, so a new month can start from them.
+   - A month is read whole: its totals, sources, merchants (the most spent
+     first) and purchases. A month without a budget answers its period and
+     the sources of the latest earlier budget, so a new month can start from
+     them.
    - Every change and its activity entry are one transaction. */
 
 export const MAX_SOURCES = 10
@@ -57,11 +59,34 @@ export function monthState(db: Database, userId: string, monthKey: string) {
   }
 
   const sources = repo.listSources(db, userId, budget.id)
+  const purchases = repo.listPurchases(db, userId, budget.id)
+  const totalBani = sources.reduce((sum, s) => sum + s.amountBani, 0)
+  const spentBani = purchases.reduce((sum, p) => sum + p.amountBani, 0)
+
+  const bySource = new Map<string, number>()
+  const byMerchant = new Map<string, { name: string; totalBani: number; count: number }>()
+  for (const p of purchases) {
+    bySource.set(p.sourceId, (bySource.get(p.sourceId) ?? 0) + p.amountBani)
+    // Purchases come newest first, so the newest spelling names the merchant.
+    const merchant = byMerchant.get(sameName(p.merchant)) ?? { name: p.merchant, totalBani: 0, count: 0 }
+    merchant.totalBani += p.amountBani
+    merchant.count += 1
+    byMerchant.set(sameName(p.merchant), merchant)
+  }
+  const sourceNames = new Map(sources.map((s) => [s.id, s.name]))
+
   return {
     ...common,
     exists: true as const,
-    totalBani: sources.reduce((sum, s) => sum + s.amountBani, 0),
-    sources,
+    totalBani,
+    spentBani,
+    remainingBani: totalBani - spentBani,
+    sources: sources.map((s) => {
+      const spent = bySource.get(s.id) ?? 0
+      return { ...s, spentBani: spent, remainingBani: s.amountBani - spent }
+    }),
+    merchants: [...byMerchant.values()].sort((a, b) => b.totalBani - a.totalBani),
+    purchases: purchases.map((p) => ({ ...p, sourceName: sourceNames.get(p.sourceId) ?? '' })),
   }
 }
 

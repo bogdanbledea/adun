@@ -141,8 +141,8 @@ Amounts are kept as whole bani (1 leu = 100 bani), so totals are exact. To
 keep any one account from filling the disk, an account holds at most 600
 budget months, each with up to 200 categories and 500 entries; the template
 has the same limits as a month. An account holds at most 200 payment plans,
-and their instalments count towards each month's entries, and at most 200
-reminders.
+and their instalments count towards each month's entries, at most 200
+reminders, and up to 2,000 food purchases a month.
 
 At startup and then once a day the server removes what it no longer needs:
 activity history older than 365 days, ended sessions, used or expired email

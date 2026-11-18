@@ -4,6 +4,7 @@ import type { Config } from '../../config.ts'
 import type { Database } from '../../db.ts'
 import { validate } from '../../http/validate.ts'
 import { currentSession, requireAuth } from '../auth/require-auth.ts'
+import * as purchases from './purchases.ts'
 import * as food from './service.ts'
 
 // YYYY-MM from 2024 to 2099, the years whose working calendar is known.
@@ -26,12 +27,38 @@ const sourcesBody = z.object({
     .max(food.MAX_SOURCES),
 })
 
+const purchaseParams = z.object({ id: z.uuid() })
+
+const purchaseFields = {
+  // Trimmed, with runs of spaces made one.
+  merchant: z
+    .string()
+    .transform((text) => text.trim().replace(/\s+/g, ' '))
+    .pipe(z.string().min(1).max(64)),
+  // Whole bani, 0.01 to 100,000 lei.
+  amountBani: z.number().int().min(1).max(10_000_000),
+  spentOn: z.iso.date(),
+  sourceId: z.uuid(),
+  // Empty after trimming means no note.
+  note: z
+    .string()
+    .trim()
+    .max(256)
+    .nullable()
+    .transform((text) => text || null),
+}
+const createPurchaseBody = z.object({ ...purchaseFields, note: purchaseFields.note.default(null) })
+const updatePurchaseBody = z
+  .object(purchaseFields)
+  .partial()
+  .refine((body) => Object.keys(body).length > 0)
+
 interface Deps {
   db: Database
   config: Config
 }
 
-/* /api/food: food budgets. */
+/* /api/food: food budgets and their purchases. */
 export function foodRoutes({ db, config }: Deps): Router {
   const router = Router()
   router.use(requireAuth(db, config))
@@ -51,6 +78,30 @@ export function foodRoutes({ db, config }: Deps): Router {
   router.delete('/:monthKey', (req, res) => {
     const params = validate(monthParams, req.params)
     food.deleteBudget(db, currentSession(res).userId, params.monthKey)
+    res.json({ ok: true })
+  })
+
+  router.post('/:monthKey/purchases', (req, res) => {
+    const params = validate(monthParams, req.params)
+    const body = validate(createPurchaseBody, req.body)
+    res.status(201).json(purchases.addPurchase(db, currentSession(res).userId, params.monthKey, body))
+  })
+
+  router.delete('/:monthKey/purchases', (req, res) => {
+    const params = validate(monthParams, req.params)
+    const deleted = purchases.clearPurchases(db, currentSession(res).userId, params.monthKey)
+    res.json({ ok: true, deleted })
+  })
+
+  router.patch('/purchases/:id', (req, res) => {
+    const { id } = validate(purchaseParams, req.params)
+    const body = validate(updatePurchaseBody, req.body)
+    res.json(purchases.updatePurchase(db, currentSession(res).userId, id, body))
+  })
+
+  router.delete('/purchases/:id', (req, res) => {
+    const { id } = validate(purchaseParams, req.params)
+    purchases.deletePurchase(db, currentSession(res).userId, id)
     res.json({ ok: true })
   })
 

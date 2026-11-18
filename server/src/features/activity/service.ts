@@ -33,6 +33,10 @@ export type ActivityAction =
   | 'reminder.deleted'
   | 'food.budget_set'
   | 'food.budget_deleted'
+  | 'food.purchase_added'
+  | 'food.purchase_updated'
+  | 'food.purchase_deleted'
+  | 'food.purchases_cleared'
 
 /** Records an action, with what it was about when that helps the user
     recognise it. Call it inside the transaction that makes the change. */
