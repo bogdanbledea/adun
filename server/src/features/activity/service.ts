@@ -16,6 +16,8 @@ export type ActivityAction =
   | 'account.password_changed'
   | 'account.password_reset'
   | 'account.logged_out_everywhere'
+  | 'month.created'
+  | 'month.deleted'
 
 /** Records an action, with what it was about when that helps the user
     recognise it. Call it inside the transaction that makes the change. */
