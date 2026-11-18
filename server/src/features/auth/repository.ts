@@ -26,16 +26,20 @@ export function insertUser(db: Database, user: NewUser): boolean {
 
 export interface Credentials {
   id: string
+  email: string
+  displayName: string
   passwordHash: string
   emailVerified: boolean
 }
 
-const CREDENTIALS = 'SELECT id, password_hash, email_verified_at FROM users'
+const CREDENTIALS = 'SELECT id, email, display_name, password_hash, email_verified_at FROM users'
 
 function toCredentials(row: Record<string, unknown> | undefined): Credentials | null {
   if (!row) return null
   return {
     id: row.id as string,
+    email: row.email as string,
+    displayName: row.display_name as string,
     passwordHash: row.password_hash as string,
     emailVerified: row.email_verified_at !== null,
   }
@@ -187,4 +191,41 @@ export function consumeToken(db: Database, tokenHash: string, purpose: TokenPurp
     )
     .get({ tokenHash, purpose, now })
   return row ? { userId: row.user_id as string, browserHash: row.browser_hash as string | null } : null
+}
+
+/** Makes the account's unused link for this purpose, if issued after
+    `issuedAfter`, valid until `expiresAt` again. Returns whether there was one. */
+export function rearmToken(
+  db: Database,
+  userId: string,
+  purpose: TokenPurpose,
+  expiresAt: string,
+  issuedAfter: string,
+): boolean {
+  const result = db
+    .prepare(
+      `UPDATE auth_tokens SET expires_at = ?
+       WHERE user_id = ? AND purpose = ? AND consumed_at IS NULL AND created_at > ?`,
+    )
+    .run(expiresAt, userId, purpose, issuedAfter)
+  return result.changes > 0
+}
+
+// ── Emails anyone can request for an address ────────────────────────────────
+
+/** Confirmation link, reset link, or the "account exists" note. */
+export type AuthEmailKind = 'verification' | 'reset' | 'notice'
+
+/** Forgets the account's sends before `before`, then lists the ones of this
+    kind that are left, newest first. */
+export function recentAuthEmails(db: Database, userId: string, kind: AuthEmailKind, before: string): string[] {
+  db.prepare('DELETE FROM auth_emails WHERE user_id = ? AND sent_at < ?').run(userId, before)
+  return db
+    .prepare('SELECT sent_at FROM auth_emails WHERE user_id = ? AND kind = ? ORDER BY sent_at DESC')
+    .all(userId, kind)
+    .map((row) => row.sent_at as string)
+}
+
+export function recordAuthEmail(db: Database, userId: string, kind: AuthEmailKind, now: string): void {
+  db.prepare('INSERT INTO auth_emails (user_id, kind, sent_at) VALUES (?, ?, ?)').run(userId, kind, now)
 }

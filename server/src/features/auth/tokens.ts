@@ -48,6 +48,23 @@ export function consumeToken(db: Database, token: string, purpose: repo.TokenPur
   return repo.consumeToken(db, hashToken(token), purpose, new Date().toISOString())
 }
 
+// A link is re-armed only within this long of being issued, so requests made
+// over and over cannot keep one working indefinitely.
+export const REARM_WINDOW_MS = 24 * HOUR
+
+/** Gives the account's unused link for this purpose its full lifetime again,
+    if it was issued within REARM_WINDOW_MS. */
+export function rearmToken(db: Database, userId: string, purpose: repo.TokenPurpose): boolean {
+  const now = Date.now()
+  return repo.rearmToken(
+    db,
+    userId,
+    purpose,
+    new Date(now + TOKEN_TTL_MS[purpose]).toISOString(),
+    new Date(now - REARM_WINDOW_MS).toISOString(),
+  )
+}
+
 /** The account of a usable token, without using it up; null as for consumeToken. */
 export function peekToken(db: Database, token: string, purpose: repo.TokenPurpose): repo.LiveToken | null {
   if (!looksLikeToken(token)) return null

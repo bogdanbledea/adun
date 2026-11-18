@@ -74,7 +74,7 @@ export function SignInPage() {
   if (mode === 'check-email') {
     return (
       <AuthLayout title={t('auth.checkEmailTitle')} aside={<Hero />}>
-        <MailSent text={t('auth.checkEmailText', { email })} />
+        <MailSent text={t('auth.checkEmailText', { email })} resendTo={email} />
         <SwitchLine question="" action={t('auth.backToSignIn')} onClick={() => { setMode('signin') }} />
       </AuthLayout>
     )

@@ -9,6 +9,7 @@ import { validate } from '../../http/validate.ts'
 import type { Logger } from '../../lib/log.ts'
 import { findUser } from '../user/repository.ts'
 import { confirmEmail } from './confirmation.ts'
+import { mayEmail } from './email-limits.ts'
 import { PASSWORD_MAX_LENGTH, passwordProblem } from './password.ts'
 import { currentSession, requireAuth } from './require-auth.ts'
 import * as auth from './service.ts'
@@ -20,7 +21,8 @@ import {
   setSessionCookie,
   setSignupCookie,
 } from './session.ts'
-import { issueToken } from './tokens.ts'
+import * as repo from './repository.ts'
+import { issueToken, rearmToken } from './tokens.ts'
 
 // The language the web app is shown in; emails sent for the request use it.
 const language = z.enum(['ro', 'en']).default('ro')
@@ -36,6 +38,11 @@ const registerBody = z.object({
 const loginBody = z.object({
   email: z.string().trim().toLowerCase().min(1).max(320),
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+})
+
+const emailBody = z.object({
+  email: z.string().trim().toLowerCase().pipe(z.email().max(320)),
+  language,
 })
 
 const verifyBody = z.object({
@@ -67,6 +74,23 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
     })
   }
 
+  // With email off there is no link to send; the web app explains instead.
+  const requireEmail = () => {
+    if (!config.email) throw forbidden('email_disabled', 'This server does not send email.')
+  }
+
+  const sendConfirmation = (
+    to: string,
+    displayName: string,
+    lang: 'ro' | 'en',
+    userId: string,
+    browserHash: string,
+  ) => {
+    const token = issueToken(db, userId, 'email_verification', browserHash)
+    const url = `${config.appUrl}/verifica-email#token=${token}`
+    void mailer.send('verify_email', { to, ...verifyEmail(lang, { displayName, url }) })
+  }
+
   // What the sign-in page needs to know about this server.
   router.get('/status', (_req, res) => {
     res.json({ registrationsEnabled: config.registrationsEnabled, emailEnabled: config.email !== null })
@@ -93,12 +117,32 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
 
     if (!browserHash || !result.created) return
     afterAnswer(req.log, () => {
-      const token = issueToken(db, result.userId, 'email_verification', browserHash)
-      const url = `${config.appUrl}/verifica-email#token=${token}`
-      void mailer.send('verify_email', {
-        to: body.email,
-        ...verifyEmail(body.language, { displayName: body.displayName, url }),
-      })
+      if (mayEmail(db, req.log, result.userId, 'verification') !== 'yes') return
+      sendConfirmation(body.email, body.displayName, body.language, result.userId, browserHash)
+    })
+  })
+
+  /* A new confirmation link, for this browser. The answer is the same for
+     every address; only an unconfirmed account gets an email, within the
+     limits (email-limits.ts). Past the daily limit the newest link already
+     sent works for another day instead, so whoever floods an address cannot
+     stop its owner from using the latest email in the inbox. */
+  router.post('/resend-verification', (req, res) => {
+    requireEmail()
+    const body = validate(emailBody, req.body)
+    const browserHash = setSignupCookie(res, config)
+    res.json({ ok: true })
+
+    afterAnswer(req.log, () => {
+      const account = repo.findCredentials(db, body.email)
+      if (!account || account.emailVerified) return
+      const allowed = mayEmail(db, req.log, account.id, 'verification')
+      if (allowed === 'day_limit' && rearmToken(db, account.id, 'email_verification')) {
+        req.log.info({ userId: account.id }, 'auth.link_rearmed')
+      }
+      if (allowed !== 'yes') return
+      sendConfirmation(account.email, account.displayName, body.language, account.id, browserHash)
+      req.log.info({ userId: account.id }, 'auth.verification_resent')
     })
   })
 

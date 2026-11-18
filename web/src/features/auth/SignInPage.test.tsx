@@ -76,6 +76,19 @@ test('signing in before confirming the address asks to check the email', async (
   expect(screen.getByText(/ana@example\.com/)).toBeDefined()
 })
 
+test('the confirmation link can be sent again, in the language in use', async () => {
+  const fetchMock = fakeServer({
+    '/api/user/me': signedOut,
+    '/api/auth/login': [403, { error: { code: 'email_not_verified', message: 'Confirm.' } }],
+    '/api/auth/resend-verification': [200, { ok: true }],
+  })
+  renderApp('/buget')
+  await fillIn('ana@example.com', 'Corect-cal-baterie-1')
+  await userEvent.click(await screen.findByRole('button', { name: 'Trimite din nou' }))
+  expect(await screen.findByText(/am trimis un link nou/)).toBeDefined()
+  expect(sentBody(fetchMock, '/api/auth/resend-verification')).toEqual({ email: 'ana@example.com', language: 'ro' })
+})
+
 test('the password can be shown while typing', async () => {
   fakeServer({ '/api/user/me': signedOut })
   renderApp('/buget')

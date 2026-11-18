@@ -152,3 +152,100 @@ describe('with email off', async () => {
     assert.equal(mailer.sent.length, 0)
   })
 })
+
+describe('sending the confirmation again', async () => {
+  const mailer = memoryMailer()
+  const client = await appClient(db, dataDir, EMAIL_ENV, mailer)
+  const resend = (email: string) =>
+    client.request('POST', '/api/auth/resend-verification', { body: { email, language: 'en' } })
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
+  // Moves this account's past sends back in time, as if minutes had passed.
+  const later = (email: string, minutes: number) =>
+    db
+      .prepare(
+        `UPDATE auth_emails SET sent_at = strftime('%Y-%m-%dT%H:%M:%fZ', sent_at, ?)
+         WHERE user_id = (SELECT id FROM users WHERE email = ?)`,
+      )
+      .run(`-${String(minutes)} minutes`, email)
+  const verify = (token: string, cookie: string) =>
+    client.request('POST', '/api/auth/verify-email', { body: { token }, headers: { cookie } })
+
+  test('sends a new link for this browser, and the older one stops working', async () => {
+    const first = await register(client, mailer, 'radu@example.com')
+    later('radu@example.com', 2)
+
+    const before = mailer.sent.length
+    const res = await resend('radu@example.com')
+    assert.equal(res.status, 200)
+    const signup = sessionCookie(res)
+    const sent = await nextEmail(mailer, before + 1)
+    assert.equal(sent.subject, 'Confirm your email address')
+
+    assert.equal((await verify(first.token, first.signup)).status, 400)
+    assert.equal((await verify(tokenIn(sent.text), signup)).status, 200)
+  })
+
+  test('every address gets the same answer; only an unconfirmed account gets an email', async () => {
+    const before = mailer.sent.length
+    for (const email of ['nobody@example.com', 'radu@example.com']) {
+      const res = await resend(email)
+      assert.equal(res.status, 200)
+      assert.deepEqual(await res.json(), { ok: true })
+      assert.match(res.headers.get('set-cookie') ?? '', /^adun_signup=/)
+    }
+    await settle()
+    assert.equal(mailer.sent.length, before)
+  })
+
+  test('at most one a minute', async () => {
+    await register(client, mailer, 'sara@example.com')
+    const before = mailer.sent.length
+    await resend('sara@example.com')
+    await settle()
+    assert.equal(mailer.sent.length, before)
+  })
+
+  test('past five a day, no email: the newest link works for another day instead', async () => {
+    const { signup } = await register(client, mailer, 'toma@example.com')
+    let latest = ''
+    let latestSignup = signup
+    for (let i = 2; i <= 5; i++) {
+      later('toma@example.com', 2)
+      const before = mailer.sent.length
+      const res = await resend('toma@example.com')
+      latestSignup = sessionCookie(res)
+      latest = tokenIn((await nextEmail(mailer, before + 1)).text)
+    }
+    // As if the newest link were about to expire.
+    db.prepare(
+      `UPDATE auth_tokens SET expires_at = ?
+       WHERE user_id = (SELECT id FROM users WHERE email = 'toma@example.com')`,
+    ).run(new Date(Date.now() + 60 * 1000).toISOString())
+    later('toma@example.com', 2)
+    const before = mailer.sent.length
+    await resend('toma@example.com')
+    await settle()
+    assert.equal(mailer.sent.length, before, 'no sixth email')
+
+    const expiresIn =
+      Date.parse(
+        db
+          .prepare(
+            `SELECT expires_at FROM auth_tokens
+             WHERE user_id = (SELECT id FROM users WHERE email = 'toma@example.com')`,
+          )
+          .get()?.expires_at as string,
+      ) - Date.now()
+    assert.ok(expiresIn > 23 * 60 * 60 * 1000, 'the newest link was given a full day again')
+    assert.equal((await verify(latest, latestSignup)).status, 200)
+  })
+})
+
+test('with email off, asking for the link again says so, the same for every address', async () => {
+  const client = await appClient(db, dataDir)
+  for (const email of ['nobody@example.com', 'dan@example.com']) {
+    const res = await client.request('POST', '/api/auth/resend-verification', { body: { email } })
+    assert.equal(res.status, 403)
+    assert.equal(await codeOf(res), 'email_disabled')
+  }
+})
