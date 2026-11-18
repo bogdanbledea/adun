@@ -4,6 +4,7 @@ import { PageHeader } from '../../layout/PageHeader.tsx'
 import { errorText } from '../../lib/api.ts'
 import { useT } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
+import { ConfirmDialog } from '../../ui/Dialog.tsx'
 import { EmptyState } from '../../ui/EmptyState.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
@@ -13,13 +14,20 @@ import { plansApi, type Plan } from './plans-api.ts'
 
 /* /planuri-de-rate: the user's payment plans, newest first, each with how
    many instalments are paid and, on request, the months they fall in.
-   Creating a plan fills the months it covers; the list is read again after. */
+   Creating a plan fills the months it covers; closing one deletes the
+   instalments still to come; a closed plan can be deleted for good with all
+   its instalments. After each of these the list is read again. */
+
+type Confirm = { action: 'close' | 'delete'; plan: Plan } | null
 
 export function PlansPage() {
   const t = useT()
   const [plans, setPlans] = useState<Plan[] | null>(null)
   const [loadError, setLoadError] = useState<unknown>(null)
   const [creating, setCreating] = useState(false)
+  const [confirm, setConfirm] = useState<Confirm>(null)
+  const [failure, setFailure] = useState<unknown>(null)
+  const [busy, setBusy] = useState(false)
 
   const load = useCallback(
     (signal?: AbortSignal) =>
@@ -40,6 +48,19 @@ export function PlansPage() {
     void load(controller.signal)
     return () => { controller.abort() }
   }, [load])
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true)
+    setFailure(null)
+    try {
+      await action()
+      await load()
+    } catch (error) {
+      setFailure(error)
+    }
+    setBusy(false)
+    setConfirm(null)
+  }
 
   let body
   if (loadError !== null && !plans) {
@@ -88,7 +109,13 @@ export function PlansPage() {
         </h2>
         <ul>
           {plans.map((plan) => (
-            <PlanRow key={plan.id} plan={plan} />
+            <PlanRow
+              key={plan.id}
+              plan={plan}
+              onChanged={(changed) => { setPlans((list) => list?.map((p) => (p.id === changed.id ? changed : p)) ?? list) }}
+              onClose={(target) => { setConfirm({ action: 'close', plan: target }) }}
+              onDelete={(target) => { setConfirm({ action: 'delete', plan: target }) }}
+            />
           ))}
         </ul>
       </section>
@@ -111,7 +138,36 @@ export function PlansPage() {
           )
         }
       />
+      {failure !== null && (
+        <div className="mb-4">
+          <Notice tone="error">
+            {t('plans.actionFailed')} {errorText(failure, t)}
+          </Notice>
+        </div>
+      )}
       {body}
+      <ConfirmDialog
+        open={confirm?.action === 'close'}
+        title={confirm ? t('plans.closeTitle', { name: confirm.plan.name }) : ''}
+        confirmLabel={t('plans.close')}
+        destructive
+        busy={busy}
+        onConfirm={() => { if (confirm) void run(() => plansApi.close(confirm.plan.id)) }}
+        onCancel={() => { setConfirm(null) }}
+      >
+        {confirm && t('plans.closeText', { count: confirm.plan.remainingInstallments })}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirm?.action === 'delete'}
+        title={confirm ? t('plans.deleteTitle', { name: confirm.plan.name }) : ''}
+        confirmLabel={t('plans.deletePermanently')}
+        destructive
+        busy={busy}
+        onConfirm={() => { if (confirm) void run(() => plansApi.remove(confirm.plan.id)) }}
+        onCancel={() => { setConfirm(null) }}
+      >
+        {t('plans.deleteText')}
+      </ConfirmDialog>
       {creating && <CreatePlanDialog onClose={() => { setCreating(false) }} onCreated={() => void load()} />}
     </>
   )

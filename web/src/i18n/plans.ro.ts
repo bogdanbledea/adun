@@ -26,6 +26,20 @@ export const roPlans = {
   'plans.noInstallments': 'Planul nu mai are rate în buget.',
   'plans.installmentPaid': 'plătită',
   'plans.currentMonth': 'luna curentă',
+  'plans.purchaseDate': 'Data achiziției',
+  'plans.addPurchaseDate': 'Adaugă data achiziției',
+  'plans.editPurchaseDate': 'Editează data achiziției pentru {name}',
+  'plans.purchaseDateFailed': 'Data nu a putut fi salvată.',
+  'plans.close': 'Închide planul',
+  'plans.deletePermanently': 'Șterge definitiv',
+
+  // Closing and deleting
+  'plans.closeTitle': 'Închide planul „{name}”',
+  'plans.closeText': 'Se șterg {count} rate viitoare. Ratele deja plătite rămân în bugetul lunilor lor. Această acțiune nu poate fi anulată.',
+  'plans.deleteTitle': 'Șterge definitiv planul „{name}”',
+  'plans.deleteText':
+    'Se șterg toate ratele planului, inclusiv cele din lunile trecute, iar sumele dispar din bugetele acelor luni. Planul nu poate fi recuperat.',
+  'plans.actionFailed': 'Acțiunea nu a reușit.',
 
   // Creating
   'plans.add': 'Adaugă plan',

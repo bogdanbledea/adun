@@ -1,8 +1,10 @@
-import { Check, ChevronDown, ChevronUp, CreditCard } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
+import { Check, ChevronDown, ChevronUp, CreditCard, Pencil, Trash2 } from 'lucide-react'
+import { useEffect, useId, useState, type SubmitEvent } from 'react'
 import { errorText } from '../../lib/api.ts'
 import { useI18n } from '../../lib/i18n.tsx'
+import { Button } from '../../ui/Button.tsx'
 import { cx } from '../../ui/cx.ts'
+import { Field } from '../../ui/Field.tsx'
 import { Money } from '../../ui/Money.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { ProgressBar } from '../../ui/ProgressBar.tsx'
@@ -11,9 +13,17 @@ import { currentMonthKey, dayLong, monthLong } from '../budget/month-key.ts'
 import { plansApi, type Plan, type PlanDetail } from './plans-api.ts'
 
 /* One plan in the list: name and status, the monthly and total amounts,
-   progress, when it was added and bought. Expanding loads its instalments. */
+   progress, when it was added, the purchase date (editable in place), and
+   Close or Delete permanently. Expanding loads its instalments. */
 
-export function PlanRow({ plan }: { plan: Plan }) {
+interface PlanRowProps {
+  plan: Plan
+  onChanged: (plan: Plan) => void
+  onClose: (plan: Plan) => void
+  onDelete: (plan: Plan) => void
+}
+
+export function PlanRow({ plan, onChanged, onClose, onDelete }: PlanRowProps) {
   const { t, language } = useI18n()
   const [expanded, setExpanded] = useState(false)
   const closed = plan.closedAt !== null
@@ -88,7 +98,7 @@ export function PlanRow({ plan }: { plan: Plan }) {
 
       <div className="mt-3 flex flex-col gap-1 text-sm text-muted">
         <p>{t('plans.addedOn', { date: dayLong(plan.createdAt, language) })}</p>
-        {plan.purchaseDate && <p>{t('plans.purchaseDateValue', { date: dayLong(plan.purchaseDate, language) })}</p>}
+        <PurchaseDate plan={plan} onChanged={onChanged} />
       </div>
 
       {expanded && (
@@ -96,7 +106,94 @@ export function PlanRow({ plan }: { plan: Plan }) {
           <Installments planId={plan.id} />
         </div>
       )}
+
+      <div className="mt-3 flex justify-end">
+        <Button
+          variant="quiet"
+          className="min-h-9 px-3 py-1.5 text-danger! hover:text-danger!"
+          onClick={() => { if (closed) onDelete(plan); else onClose(plan) }}
+        >
+          <Trash2 />
+          {closed ? t('plans.deletePermanently') : t('plans.close')}
+        </Button>
+      </div>
     </li>
+  )
+}
+
+// The purchase date as text with an edit button, or a small form while editing.
+function PurchaseDate({ plan, onChanged }: { plan: Plan; onChanged: (plan: Plan) => void }) {
+  const { t, language } = useI18n()
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [failure, setFailure] = useState<unknown>(null)
+
+  const start = () => {
+    setValue(plan.purchaseDate ?? '')
+    setFailure(null)
+    setEditing(true)
+  }
+  const save = async (event: SubmitEvent) => {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      onChanged(await plansApi.setPurchaseDate(plan.id, value || null))
+      setEditing(false)
+    } catch (error) {
+      setFailure(error)
+    }
+    setSaving(false)
+  }
+
+  if (editing) {
+    return (
+      <form onSubmit={(event) => void save(event)} className="mt-1 flex flex-col gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-48 flex-1">
+            <Field
+              type="date"
+              label={t('plans.purchaseDate')}
+              value={value}
+              autoFocus
+              onChange={(event) => { setValue(event.target.value) }}
+            />
+          </div>
+          <Button variant="quiet" onClick={() => { setEditing(false) }}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? t('common.saving') : t('common.save')}
+          </Button>
+        </div>
+        {failure !== null && (
+          <Notice tone="error">
+            {t('plans.purchaseDateFailed')} {errorText(failure, t)}
+          </Notice>
+        )}
+      </form>
+    )
+  }
+  if (!plan.purchaseDate) {
+    return (
+      <button type="button" onClick={start} className="w-fit py-1 text-left text-brand hover:underline">
+        + {t('plans.addPurchaseDate')}
+      </button>
+    )
+  }
+  return (
+    <p className="flex items-center gap-1">
+      {t('plans.purchaseDateValue', { date: dayLong(plan.purchaseDate, language) })}
+      <button
+        type="button"
+        onClick={start}
+        aria-label={t('plans.editPurchaseDate', { name: plan.name })}
+        title={t('plans.editPurchaseDate', { name: plan.name })}
+        className="grid size-8 place-items-center rounded-lg hover:bg-hover hover:text-ink [&_svg]:size-3.5"
+      >
+        <Pencil />
+      </button>
+    </p>
   )
 }
 

@@ -112,3 +112,44 @@ test('a new plan shows its split and is sent in bani', async () => {
     purchaseDate: null,
   })
 })
+
+test('an open plan is closed, and a closed one deleted, after asking', async () => {
+  const closed = { ...phone, closedAt: '2026-11-18T10:00:00.000Z', remainingInstallments: 0 }
+  const answers = [[phone], [closed], []]
+  const fetchMock = fakeServer({
+    '/api/user/me': [200, testAccount],
+    [`GET /api/plans${query}`]: () => Promise.resolve(new Response(JSON.stringify(answers.shift()), { status: 200 })),
+    [`POST /api/plans/p1/close${query}`]: [200, closed],
+    'DELETE /api/plans/p1': [200, { ok: true }],
+  })
+  renderApp()
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Închide planul' }))
+  const closeDialog = screen.getByRole('dialog', { name: 'Închide planul „Telefon”' })
+  expect(within(closeDialog).getByText(/Se șterg 1 rate viitoare/)).toBeDefined()
+  await userEvent.click(within(closeDialog).getByRole('button', { name: 'Închide planul' }))
+
+  expect(await screen.findByText('Închis')).toBeDefined()
+  await userEvent.click(screen.getByRole('button', { name: 'Șterge definitiv' }))
+  const deleteDialog = screen.getByRole('dialog', { name: 'Șterge definitiv planul „Telefon”' })
+  await userEvent.click(within(deleteDialog).getByRole('button', { name: 'Șterge definitiv' }))
+
+  expect(await screen.findByRole('heading', { name: 'Niciun plan de rate' })).toBeDefined()
+  expect(fetchMock.mock.calls.some(([path, init]) => path === '/api/plans/p1' && init?.method === 'DELETE')).toBe(true)
+})
+
+test('the purchase date is added in place', async () => {
+  const fetchMock = fakeServer({
+    '/api/user/me': [200, testAccount],
+    [`GET /api/plans${query}`]: [200, [phone]],
+    [`PATCH /api/plans/p1${query}`]: [200, { ...phone, purchaseDate: '2026-10-20' }],
+  })
+  renderApp()
+
+  await userEvent.click(await screen.findByRole('button', { name: '+ Adaugă data achiziției' }))
+  await userEvent.type(screen.getByLabelText('Data achiziției'), '2026-10-20')
+  await userEvent.click(screen.getByRole('button', { name: 'Salvează' }))
+
+  expect(await screen.findByText('Data achiziției: 20 octombrie 2026')).toBeDefined()
+  expect(sentBody(fetchMock, `/api/plans/p1${query}`)).toEqual({ purchaseDate: '2026-10-20' })
+})

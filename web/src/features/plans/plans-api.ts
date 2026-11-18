@@ -57,4 +57,10 @@ export const plansApi = {
   list: (signal?: AbortSignal) => api<Plan[]>(`/api/plans?${month()}`, { signal }),
   get: (id: string, signal?: AbortSignal) => api<PlanDetail>(`/api/plans/${id}?${month()}`, { signal }),
   create: (plan: NewPlan) => api<Plan>(`/api/plans?${month()}`, { method: 'POST', body: plan }),
+  setPurchaseDate: (id: string, purchaseDate: string | null) =>
+    api<Plan>(`/api/plans/${id}?${month()}`, { method: 'PATCH', body: { purchaseDate } }),
+  /** Deletes the instalments still to come and marks the plan closed. */
+  close: (id: string) => api<Plan>(`/api/plans/${id}/close?${month()}`, { method: 'POST' }),
+  /** Only a closed plan; every instalment goes with it. */
+  remove: (id: string) => api(`/api/plans/${id}`, { method: 'DELETE' }),
 }

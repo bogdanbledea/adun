@@ -25,6 +25,19 @@ export const enPlans: Record<keyof typeof roPlans, string> = {
   'plans.noInstallments': 'The plan has no instalments left in the budget.',
   'plans.installmentPaid': 'paid',
   'plans.currentMonth': 'current month',
+  'plans.purchaseDate': 'Purchase date',
+  'plans.addPurchaseDate': 'Add the purchase date',
+  'plans.editPurchaseDate': 'Edit the purchase date of {name}',
+  'plans.purchaseDateFailed': 'The date could not be saved.',
+  'plans.close': 'Close plan',
+  'plans.deletePermanently': 'Delete permanently',
+
+  'plans.closeTitle': 'Close the “{name}” plan',
+  'plans.closeText': '{count} future instalments are deleted. Instalments already paid stay in their months’ budgets. This cannot be undone.',
+  'plans.deleteTitle': 'Delete the “{name}” plan permanently',
+  'plans.deleteText':
+    'Every instalment of the plan is deleted, past months included, and the amounts leave those months’ budgets. The plan cannot be recovered.',
+  'plans.actionFailed': 'That did not work.',
 
   'plans.add': 'Add plan',
   'plans.addFirst': 'Add your first plan',
