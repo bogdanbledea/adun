@@ -6,6 +6,7 @@ import { badRequest, forbidden, unauthorized } from '../../http/errors.ts'
 import { validate } from '../../http/validate.ts'
 import { findUser } from '../user/repository.ts'
 import { PASSWORD_MAX_LENGTH, passwordProblem } from './password.ts'
+import { currentSession, requireAuth } from './require-auth.ts'
 import * as auth from './service.ts'
 import { clearSessionCookie, readSessionToken, setSessionCookie } from './session.ts'
 
@@ -59,6 +60,15 @@ export function authRoutes({ db, config }: { db: Database; config: Config }): Ro
   router.post('/logout', (req, res) => {
     const token = readSessionToken(req, config)
     if (token) auth.logout(db, token)
+    clearSessionCookie(res, config)
+    res.json({ ok: true })
+  })
+
+  // Ends every session of the account, on every device, this one included.
+  router.post('/logout-all', requireAuth(db, config), (req, res) => {
+    const { userId } = currentSession(res)
+    auth.logoutEverywhere(db, userId)
+    req.log.info({ userId }, 'auth.logout_all')
     clearSessionCookie(res, config)
     res.json({ ok: true })
   })

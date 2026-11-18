@@ -15,12 +15,14 @@ import { hashToken, newToken, SESSION_TTL_MS } from './session.ts'
      each further failure up to 1 hour. A correct password clears the count.
      An attempt is counted before its password is checked, so a burst of
      parallel attempts gets no more guesses than the same attempts in a row.
-   - Sessions roll: 30 days from last use, recorded at most once an hour. */
+   - Sessions roll: 30 days from last use, recorded at most once an hour. A user
+     keeps at most 10 live sessions; signing in again revokes the oldest. */
 
 const LOCKOUT_THRESHOLD = 5
 const LOCKOUT_BASE_MS = 60 * 1000
 const LOCKOUT_MAX_MS = 60 * 60 * 1000
 export const SESSION_TOUCH_INTERVAL_MS = 60 * 60 * 1000
+export const MAX_LIVE_SESSIONS = 10
 
 const iso = (ms: number) => new Date(ms).toISOString()
 
@@ -92,12 +94,15 @@ export async function login(
 
   const token = newToken()
   const now = Date.now()
-  repo.insertSession(db, {
-    id: randomUUID(),
-    userId: account.id,
-    tokenHash: hashToken(token),
-    expiresAt: iso(now + SESSION_TTL_MS),
-    now: iso(now),
+  transaction(db, () => {
+    repo.insertSession(db, {
+      id: randomUUID(),
+      userId: account.id,
+      tokenHash: hashToken(token),
+      expiresAt: iso(now + SESSION_TTL_MS),
+      now: iso(now),
+    })
+    repo.revokeOldestSessions(db, account.id, MAX_LIVE_SESSIONS, iso(now))
   })
   log.info({ userId: account.id }, 'auth.login')
   return { userId: account.id, token }
@@ -121,4 +126,8 @@ export function authenticate(db: Database, token: string): Authenticated | null 
 
 export function logout(db: Database, token: string): void {
   repo.revokeSessionByTokenHash(db, hashToken(token), new Date().toISOString())
+}
+
+export function logoutEverywhere(db: Database, userId: string): void {
+  repo.revokeUserSessions(db, userId, new Date().toISOString())
 }

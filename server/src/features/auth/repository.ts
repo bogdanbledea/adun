@@ -99,3 +99,21 @@ export function touchSession(db: Database, sessionId: string, now: string, expir
 export function revokeSessionByTokenHash(db: Database, tokenHash: string, now: string): void {
   db.prepare('UPDATE sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL').run(now, tokenHash)
 }
+
+/** Revokes the user's live sessions except the `keep` most recent. */
+export function revokeOldestSessions(db: Database, userId: string, keep: number, now: string): void {
+  db.prepare(
+    `UPDATE sessions SET revoked_at = :now
+     WHERE user_id = :userId AND revoked_at IS NULL AND expires_at > :now
+       AND id NOT IN (
+         SELECT id FROM sessions
+         WHERE user_id = :userId AND revoked_at IS NULL AND expires_at > :now
+         ORDER BY created_at DESC, rowid DESC
+         LIMIT :keep
+       )`,
+  ).run({ now, userId, keep })
+}
+
+export function revokeUserSessions(db: Database, userId: string, now: string): void {
+  db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, userId)
+}

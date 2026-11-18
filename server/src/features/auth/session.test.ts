@@ -7,11 +7,19 @@ import { passwords } from './password.ts'
 
 const { db, dataDir } = tempDatabase()
 await createUser(db, 'ana@example.com')
+await createUser(db, 'ion@example.com', 'Ion Ionescu')
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex')
+const liveSessions = (email: string) =>
+  db
+    .prepare(
+      `SELECT count(*) AS n FROM sessions
+       WHERE user_id = (SELECT id FROM users WHERE email = ?) AND revoked_at IS NULL`,
+    )
+    .get(email)?.n
 const tokenOf = (cookie: string) => cookie.slice(cookie.indexOf('=') + 1)
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString()
 
@@ -59,6 +67,15 @@ describe('POST /api/auth/login', () => {
     const token = tokenOf(cookie)
     assert.equal(sessionRow(cookie).token_hash, sha256(token))
     assert.equal(db.prepare('SELECT 1 FROM sessions WHERE token_hash = ?').get(token), undefined)
+  })
+
+  test('keeps at most 10 live sessions: the 11th sign-in revokes the oldest', async () => {
+    db.prepare("UPDATE sessions SET revoked_at = ? WHERE revoked_at IS NULL").run(ago(0))
+    const cookies: string[] = []
+    for (let i = 0; i < 11; i++) cookies.push(await signIn(client, 'ana@example.com'))
+    assert.equal((await me(cookies[0])).status, 401)
+    for (const cookie of cookies.slice(1)) assert.equal((await me(cookie)).status, 200)
+    assert.equal(liveSessions('ana@example.com'), 10)
   })
 
   test('an unknown address and a wrong password get the same answer, at the same cost', async (t) => {
@@ -134,5 +151,26 @@ describe('POST /api/auth/logout', () => {
     const res = await client.request('POST', '/api/auth/logout')
     assert.equal(res.status, 200)
     assert.match(res.headers.get('set-cookie') ?? '', /^adun_session=;/)
+  })
+})
+
+describe('POST /api/auth/logout-all', () => {
+  test('ends every session of this account and no other', async () => {
+    const here = await signIn(client, 'ana@example.com')
+    const there = await signIn(client, 'ana@example.com')
+    const someoneElse = await signIn(client, 'ion@example.com')
+
+    const res = await client.request('POST', '/api/auth/logout-all', { headers: { cookie: here } })
+    assert.equal(res.status, 200)
+    assert.match(res.headers.get('set-cookie') ?? '', /^adun_session=;/)
+    assert.equal((await me(here)).status, 401)
+    assert.equal((await me(there)).status, 401)
+    assert.equal(liveSessions('ana@example.com'), 0)
+    assert.equal((await me(someoneElse)).status, 200)
+  })
+
+  test('needs a session', async () => {
+    const res = await client.request('POST', '/api/auth/logout-all')
+    assert.equal(res.status, 401)
   })
 })
