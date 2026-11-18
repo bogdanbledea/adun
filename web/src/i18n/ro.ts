@@ -271,7 +271,7 @@ export const ro = {
   'privacyPage.title': 'Confidențialitate',
   'privacyPage.intro': 'Ce păstrează aplicația despre tine, unde și pe cine poți întreba.',
   'privacyPage.storedTitle': 'Ce se păstrează',
-  'privacyPage.storedAccount': 'Contul: adresa de email, numele afișat, parola (doar ca hash Argon2, niciodată în clar) și data la care a fost creat.',
+  'privacyPage.storedAccount': 'Contul: adresa de email, numele afișat, limba în care primești emailurile, parola (doar ca hash Argon2, niciodată în clar) și data la care a fost creat.',
   'privacyPage.storedSessions': 'Sesiunile de autentificare: doar un hash al cookie-ului de sesiune, cu data expirării. O sesiune expiră după 30 de zile fără folosire.',
   'privacyPage.storedBudget': 'Bugetul: lunile și șablonul, cu categoriile și înregistrările lor (descriere, tip, sumă), și planurile de rate (nume, valoare, număr de rate, luna primei rate, data achiziției). Rămân până le ștergi tu sau ștergi contul.',
   'privacyPage.storedActivity': 'Istoricul activității: ce s-a schimbat în cont și când, de exemplu numele, parola sau o înregistrare din buget (cu descrierea și suma ei). Se păstrează 365 de zile, apoi se șterge singur.',

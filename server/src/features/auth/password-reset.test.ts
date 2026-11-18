@@ -90,7 +90,7 @@ describe('with email on', async () => {
     await register(
       db,
       silentLogger,
-      { email: 'radu@example.com', password: TEST_PASSWORD, displayName: 'Radu' },
+      { email: 'radu@example.com', password: TEST_PASSWORD, displayName: 'Radu', language: 'ro' },
       { verified: false },
     )
     db.prepare(

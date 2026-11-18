@@ -50,6 +50,7 @@ test('signing in shows the page that was asked for', async () => {
   expect(sentBody(fetchMock, '/api/auth/login')).toEqual({
     email: 'ana@example.com',
     password: 'Corect-cal-baterie-1',
+    language: 'ro',
   })
 })
 

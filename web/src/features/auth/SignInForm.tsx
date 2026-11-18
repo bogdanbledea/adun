@@ -1,7 +1,7 @@
 import { useState, type SubmitEvent } from 'react'
 import { ApiError, api, errorText } from '../../lib/api.ts'
 import { useAuth, type AuthUser } from '../../lib/auth.tsx'
-import { useT } from '../../lib/i18n.tsx'
+import { useI18n } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
 import { Field } from '../../ui/Field.tsx'
 import { Notice } from '../../ui/Notice.tsx'
@@ -18,7 +18,7 @@ interface SignInFormProps {
 }
 
 export function SignInForm({ email, onEmailChange, notice, onNeedsConfirmation, onForgotPassword }: SignInFormProps) {
-  const t = useT()
+  const { t, language } = useI18n()
   const { signedIn } = useAuth()
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +29,8 @@ export function SignInForm({ email, onEmailChange, notice, onNeedsConfirmation, 
     setError(null)
     setBusy(true)
     try {
-      const user = await api<AuthUser>('/api/auth/login', { method: 'POST', body: { email, password } })
+      // The language goes along for the emails the server sends on its own, such as reminders.
+      const user = await api<AuthUser>('/api/auth/login', { method: 'POST', body: { email, password, language } })
       signedIn(user)
     } catch (err) {
       setBusy(false)

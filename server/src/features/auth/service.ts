@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { transaction, type Database } from '../../db.ts'
 import { forbidden, HttpError } from '../../http/errors.ts'
+import type { Language } from '../../email/templates.ts'
 import type { Logger } from '../../lib/log.ts'
 import { logActivity } from '../activity/service.ts'
 import { passwords } from './password.ts'
@@ -41,6 +42,7 @@ export interface Registration {
   email: string
   password: string
   displayName: string
+  language: Language
 }
 
 export type RegisterResult = { created: true; userId: string } | { created: false }
@@ -64,6 +66,7 @@ export async function register(
     displayName: input.displayName,
     passwordHash,
     emailVerifiedAt: verified ? now : null,
+    language: input.language,
     now,
   })
   if (!created) {

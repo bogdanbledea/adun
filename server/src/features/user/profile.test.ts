@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import { appClient, createUser, signIn } from '../../../test/auth.ts'
+import { appClient, createUser, signIn, TEST_PASSWORD } from '../../../test/auth.ts'
 import { tempDatabase } from '../../../test/helpers.ts'
 
 const { db, dataDir } = tempDatabase()
@@ -59,5 +59,42 @@ describe('PATCH /api/user/me', () => {
     const res = await update({ displayName: 'Mallory' }, { cookie: ana, 'sec-fetch-site': 'cross-site' })
     assert.equal(res.status, 403)
     assert.equal(nameOf('ana@example.com'), 'Ana')
+  })
+})
+
+describe('the account’s language', () => {
+  const languageOf = (email: string) => db.prepare('SELECT language FROM users WHERE email = ?').get(email)?.language
+  const login = (body: Record<string, unknown>) =>
+    client.request('POST', '/api/auth/login', { body: { password: TEST_PASSWORD, ...body } })
+
+  test('is the one the account was registered in', async () => {
+    const register = (email: string, language?: string) =>
+      client.request('POST', '/api/auth/register', {
+        body: { email, password: TEST_PASSWORD, displayName: 'Dan', language },
+      })
+    await register('dan@example.com', 'en')
+    await register('radu@example.com')
+    assert.equal(languageOf('dan@example.com'), 'en')
+    assert.equal(languageOf('radu@example.com'), 'ro')
+  })
+
+  test('follows the language signed in with, and stays when none is sent', async () => {
+    assert.equal((await login({ email: 'ion@example.com', language: 'en' })).status, 200)
+    assert.equal(languageOf('ion@example.com'), 'en')
+    await login({ email: 'ion@example.com' })
+    assert.equal(languageOf('ion@example.com'), 'en')
+    assert.equal((await login({ email: 'ion@example.com', language: 'de' })).status, 400)
+  })
+
+  test('changes on its own, leaving the name and the history alone', async () => {
+    const res = await update({ language: 'en' })
+    assert.equal(res.status, 200)
+    assert.equal(((await res.json()) as { displayName: string }).displayName, 'Ana')
+    assert.equal(languageOf('ana@example.com'), 'en')
+    const renames = db.prepare("SELECT count(*) AS n FROM activity_logs WHERE action = 'account.renamed'").get()?.n
+    await update({ language: 'ro' })
+    assert.equal(languageOf('ana@example.com'), 'ro')
+    assert.equal(db.prepare("SELECT count(*) AS n FROM activity_logs WHERE action = 'account.renamed'").get()?.n, renames)
+    assert.equal((await update({ language: 'de' })).status, 400)
   })
 })

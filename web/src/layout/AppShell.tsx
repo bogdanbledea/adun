@@ -1,6 +1,7 @@
 import { BellRing, CreditCard, Eye, EyeOff, LayoutTemplate, LogOut, MonitorSmartphone, Moon, Settings, ShieldCheck, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Outlet, useNavigate } from 'react-router'
+import { api } from '../lib/api.ts'
 import { useAuth, type AuthUser } from '../lib/auth.tsx'
 import { useI18n } from '../lib/i18n.tsx'
 import { usePrivacy } from '../lib/privacy.tsx'
@@ -25,12 +26,19 @@ function initialsFor({ displayName, email }: AuthUser): string {
 }
 
 export function AppShell({ children }: { children?: ReactNode }) {
-  const { t, toggleLanguage } = useI18n()
+  const { t, language, setLanguage } = useI18n()
   const { theme, toggleTheme } = useTheme()
   const { amountsHidden, toggleAmounts } = usePrivacy()
   const { state, signOut, signOutEverywhere } = useAuth()
   const navigate = useNavigate()
   const user = state.status === 'signed_in' ? state.user : null
+
+  // Signed in, the account keeps the choice for the emails the server sends on its own.
+  const switchLanguage = () => {
+    const next = language === 'ro' ? 'en' : 'ro'
+    setLanguage(next)
+    if (user) api('/api/user/me', { method: 'PATCH', body: { language: next } }).catch(console.error)
+  }
 
   return (
     <div className="flex min-h-dvh flex-col overflow-x-clip bg-page text-ink">
@@ -58,7 +66,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
             <IconButton label={theme === 'dark' ? t('theme.toLight') : t('theme.toDark')} onClick={toggleTheme}>
               {theme === 'dark' ? <Sun /> : <Moon />}
             </IconButton>
-            <IconButton label={t('language.switch')} onClick={toggleLanguage} className="w-auto px-2.5 text-xs font-semibold">
+            <IconButton label={t('language.switch')} onClick={switchLanguage} className="w-auto px-2.5 text-xs font-semibold">
               {t('language.short')}
             </IconButton>
             {user && (

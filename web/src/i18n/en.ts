@@ -255,7 +255,7 @@ export const en: Record<MessageKey, string> = {
   'privacyPage.title': 'Privacy',
   'privacyPage.intro': 'What the app keeps about you, where, and who you can ask.',
   'privacyPage.storedTitle': 'What is kept',
-  'privacyPage.storedAccount': 'Your account: email address, display name, password (only as an Argon2 hash, never in plain text) and when it was created.',
+  'privacyPage.storedAccount': 'Your account: email address, display name, the language you receive emails in, password (only as an Argon2 hash, never in plain text) and when it was created.',
   'privacyPage.storedSessions': 'Sign-in sessions: only a hash of the session cookie, with its expiry. A session expires after 30 days without use.',
   'privacyPage.storedBudget': 'The budget: months and the template, with their categories and entries (description, type, amount), and instalment plans (name, value, number of instalments, first month, purchase date). They stay until you delete them or the account.',
   'privacyPage.storedActivity': 'The activity history: what changed in the account and when, such as the name, the password or a budget entry (with its description and amount). It is kept 365 days, then removed on its own.',

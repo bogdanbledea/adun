@@ -1,4 +1,5 @@
 import type { Database } from '../../db.ts'
+import type { Language } from '../../email/templates.ts'
 
 /* The account as the signed-in user sees it, and the changes they can make to
    it. */
@@ -30,6 +31,11 @@ export function findUser(db: Database, userId: string): PublicUser | null {
 export function setDisplayName(db: Database, userId: string, displayName: string): PublicUser | null {
   const row = db.prepare(`UPDATE users SET display_name = ? WHERE id = ? RETURNING ${COLUMNS}`).get(displayName, userId)
   return row ? toPublicUser(row) : null
+}
+
+/** The language of the emails sent with no request to read it from. */
+export function setLanguage(db: Database, userId: string, language: Language): void {
+  db.prepare('UPDATE users SET language = ? WHERE id = ?').run(language, userId)
 }
 
 /** Deletes the account; its sessions, links and email records go with it

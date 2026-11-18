@@ -90,15 +90,18 @@ describe('the template', () => {
   })
 })
 
-test('adding the template keeps the months, categories and entries there were', async () => {
+test('adding the template keeps the months, categories and entries there were', () => {
   const migrationsDir = tempDir()
   for (const name of fs.readdirSync(MIGRATIONS_DIR).filter((name) => name.endsWith('.sql'))) {
     if (name < '0010') fs.copyFileSync(path.join(MIGRATIONS_DIR, name), path.join(migrationsDir, name))
   }
   const old = openDatabase(tempDir())
   migrate(old, migrationsDir)
-  await createUser(old, 'ana@example.com')
-  const userId = (old.prepare('SELECT id FROM users').get() as { id: string }).id
+  // A user row as the table was then; createUser writes today's columns.
+  const userId = 'u'
+  old
+    .prepare("INSERT INTO users (id, email, display_name, password_hash, created_at) VALUES (?, 'ana@example.com', 'Ana', 'x', ?)")
+    .run(userId, now)
   old.prepare("INSERT INTO months (id, user_id, month_key, created_at) VALUES ('m', ?, '2026-01', ?)").run(userId, now)
   old.prepare("INSERT INTO categories (id, user_id, month_id, name) VALUES ('c', ?, 'm', 'Home')").run(userId)
   old

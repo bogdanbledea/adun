@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { App } from './App.tsx'
 import { testAccount } from './test/account.ts'
 import { renderWithProviders } from './test/render.tsx'
-import { fakeServer } from './test/server.ts'
+import { fakeServer, sentBody } from './test/server.ts'
 
 beforeEach(() => {
   fakeServer({ '/api/user/me': [200, testAccount] })
@@ -40,6 +40,14 @@ test('the shell switches language and theme', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Switch to dark theme' }))
   expect(document.documentElement.classList.contains('dark')).toBe(true)
   expect(screen.getByRole('button', { name: 'Switch to light theme' })).toBeDefined()
+})
+
+test('signed in, the language chosen is kept on the account', async () => {
+  const fetchMock = fakeServer({ '/api/user/me': [200, testAccount] })
+  renderApp('/buget')
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Switch to English' }))
+  expect(sentBody(fetchMock, '/api/user/me')).toEqual({ language: 'en' })
 })
 
 test('the eye button hides amounts and shows them again', async () => {

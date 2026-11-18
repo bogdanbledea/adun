@@ -7,7 +7,7 @@ import { accountExists, passwordChanged, passwordReset, verifyEmail } from '../.
 import { badRequest, forbidden, unauthorized } from '../../http/errors.ts'
 import { validate } from '../../http/validate.ts'
 import type { Logger } from '../../lib/log.ts'
-import { findUser } from '../user/repository.ts'
+import { findUser, setLanguage } from '../user/repository.ts'
 import { confirmEmail } from './confirmation.ts'
 import { mayEmail } from './email-limits.ts'
 import { PASSWORD_MAX_LENGTH, passwordProblem } from './password.ts'
@@ -41,6 +41,8 @@ const registerBody = z.object({
 const loginBody = z.object({
   email: z.string().trim().toLowerCase().min(1).max(320),
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  // Kept on the account for the emails sent with no request to read it from.
+  language: z.enum(['ro', 'en']).optional(),
 })
 
 const emailBody = z.object({
@@ -238,6 +240,7 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
   router.post('/login', async (req, res) => {
     const body = validate(loginBody, req.body)
     const { userId, token } = await auth.login(db, req.log, body.email, body.password)
+    if (body.language) setLanguage(db, userId, body.language)
     const user = findUser(db, userId)
     if (!user) throw unauthorized()
     setSessionCookie(res, config, token)
