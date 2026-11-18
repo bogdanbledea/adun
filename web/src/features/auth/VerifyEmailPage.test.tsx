@@ -37,7 +37,7 @@ test('in the browser that registered, the link signs in and opens the budget', a
   const fetchMock = fakeServer({ '/api/user/me': signedOut, '/api/auth/verify-email': [200, { user: testAccount }] })
   renderLink()
   expect(await screen.findByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
-  expect(screen.getByTestId('location').textContent).toBe('/buget')
+  expect(screen.getByTestId('location').textContent).toMatch(/^\/buget\/\d{2}-\d{2}$/)
   expect(bodiesSentTo(fetchMock, '/api/auth/verify-email')).toEqual([{ token: TOKEN }])
 })
 

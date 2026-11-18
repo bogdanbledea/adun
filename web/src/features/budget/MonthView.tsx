@@ -1,221 +1,245 @@
-import { CalendarPlus, EllipsisVertical, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { ApiError, errorText } from '../../lib/api.ts'
+import { EllipsisVertical, Filter as FilterIcon, Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { Link } from 'react-router'
+import { errorText } from '../../lib/api.ts'
 import { useI18n } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
-import { EmptyState } from '../../ui/EmptyState.tsx'
+import { cx } from '../../ui/cx.ts'
+import { ConfirmDialog } from '../../ui/Dialog.tsx'
 import { Menu } from '../../ui/Menu.tsx'
 import { Notice } from '../../ui/Notice.tsx'
-import { Skeleton } from '../../ui/Skeleton.tsx'
-import { budgetApi, type Month, type SavedEntry } from './budget-api.ts'
-import { CategoryList } from './CategoryList.tsx'
-import { EntryForm, type EditedEntry } from './EntryForm.tsx'
-import { monthName } from './month-key.ts'
-import { MonthSummary } from './MonthSummary.tsx'
+import { segmentClass, segmentGroup } from '../../ui/segmented.ts'
+import { budgetApi, type Category, type Entry } from './budget-api.ts'
+import { BudgetSummary } from './BudgetSummary.tsx'
+import { CategoryList, type Filter } from './CategoryList.tsx'
+import { EntryDialog } from './EntryDialog.tsx'
+import { monthKeyToParam, monthLong } from './month-key.ts'
+import { MonthSkeleton } from './MonthSkeleton.tsx'
 
-/* One month: an offer to create its budget when it has none, otherwise its
-   totals and its entries by category, a form to add or change entries, and
-   a menu to delete the month. After a change the month is read again from
-   the server, so what is shown is what is stored. An entry moved to another
-   month leaves a notice naming it. */
+/* One month with a budget: the summary, the entries by category, and the
+   dialogs that change them. After every change the month is read again from
+   the server, which keeps totals and order exactly as stored. An entry moved
+   to another month leaves a notice with a link there. */
 
-type State =
-  | { kind: 'loading' }
-  | { kind: 'none'; creating: boolean; error: unknown }
-  | { kind: 'failed'; error: unknown }
-  | { kind: 'ready'; month: Month }
+type Open =
+  | { dialog: 'add'; categoryName?: string }
+  | { dialog: 'edit'; entry: Entry & { categoryName: string } }
+  | { dialog: 'deleteEntry'; entry: Entry }
+  | { dialog: 'deleteMonth' }
+  | null
 
-type Deleting = { kind: 'idle' } | { kind: 'asking'; busy: boolean; error: unknown }
-
-type Open = { kind: 'add'; categoryName?: string } | { kind: 'edit'; entry: EditedEntry } | null
+type Message = { tone: 'moved'; description: string; monthKey: string } | { tone: 'error'; error: unknown }
 
 interface MonthViewProps {
   monthKey: string
-  /** Called when a month's budget is created or deleted. */
-  onHasBudget: (monthKey: string, has: boolean) => void
+  /** The months the strip offers. */
+  months: string[]
+  monthsWithBudget: ReadonlySet<string>
+  onMonthCreated: (monthKey: string) => void
+  onMonthDeleted: (monthKey: string) => void
 }
 
-export function MonthView({ monthKey, onHasBudget }: MonthViewProps) {
+export function MonthView({ monthKey, months, monthsWithBudget, onMonthCreated, onMonthDeleted }: MonthViewProps) {
   const { t, language } = useI18n()
-  const [state, setState] = useState<State>({ kind: 'loading' })
-  const [attempt, setAttempt] = useState(0)
-  const [deleting, setDeleting] = useState<Deleting>({ kind: 'idle' })
+  const [month, setMonth] = useState<Awaited<ReturnType<typeof budgetApi.month>> | null>(null)
+  const [loadError, setLoadError] = useState<unknown>(null)
+  const [filter, setFilter] = useState<Filter>('all')
   const [open, setOpen] = useState<Open>(null)
-  const [movedTo, setMovedTo] = useState<string | null>(null)
+  const [message, setMessage] = useState<Message | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  // Replaces what is shown when the answer arrives.
+  const load = useCallback(
+    (signal?: AbortSignal) =>
+      budgetApi
+        .month(monthKey, signal)
+        .then((loaded) => {
+          setMonth(loaded)
+          setLoadError(null)
+        })
+        .catch((error: unknown) => {
+          if (!signal?.aborted) setLoadError(error)
+        }),
+    [monthKey],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
-    budgetApi
-      .month(monthKey, controller.signal)
-      .then((month) => { setState({ kind: 'ready', month }) })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        if (error instanceof ApiError && error.code === 'month_not_found') {
-          setState({ kind: 'none', creating: false, error: null })
-        } else {
-          setState({ kind: 'failed', error })
-        }
-      })
+    void load(controller.signal)
     return () => { controller.abort() }
-  }, [monthKey, attempt])
+  }, [load])
 
-  const create = async () => {
-    setState({ kind: 'none', creating: true, error: null })
-    try {
-      setState({ kind: 'ready', month: await budgetApi.createMonth(monthKey) })
-      onHasBudget(monthKey, true)
-    } catch (error) {
-      setState({ kind: 'none', creating: false, error })
-    }
-  }
-
-  const deleteMonth = async () => {
-    setDeleting({ kind: 'asking', busy: true, error: null })
-    try {
-      await budgetApi.deleteMonth(monthKey)
-      setDeleting({ kind: 'idle' })
-      setState({ kind: 'none', creating: false, error: null })
-      onHasBudget(monthKey, false)
-    } catch (error) {
-      setDeleting({ kind: 'asking', busy: false, error })
-    }
-  }
-
-  const reload = async () => {
-    try {
-      setState({ kind: 'ready', month: await budgetApi.month(monthKey) })
-    } catch (error) {
-      setState({ kind: 'failed', error })
-    }
-  }
-
-  const saved = async (entry: SavedEntry) => {
-    setOpen(null)
-    if (entry.monthKey !== monthKey) {
-      setMovedTo(entry.monthKey)
-      onHasBudget(entry.monthKey, true)
-    }
-    await reload()
-  }
-
-  const deleted = async () => {
-    setOpen(null)
-    await reload()
-  }
-
-  const name = monthName(monthKey, language)
-
-  if (state.kind === 'loading') {
-    return (
-      <div role="status" className="space-y-3">
-        <span className="sr-only">{t('common.loading')}</span>
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    )
-  }
-
-  if (state.kind === 'failed') {
+  if (loadError !== null && !month) {
     return (
       <div className="flex flex-col items-start gap-2">
         <Notice tone="error">
-          {t('budget.loadFailed')} {errorText(state.error, t)}
+          {t('budget.loadFailed')} {errorText(loadError, t)}
         </Notice>
-        <Button variant="quiet" onClick={() => { setState({ kind: 'loading' }); setAttempt((n) => n + 1) }}>
-          {t('budget.tryAgain')}
+        <Button variant="quiet" onClick={() => void load()}>
+          {t('common.tryAgain')}
         </Button>
       </div>
     )
   }
+  if (!month) return <MonthSkeleton />
 
-  if (state.kind === 'none') {
-    return (
-      <EmptyState
-        icon={<CalendarPlus />}
-        title={t('budget.noBudgetTitle', { month: name })}
-        action={
-          <Button disabled={state.creating} onClick={() => void create()}>
-            {state.creating ? t('budget.creating') : t('budget.createMonth')}
-          </Button>
-        }
-      >
-        <p>{t('budget.noBudgetText')}</p>
-        {state.error !== null && (
-          <div className="mt-4 text-left">
-            <Notice tone="error">{errorText(state.error, t)}</Notice>
-          </div>
-        )}
-      </EmptyState>
-    )
+  const entries = month.categories.flatMap((category) => category.entries)
+  const shownCount = filter === 'all' ? entries.length : entries.filter((entry) => entry.type === filter).length
+  const categoryNames = month.categories.map((category: Category) => category.name)
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true)
+    try {
+      await action()
+      setOpen(null)
+    } catch (error) {
+      setOpen(null)
+      setMessage({ tone: 'error', error })
+    }
+    setBusy(false)
   }
 
-  const { month } = state
-  const categoryNames = month.categories.map((category) => category.name)
-  const form = (
-    <EntryForm
-      key={open?.kind === 'edit' ? open.entry.id : `add-${open?.categoryName ?? ''}`}
-      monthKey={monthKey}
-      entry={open?.kind === 'edit' ? open.entry : undefined}
-      categoryName={open?.kind === 'add' ? open.categoryName : undefined}
-      categoryNames={categoryNames}
-      onSaved={(entry) => void saved(entry)}
-      onDeleted={() => void deleted()}
-      onCancel={() => { setOpen(null) }}
-    />
-  )
+  const deleteEntry = (entry: Entry) =>
+    run(async () => {
+      await budgetApi.deleteEntry(entry.id)
+      await load()
+    })
+
+  const deleteMonth = () =>
+    run(async () => {
+      await budgetApi.deleteMonth(monthKey)
+      onMonthDeleted(monthKey)
+    })
+
+  const filters: { value: Filter; label: string; icon?: ReactNode }[] = [
+    { value: 'all', label: t('budget.filterAll') },
+    { value: 'income', label: t('budget.income'), icon: <TrendingUp /> },
+    { value: 'expense', label: t('budget.expenses'), icon: <TrendingDown /> },
+  ]
 
   return (
-    <section aria-label={name} className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h2 className="mr-auto text-lg font-semibold">{name}</h2>
-        <Button onClick={() => { setMovedTo(null); setOpen({ kind: 'add' }) }}>
-          <Plus />
-          {t('budget.add')}
-        </Button>
-        <Menu
-          label={t('budget.monthMenu')}
-          trigger={<EllipsisVertical />}
-          triggerClassName="grid size-11 place-items-center rounded-lg text-muted transition-colors duration-150 hover:bg-hover hover:text-ink pointer-fine:size-9 [&_svg]:size-[18px]"
-          items={[
-            {
-              label: t('budget.deleteMonth'),
-              icon: <Trash2 />,
-              tone: 'danger',
-              onSelect: () => { setDeleting({ kind: 'asking', busy: false, error: null }) },
-            },
-          ]}
-        />
-      </div>
-      {deleting.kind === 'asking' && (
-        <div className="card flex flex-col gap-3 px-4 py-3">
-          <p className="text-sm">{t('budget.deleteMonthConfirm', { month: name })}</p>
-          {deleting.error !== null && <Notice tone="error">{errorText(deleting.error, t)}</Notice>}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="quiet" disabled={deleting.busy} onClick={() => { setDeleting({ kind: 'idle' }) }}>
-              {t('budget.cancel')}
-            </Button>
-            <Button variant="danger" disabled={deleting.busy} onClick={() => void deleteMonth()}>
-              {t('budget.deleteMonthYes')}
-            </Button>
-          </div>
+    <div className="pb-20">
+      <BudgetSummary monthKey={monthKey} totals={month.totals} />
+
+      {message && (
+        <div className="mt-4">
+          {message.tone === 'moved' ? (
+            <Notice tone="success">
+              {t('budget.movedNotice', { description: message.description, month: monthLong(message.monthKey, language) })}{' '}
+              <Link to={`/buget/${monthKeyToParam(message.monthKey)}`} className="font-semibold text-brand underline-offset-2 hover:underline">
+                {t('budget.viewMonth')}
+              </Link>
+            </Notice>
+          ) : (
+            <Notice tone="error">{errorText(message.error, t)}</Notice>
+          )}
         </div>
       )}
-      {movedTo !== null && (
-        <Notice tone="success">{t('budget.moved', { month: monthName(movedTo, language) })}</Notice>
-      )}
-      {open?.kind === 'add' && <div className="card">{form}</div>}
-      <MonthSummary totals={month.totals} />
-      {month.categories.length > 0 ? (
-        <CategoryList
-          categories={month.categories}
-          editingId={open?.kind === 'edit' ? open.entry.id : null}
-          editor={form}
-          onAdd={(categoryName) => { setMovedTo(null); setOpen({ kind: 'add', categoryName }) }}
-          onEdit={(entry, categoryName) => { setMovedTo(null); setOpen({ kind: 'edit', entry: { ...entry, categoryName } }) }}
+
+      <section aria-labelledby="budget-entries" className="mt-5 card">
+        {/* On phones the filter gets a full-width row under the title and
+            the buttons; from sm up it is one row. */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5 sm:px-4">
+          <h2 id="budget-entries" className="mr-auto text-lg font-semibold">
+            {t('budget.transactions')}
+          </h2>
+          <div role="group" aria-label={t('budget.filter')} className={cx(segmentGroup, 'order-last w-full sm:order-none sm:w-fit')}>
+            {filters.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={filter === option.value}
+                onClick={() => { setFilter(option.value) }}
+                className={cx(segmentClass(filter === option.value), 'flex-1 justify-center sm:flex-none')}
+              >
+                {option.icon}
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <Button className="min-h-9 px-3 py-1.5" onClick={() => { setOpen({ dialog: 'add' }) }}>
+            <Plus />
+            {t('budget.add')}
+          </Button>
+          <Menu
+            label={t('budget.monthActions')}
+            trigger={<EllipsisVertical className="size-5" />}
+            triggerClassName="grid size-9 place-items-center rounded-lg text-muted hover:bg-hover hover:text-ink"
+            items={[
+              { label: t('budget.deleteMonth'), icon: <Trash2 />, tone: 'danger', onSelect: () => { setOpen({ dialog: 'deleteMonth' }) } },
+            ]}
+          />
+        </div>
+
+        {entries.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <h3 className="text-lg font-semibold">{t('budget.noTransactions')}</h3>
+            <p className="mx-auto mt-1 mb-5 max-w-xs text-muted">{t('budget.addFirst')}</p>
+            <Button onClick={() => { setOpen({ dialog: 'add' }) }}>
+              <Plus />
+              {t('budget.addTransaction')}
+            </Button>
+          </div>
+        ) : shownCount === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <FilterIcon aria-hidden="true" className="mx-auto mb-3 size-6 text-muted" />
+            <h3 className="text-lg font-semibold">{t('budget.noneFound')}</h3>
+            <p className="mx-auto mt-1 max-w-xs text-muted">{t('budget.changeFilter')}</p>
+          </div>
+        ) : (
+          <CategoryList
+            categories={month.categories}
+            filter={filter}
+            onAdd={(categoryName) => { setOpen({ dialog: 'add', categoryName }) }}
+            onEdit={(entry, categoryName) => { setOpen({ dialog: 'edit', entry: { ...entry, categoryName } }) }}
+            onDelete={(entry) => { setOpen({ dialog: 'deleteEntry', entry }) }}
+          />
+        )}
+      </section>
+
+      {(open?.dialog === 'add' || open?.dialog === 'edit') && (
+        <EntryDialog
+          monthKey={monthKey}
+          months={months}
+          monthsWithBudget={monthsWithBudget}
+          entry={open.dialog === 'edit' ? open.entry : undefined}
+          categoryName={open.dialog === 'add' ? open.categoryName : undefined}
+          categoryNames={categoryNames}
+          onClose={() => { setOpen(null) }}
+          onSaved={(saved) => {
+            if (saved.monthKey !== monthKey) {
+              onMonthCreated(saved.monthKey)
+              setMessage({ tone: 'moved', description: saved.description, monthKey: saved.monthKey })
+            } else {
+              setMessage(null)
+            }
+            void load()
+          }}
+          onDelete={(entry) => { setOpen({ dialog: 'deleteEntry', entry }) }}
         />
-      ) : (
-        <p className="card px-4 py-8 text-center text-sm text-muted">{t('budget.noEntries')}</p>
       )}
-    </section>
+      <ConfirmDialog
+        open={open?.dialog === 'deleteEntry'}
+        title={t('budget.deleteEntry')}
+        confirmLabel={t('common.delete')}
+        destructive
+        busy={busy}
+        onConfirm={() => { if (open?.dialog === 'deleteEntry') void deleteEntry(open.entry) }}
+        onCancel={() => { setOpen(null) }}
+      >
+        {open?.dialog === 'deleteEntry' && t('budget.deleteEntryText', { description: open.entry.description })}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={open?.dialog === 'deleteMonth'}
+        title={`${t('budget.deleteMonth')}: ${monthLong(monthKey, language)}`}
+        confirmLabel={t('budget.deleteMonth')}
+        destructive
+        busy={busy}
+        onConfirm={() => void deleteMonth()}
+        onCancel={() => { setOpen(null) }}
+      >
+        {entries.length === 0 ? t('budget.deleteMonthEmpty') : t('budget.deleteMonthText', { count: entries.length })}
+      </ConfirmDialog>
+    </div>
   )
 }

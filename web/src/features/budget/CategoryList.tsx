@@ -1,80 +1,101 @@
-import { Plus } from 'lucide-react'
-import type { ReactNode } from 'react'
-import { useI18n } from '../../lib/i18n.tsx'
+import { Pencil, Plus, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
+import { useT } from '../../lib/i18n.tsx'
 import { IconButton } from '../../ui/Button.tsx'
 import { cx } from '../../ui/cx.ts'
-import type { Category, Entry } from './budget-api.ts'
-import { formatBani } from './money.ts'
+import { Money } from '../../ui/Money.tsx'
+import { categoryTotal, type Category, type Entry } from './budget-api.ts'
 
-/* The month's categories in order, each a card with its entries. Income is
-   marked with a plus and the brand colour; a category's header shows what
-   its entries add up to, income and expenses apart, and a button to add to
-   it. An entry opens for editing in its place. */
+/* The month's categories with their entries, each category headed by what
+   its entries add up to and a button to add to it. The filter hides the
+   entries of the other type, and a category left with none. A row opens its
+   entry for editing; its edit and delete buttons show on hover with a
+   pointer, and always on touch. */
 
-function Amount({ entry }: { entry: Pick<Entry, 'type' | 'amountBani'> }) {
-  const { language } = useI18n()
-  const income = entry.type === 'income'
-  return (
-    <span className={cx('shrink-0 tabular-nums', income ? 'text-brand' : 'text-ink')}>
-      {income ? '+' : ''}
-      {formatBani(entry.amountBani, language)}
-    </span>
-  )
-}
-
-function sumOf(entries: Entry[], type: Entry['type']): number {
-  return entries.filter((entry) => entry.type === type).reduce((sum, entry) => sum + entry.amountBani, 0)
-}
+export type Filter = 'all' | 'income' | 'expense'
 
 interface CategoryListProps {
   categories: Category[]
-  /** The entry being edited, shown as `editor` instead of its row. */
-  editingId: string | null
-  editor: ReactNode
+  filter: Filter
   onAdd: (categoryName: string) => void
   onEdit: (entry: Entry, categoryName: string) => void
+  onDelete: (entry: Entry) => void
 }
 
-export function CategoryList({ categories, editingId, editor, onAdd, onEdit }: CategoryListProps) {
-  const { t } = useI18n()
+const ROW_BUTTON =
+  'grid size-11 pointer-fine:size-8 place-items-center rounded-lg text-muted transition-colors duration-150 hover:bg-hover hover:text-ink [&_svg]:size-4'
+
+export function CategoryList({ categories, filter, onAdd, onEdit, onDelete }: CategoryListProps) {
+  const t = useT()
+  const shown = categories
+    .map((category) => ({
+      category,
+      entries: filter === 'all' ? category.entries : category.entries.filter((entry) => entry.type === filter),
+    }))
+    .filter(({ entries }) => entries.length > 0)
+
   return (
-    <div className="space-y-3">
-      {categories.map((category) => {
-        const income = sumOf(category.entries, 'income')
-        const expense = sumOf(category.entries, 'expense')
+    <ul className="divide-y divide-line">
+      {shown.map(({ category, entries }) => {
+        const Icon = entries[0]?.type === 'expense' ? TrendingDown : TrendingUp
         return (
-          <section key={category.id} aria-label={category.name} className="card overflow-hidden">
-            <header className="flex items-center gap-2 border-b border-line bg-hover/40 py-1 pr-1 pl-4">
-              <h3 className="min-w-0 flex-1 truncate text-base font-semibold">{category.name}</h3>
-              <span className="flex shrink-0 gap-3 text-sm font-semibold">
-                {income > 0 && <Amount entry={{ type: 'income', amountBani: income }} />}
-                {(expense > 0 || income === 0) && <Amount entry={{ type: 'expense', amountBani: expense }} />}
-              </span>
-              <IconButton label={t('budget.addTo', { category: category.name })} onClick={() => { onAdd(category.name) }}>
-                <Plus />
-              </IconButton>
-            </header>
-            <ul>
-              {category.entries.map((entry) => (
-                <li key={entry.id} className="border-t border-line first:border-t-0">
-                  {entry.id === editingId ? (
-                    editor
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => { onEdit(entry, category.name) }}
-                      className="flex min-h-11 w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left transition-colors duration-150 hover:bg-hover focus-visible:outline-offset-[-2px]"
-                    >
-                      <span className="min-w-0 break-words">{entry.description}</span>
-                      <Amount entry={entry} />
-                    </button>
-                  )}
+          <li key={category.id} className="px-2 py-3 sm:px-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 pl-2">
+                <Icon aria-hidden="true" className={cx('size-4 shrink-0', entries[0]?.type === 'expense' ? 'text-expense' : 'text-income')} />
+                <h3 className="truncate text-base font-semibold">{category.name}</h3>
+                <span className="shrink-0 text-xs text-muted tabular-nums">{entries.length}</span>
+              </div>
+              <div className="flex shrink-0 items-center">
+                <Money bani={categoryTotal({ ...category, entries })} tone="auto" signed className="font-display font-semibold" />
+                <IconButton label={t('budget.addToCategory', { name: category.name })} onClick={() => { onAdd(category.name) }}>
+                  <Plus />
+                </IconButton>
+              </div>
+            </div>
+            <ul className="mt-1 pl-1">
+              {entries.map((entry) => (
+                <li
+                  key={entry.id}
+                  onClick={() => { onEdit(entry, category.name) }}
+                  className="group flex min-h-11 pointer-fine:min-h-9 cursor-pointer items-center justify-between gap-2 border-t border-line py-1 pr-1 pl-2 first:border-t-0 hover:bg-hover"
+                >
+                  <span className="min-w-0 flex-1 truncate">{entry.description}</span>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <Money bani={entry.amountBani} tone={entry.type} className="text-right font-semibold sm:min-w-24" />
+                    {/* Hidden until hover on pointer devices; always there on touch. */}
+                    <div className="flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100">
+                      <button
+                        type="button"
+                        aria-label={t('budget.editEntry', { name: entry.description })}
+                        title={t('budget.editEntry', { name: entry.description })}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onEdit(entry, category.name)
+                        }}
+                        className={ROW_BUTTON}
+                      >
+                        <Pencil />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t('budget.deleteEntryNamed', { name: entry.description })}
+                        title={t('budget.deleteEntryNamed', { name: entry.description })}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onDelete(entry)
+                        }}
+                        className={cx(ROW_BUTTON, 'hover:text-danger')}
+                      >
+                        <Trash2 />
+                      </button>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
-          </section>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }

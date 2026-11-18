@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { baniToInput, formatBani, MAX_BANI, parseAmount } from './money.ts'
+import { baniToInput, formatBani, formatLei, MAX_BANI, parseAmount } from './money.ts'
 
 describe('parseAmount', () => {
   test.each([
@@ -34,6 +34,10 @@ describe('formatBani', () => {
     expect(formatBani(123_450, 'en')).toBe('1,234.50 lei')
     expect(formatBani(5, 'en')).toBe('0.05 lei')
     expect(formatBani(-1250, 'ro')).toBe('-12,50 lei')
+  })
+
+  test('formatLei leaves the unit out', () => {
+    expect(formatLei(123_450, 'ro')).toBe('1.234,50')
   })
 
   test('keeps every bani of the largest amount', () => {

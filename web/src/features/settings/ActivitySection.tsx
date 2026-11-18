@@ -4,8 +4,8 @@ import { isMessageKey, useI18n, type Language, type Translate } from '../../lib/
 import { Button } from '../../ui/Button.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
-import { formatBani } from '../budget/money.ts'
-import { monthName } from '../budget/month-key.ts'
+import { formatBani } from '../../lib/money.ts'
+import { monthLong } from '../budget/month-key.ts'
 import { SettingsSection } from './SettingsSection.tsx'
 
 /* The newest 50 entries, with "show more" for older pages, and a way to erase
@@ -34,7 +34,7 @@ function labelOf(action: string, t: Translate): string {
 /** "Chirie · Casă · 1.500,00 lei · Noiembrie 2026" for an entry, the month's name for a month. */
 function detailsOf({ action, metadata }: ActivityEntry, language: Language): string | null {
   if (!metadata) return null
-  const month = (key: unknown) => (typeof key === 'string' ? monthName(key, language) : null)
+  const month = (key: unknown) => (typeof key === 'string' ? monthLong(key, language) : null)
   if (action.startsWith('month.')) return month(metadata.monthKey)
   if (!action.startsWith('entry.')) return null
   const { description, category, type, amountBani } = metadata

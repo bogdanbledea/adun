@@ -251,14 +251,14 @@ describe('forgotten password', () => {
     await userEvent.type(await screen.findByLabelText('Parolă'), 'Corect-cal-baterie-1')
     await userEvent.click(screen.getByRole('button', { name: 'Intră în cont' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
-    expect(screen.getByTestId('location').textContent).toBe('/buget')
+    expect(screen.getByTestId('location').textContent).toMatch(/^\/buget\/\d{2}-\d{2}$/)
   })
 
   test('/parola-uitata, already signed in, opens the budget', async () => {
     fakeServer({ '/api/user/me': [200, testAccount] })
     renderApp('/parola-uitata')
     expect(await screen.findByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
-    expect(screen.getByTestId('location').textContent).toBe('/buget')
+    expect(screen.getByTestId('location').textContent).toMatch(/^\/buget\/\d{2}-\d{2}$/)
   })
 
   test('with email off, explains that no link can be sent', async () => {

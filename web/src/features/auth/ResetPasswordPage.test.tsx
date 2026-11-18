@@ -43,7 +43,7 @@ test('the new password signs in and opens the budget', async () => {
 
   await choose(NEW_PASSWORD)
   expect(await screen.findByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
-  expect(screen.getByTestId('location').textContent).toBe('/buget')
+  expect(screen.getByTestId('location').textContent).toMatch(/^\/buget\/\d{2}-\d{2}$/)
   expect(sentBody(fetchMock, '/api/auth/reset-password')).toEqual({ token: TOKEN, password: NEW_PASSWORD })
 })
 

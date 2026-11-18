@@ -26,6 +26,8 @@
   --color-line-strong: var(--line-strong);
   --color-gold: var(--gold);
   --color-danger: var(--danger);
+  --color-income: var(--brand);
+  --color-expense: var(--expense);
   --color-on-danger: var(--on-danger);
   --color-info: var(--info);
   --color-warning: var(--warning);
@@ -56,6 +58,7 @@
   --gold: #d6a646;
   --danger: #a8352a;
   --on-danger: #ffffff;
+  --expense: #9b4a33;
   --info: #2f6683;
   --warning: #8a6214;
   --hover: #edf3ed;
@@ -80,6 +83,7 @@
     --line-strong: rgb(255 255 255 / 0.22);
     --danger: #f19a8b;
     --on-danger: #0e1110;
+    --expense: #eba58f;
     --info: #94c7e3;
     --warning: #e6bf6c;
     --hover: rgb(255 255 255 / 0.06);
@@ -101,6 +105,7 @@
   --line-strong: rgb(255 255 255 / 0.22);
   --danger: #f19a8b;
   --on-danger: #0e1110;
+  --expense: #eba58f;
   --info: #94c7e3;
   --warning: #e6bf6c;
   --hover: rgb(255 255 255 / 0.06);

@@ -54,3 +54,8 @@ export const budgetApi = {
     api<SavedEntry>(`/api/entries/${id}`, { method: 'PATCH', body: fields }),
   deleteEntry: (id: string) => api(`/api/entries/${id}`, { method: 'DELETE' }),
 }
+
+/** What a category adds up to: its income less its expenses. */
+export function categoryTotal(category: Category): number {
+  return category.entries.reduce((sum, entry) => sum + (entry.type === 'income' ? entry.amountBani : -entry.amountBani), 0)
+}

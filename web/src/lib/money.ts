@@ -1,4 +1,4 @@
-import type { Language } from '../../lib/i18n.tsx'
+import type { Language } from './i18n.tsx'
 
 /* Amounts travel and are stored as whole bani. This is where they become
    text and where typed text becomes bani again, without floating point. */
@@ -7,14 +7,18 @@ export const MAX_BANI = 999_999_999_900
 
 const locale = (language: Language) => (language === 'ro' ? 'ro-RO' : 'en-GB')
 
-/** "1.234,50 lei" in Romanian, "1,234.50 lei" in English. */
-export function formatBani(bani: number, language: Language): string {
+/** "1.234,50" in Romanian, "1,234.50" in English: the number, without the unit. */
+export function formatLei(bani: number, language: Language): string {
   const number = new Intl.NumberFormat(locale(language), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   // Whole lei and bani apart, so a large amount loses nothing on the way.
   const sign = bani < 0 ? '-' : ''
   const abs = Math.abs(bani)
-  const text = number.format(Number(`${String(Math.trunc(abs / 100))}.${String(abs % 100).padStart(2, '0')}`))
-  return `${sign}${text} lei`
+  return sign + number.format(Number(`${String(Math.trunc(abs / 100))}.${String(abs % 100).padStart(2, '0')}`))
+}
+
+/** "1.234,50 lei", for running text. */
+export function formatBani(bani: number, language: Language): string {
+  return `${formatLei(bani, language)} lei`
 }
 
 /** The amount as typed into a field: "1234.5" or "1234,50", no grouping. */

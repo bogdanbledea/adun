@@ -35,6 +35,34 @@
     outline: 2px solid var(--gold);
     outline-offset: 3px;
   }
+
+  /* While a modal is open the page behind it does not scroll. :has() covers
+     nested dialogs with no counting. */
+  html:has(dialog:modal) {
+    overflow: hidden;
+  }
+
+  /* Fades in; reduced motion is handled by the rule at the bottom. */
+  dialog:modal {
+    overscroll-behavior: contain;
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity 150ms ease-out,
+      translate 150ms ease-out;
+    @starting-style {
+      opacity: 0;
+      translate: 0 0.5rem;
+    }
+  }
+
+  dialog::backdrop {
+    background: rgb(0 0 0 / 0.55);
+    transition: opacity 150ms ease-out;
+    @starting-style {
+      opacity: 0;
+    }
+  }
 }
 
 /* A raised surface: a section, a panel, a list. Rounded and lightly
