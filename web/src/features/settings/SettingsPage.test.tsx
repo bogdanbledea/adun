@@ -134,3 +134,54 @@ describe('the password section', () => {
     expect(screen.getByLabelText('Parola actuală')).toHaveProperty('value', '')
   })
 })
+
+describe('the activity section', () => {
+  const entry = (id: number, action: string) => ({ id, action, createdAt: '2026-11-18T12:05:00.000Z' })
+
+  test('lists what changed, newest first, and shows more on request', async () => {
+    const first = Array.from({ length: 50 }, (_, i) => entry(100 - i, 'account.renamed'))
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/activity?limit=50': [200, first],
+      '/api/activity?limit=50&offset=50': [200, [entry(1, 'account.password_changed'), entry(0, 'budget.something_new')]],
+    })
+    renderApp()
+    const section = await screen.findByRole('region', { name: 'Activitate' })
+    expect((await within(section).findAllByText('Numele afișat a fost schimbat')).length).toBe(50)
+
+    await userEvent.click(within(section).getByRole('button', { name: 'Arată mai multe' }))
+    expect(await within(section).findByText('Parola a fost schimbată')).toBeDefined()
+    // An action without a text shows its name.
+    expect(within(section).getByText('budget.something_new')).toBeDefined()
+    expect(within(section).queryByRole('button', { name: 'Arată mai multe' })).toBeNull()
+    expect(fetchMock.mock.calls.filter((args) => args[0].startsWith('/api/activity')).length).toBe(2)
+  })
+
+  test('says when there is nothing yet, with nothing to erase', async () => {
+    fakeServer({ '/api/user/me': [200, testAccount], '/api/activity?limit=50': [200, []] })
+    renderApp()
+    expect(await screen.findByText('Nimic încă.')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Șterge istoricul' })).toBeNull()
+  })
+
+  test('erases the history after asking once more', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      'GET /api/activity?limit=50': [200, [entry(1, 'account.renamed')]],
+      'DELETE /api/activity': [200, { ok: true }],
+    })
+    renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Șterge istoricul' }))
+    expect(fetchMock.mock.calls.some((args) => args[1]?.method === 'DELETE')).toBe(false)
+    await userEvent.click(screen.getByRole('button', { name: 'Da, șterge' }))
+    expect(await screen.findByText('Nimic încă.')).toBeDefined()
+    expect(fetchMock.mock.calls.some((args) => args[0] === '/api/activity' && args[1]?.method === 'DELETE')).toBe(true)
+  })
+
+  test('offers to try again when the list cannot be loaded', async () => {
+    fakeServer({ '/api/user/me': [200, testAccount], '/api/activity?limit=50': [500, { error: { code: 'internal_error', message: 'x' } }] })
+    renderApp()
+    expect(await screen.findByText('A apărut o eroare neașteptată.')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Încearcă din nou' })).toBeDefined()
+  })
+})
