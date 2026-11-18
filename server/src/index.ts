@@ -29,8 +29,13 @@ try {
   process.exit(1)
 }
 
-const server = createApp({ db, log }).listen(config.port, () => {
+const server = createApp({ config, db, log }).listen(config.port, () => {
   log.info({ port: config.port, production: config.production }, 'server.listening')
+  // Behind a proxy every visitor would then share its address, and so its
+  // rate limits.
+  if (config.production && config.trustProxyHops === 0) {
+    log.warn({ hint: 'set TRUST_PROXY_HOPS=1 when a proxy or tunnel is in front' }, 'server.no_trusted_proxy')
+  }
 })
 
 let stopping = false

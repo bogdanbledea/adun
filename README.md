@@ -43,12 +43,14 @@ Other scripts: `npm test`, `npm run check` (types) and `npm run lint`.
 The server reads these environment variables once at startup and refuses to
 start on an invalid value, naming the variable. Empty values count as unset.
 
-| Variable        | Default  | Meaning                                  |
-| --------------- | -------- | ---------------------------------------- |
-| `NODE_ENV`      |          | `production` when deployed               |
-| `ADUN_DATA_DIR` | `./data` | Folder that holds the database           |
-| `PORT`          | `8080`   | Port the server listens on               |
-| `LOG_LEVEL`     | `info`   | `debug`, `info`, `warn` or `error`       |
+| Variable           | Default                 | Meaning                                                              |
+| ------------------ | ----------------------- | -------------------------------------------------------------------- |
+| `NODE_ENV`         |                         | `production` when deployed                                           |
+| `APP_URL`          | `http://localhost:5173` | Public origin of the app; required, and `https://`, in production    |
+| `ADUN_DATA_DIR`    | `./data`                | Folder that holds the database                                       |
+| `PORT`             | `8080`                  | Port the server listens on                                           |
+| `TRUST_PROXY_HOPS` | `0`                     | Reverse proxies in front; `1` behind one proxy or tunnel             |
+| `LOG_LEVEL`        | `info`                  | `debug`, `info`, `warn` or `error`                                   |
 
 Logs go to stdout, one JSON object per line ([pino](https://getpino.io));
 `npm run dev` pipes them through `pino-pretty`. Each request is logged with

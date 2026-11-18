@@ -6,9 +6,13 @@ import { LOG_LEVELS, type LogLevel } from './lib/log.ts'
 
 export interface Config {
   production: boolean
+  // Origin only, without a trailing slash, e.g. https://adun.example.com.
+  appUrl: string
   // Absolute path of the folder that holds adun.sqlite.
   dataDir: string
   port: number
+  // How many reverse proxies sit in front; decides which address is the client's.
+  trustProxyHops: number
   logLevel: LogLevel
 }
 
@@ -34,6 +38,30 @@ function integer(env: Env, name: string, fallback: number, min: number, max: num
   return value
 }
 
+function appUrl(env: Env, production: boolean): string {
+  const raw = read(env, 'APP_URL')
+  if (raw === undefined) {
+    if (production) throw new ConfigError('APP_URL is required in production')
+    return 'http://localhost:5173'
+  }
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    throw new ConfigError('APP_URL must be a URL such as https://adun.example.com')
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new ConfigError('APP_URL must start with https:// or http://')
+  }
+  if (production && url.protocol !== 'https:') {
+    throw new ConfigError('APP_URL must use https:// in production')
+  }
+  if (url.pathname !== '/' || url.search !== '' || url.hash !== '' || url.username !== '') {
+    throw new ConfigError('APP_URL must be an origin only, such as https://adun.example.com')
+  }
+  return url.origin
+}
+
 function logLevel(env: Env): LogLevel {
   const raw = read(env, 'LOG_LEVEL') ?? 'info'
   if (!(LOG_LEVELS as readonly string[]).includes(raw)) {
@@ -43,10 +71,13 @@ function logLevel(env: Env): LogLevel {
 }
 
 export function loadConfig(env: Env): Config {
+  const production = env.NODE_ENV === 'production'
   return {
-    production: env.NODE_ENV === 'production',
+    production,
+    appUrl: appUrl(env, production),
     dataDir: path.resolve(read(env, 'ADUN_DATA_DIR') ?? 'data'),
     port: integer(env, 'PORT', 8080, 1, 65535),
+    trustProxyHops: integer(env, 'TRUST_PROXY_HOPS', 0, 0, 10),
     logLevel: logLevel(env),
   }
 }
