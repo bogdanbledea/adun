@@ -1,3 +1,4 @@
+import { enPlans } from './plans.en.ts'
 import type { MessageKey } from './ro.ts'
 
 export const en: Record<MessageKey, string> = {
@@ -13,6 +14,7 @@ export const en: Record<MessageKey, string> = {
   'nav.food': 'Food',
   'nav.reminders': 'Due dates',
   'nav.accountMenu': 'Account menu',
+  'nav.plans': 'Instalment plans',
   'nav.template': 'Budget template',
   'nav.settings': 'Settings',
   'nav.privacy': 'Privacy',
@@ -229,6 +231,7 @@ export const en: Record<MessageKey, string> = {
   'activity.month.created': 'Budget month created',
   'activity.month.deleted': 'Budget month deleted',
   'activity.month.imported': 'Entries imported',
+  'activity.month.cleared': 'Month entries deleted, instalments kept',
   'activity.template': 'Template',
   'activity.from': 'from {source}',
   'activity.entries': 'entries: {count}',
@@ -236,12 +239,16 @@ export const en: Record<MessageKey, string> = {
   'activity.entry.updated': 'Entry changed',
   'activity.entry.moved': 'Entry moved to another month',
   'activity.entry.deleted': 'Entry deleted',
+  'activity.plan.created': 'Instalment plan added',
+  'activity.plan.closed': 'Instalment plan closed',
+  'activity.plan.deleted': 'Instalment plan deleted permanently',
+  'activity.installments': 'instalments: {count}',
   'privacyPage.title': 'Privacy',
   'privacyPage.intro': 'What the app keeps about you, where, and who you can ask.',
   'privacyPage.storedTitle': 'What is kept',
   'privacyPage.storedAccount': 'Your account: email address, display name, password (only as an Argon2 hash, never in plain text) and when it was created.',
   'privacyPage.storedSessions': 'Sign-in sessions: only a hash of the session cookie, with its expiry. A session expires after 30 days without use.',
-  'privacyPage.storedBudget': 'The budget: months and the template, with their categories and entries (description, type, amount). They stay until you delete them or the account.',
+  'privacyPage.storedBudget': 'The budget: months and the template, with their categories and entries (description, type, amount), and instalment plans (name, value, number of instalments, first month, purchase date). They stay until you delete them or the account.',
   'privacyPage.storedActivity': 'The activity history: what changed in the account and when, such as the name, the password or a budget entry (with its description and amount). It is kept 365 days, then removed on its own.',
   'privacyPage.storedNot': 'The app does not connect to your bank, and does not keep the IP address or browser you sign in with.',
   'privacyPage.whereTitle': 'Where',
@@ -271,6 +278,10 @@ export const en: Record<MessageKey, string> = {
   'error.category_not_found': 'This category no longer exists.',
   'error.same_month': 'A month cannot be imported into itself.',
   'error.template_entry_move': 'A template entry stays in the template.',
+  'error.plan_not_found': 'The instalment plan no longer exists.',
+  'error.plan_open': 'Close the plan before deleting it permanently.',
+  'error.installment_move': 'Instalments cannot be moved to another month.',
+  'error.installment_type': 'An instalment is an expense.',
   'error.order_changed': 'The list changed in the meantime. It has been reloaded.',
   'error.limit_reached': 'You have reached the maximum allowed. Delete some to add more.',
   'error.network_error': 'The server is not responding. Check your connection and try again.',
@@ -282,6 +293,7 @@ export const en: Record<MessageKey, string> = {
   'error.payload_too_large': 'The request is too large.',
   'error.internal_error': 'An unexpected error occurred.',
   'error.unknown': 'Something went wrong. Try again.',
+  ...enPlans,
 }
 
 export const enMottos = ['the family’s money', 'monthly peace of mind', 'what matters', 'money, not worries', 'today for tomorrow']

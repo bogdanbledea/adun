@@ -47,6 +47,18 @@ function detailsOf({ action, metadata }: ActivityEntry, t: Translate, language: 
       .filter((part) => typeof part === 'string' && part !== '')
       .join(' · ')
   }
+  if (action.startsWith('plan.')) {
+    const { name, installments, totalBani, deletedInstallments } = metadata
+    return [
+      name,
+      typeof totalBani === 'number' ? formatBani(totalBani, language) : null,
+      typeof installments === 'number' ? t('activity.installments', { count: installments }) : null,
+      month(metadata.firstMonthKey),
+      typeof deletedInstallments === 'number' ? t('activity.installments', { count: deletedInstallments }) : null,
+    ]
+      .filter((part) => typeof part === 'string' && part !== '')
+      .join(' · ')
+  }
   if (!action.startsWith('entry.')) return null
   const { description, category, type, amountBani } = metadata
   const amount = typeof amountBani === 'number' ? `${type === 'income' ? '+' : ''}${formatBani(amountBani, language)}` : null

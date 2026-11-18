@@ -1,4 +1,4 @@
-import { BellRing, LayoutTemplate, LogOut, MonitorSmartphone, Moon, Settings, ShieldCheck, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
+import { BellRing, CreditCard, LayoutTemplate, LogOut, MonitorSmartphone, Moon, Settings, ShieldCheck, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 import { useAuth, type AuthUser } from '../lib/auth.tsx'
@@ -60,6 +60,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
                 trigger={initialsFor(user)}
                 triggerClassName="ml-1 grid size-9 place-items-center rounded-full bg-brand text-xs font-semibold text-on-brand transition-colors duration-150 hover:bg-brand-deep hover:text-page"
                 items={[
+                  { label: t('nav.plans'), icon: <CreditCard />, onSelect: () => void navigate('/planuri-de-rate') },
                   { label: t('nav.template'), icon: <LayoutTemplate />, onSelect: () => void navigate('/sablon') },
                   { label: t('nav.settings'), icon: <Settings />, onSelect: () => void navigate('/setari') },
                   { label: t('nav.privacy'), icon: <ShieldCheck />, onSelect: () => void navigate('/confidentialitate') },

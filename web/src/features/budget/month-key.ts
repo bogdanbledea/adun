@@ -62,3 +62,17 @@ export function monthShort(monthKey: string, language: Language, currentYear: st
   const year = monthKey.slice(0, 4)
   return year === currentYear ? label : `${label} '${year.slice(2)}`
 }
+
+/** "20 octombrie 2026", "20 October 2026": a day (YYYY-MM-DD) as it is, or
+    the day an instant (ISO) falls on in the browser's time zone. */
+export function dayLong(date: string, language: Language): string {
+  const isDay = date.length === 10
+  const parsed = new Date(isDay ? `${date}T00:00:00Z` : date)
+  if (Number.isNaN(parsed.getTime())) return date
+  return new Intl.DateTimeFormat(locale(language), {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    ...(isDay ? { timeZone: 'UTC' } : {}),
+  }).format(parsed)
+}

@@ -2,6 +2,8 @@
    provide the same keys (the type checker enforces it). `{name}` marks a value
    filled in by t(key, { name }). */
 
+import { roPlans } from './plans.ro.ts'
+
 export const ro = {
   // Language and theme controls
   'language.switch': 'Switch to English',
@@ -17,6 +19,7 @@ export const ro = {
   'nav.food': 'Mâncare',
   'nav.reminders': 'Scadențe',
   'nav.accountMenu': 'Meniu cont',
+  'nav.plans': 'Planuri de rate',
   'nav.template': 'Șablon buget',
   'nav.settings': 'Setări',
   'nav.privacy': 'Confidențialitate',
@@ -242,6 +245,7 @@ export const ro = {
   'activity.month.created': 'Lună adăugată în buget',
   'activity.month.deleted': 'Lună ștearsă din buget',
   'activity.month.imported': 'Intrări importate',
+  'activity.month.cleared': 'Tranzacțiile lunii șterse, ratele păstrate',
   'activity.template': 'Șablon',
   'activity.from': 'din {source}',
   'activity.entries': 'intrări: {count}',
@@ -249,13 +253,17 @@ export const ro = {
   'activity.entry.updated': 'Înregistrare modificată',
   'activity.entry.moved': 'Înregistrare mutată în altă lună',
   'activity.entry.deleted': 'Înregistrare ștearsă',
+  'activity.plan.created': 'Plan de rate adăugat',
+  'activity.plan.closed': 'Plan de rate închis',
+  'activity.plan.deleted': 'Plan de rate șters definitiv',
+  'activity.installments': 'rate: {count}',
   // Privacy page
   'privacyPage.title': 'Confidențialitate',
   'privacyPage.intro': 'Ce păstrează aplicația despre tine, unde și pe cine poți întreba.',
   'privacyPage.storedTitle': 'Ce se păstrează',
   'privacyPage.storedAccount': 'Contul: adresa de email, numele afișat, parola (doar ca hash Argon2, niciodată în clar) și data la care a fost creat.',
   'privacyPage.storedSessions': 'Sesiunile de autentificare: doar un hash al cookie-ului de sesiune, cu data expirării. O sesiune expiră după 30 de zile fără folosire.',
-  'privacyPage.storedBudget': 'Bugetul: lunile și șablonul, cu categoriile și înregistrările lor (descriere, tip, sumă). Rămân până le ștergi tu sau ștergi contul.',
+  'privacyPage.storedBudget': 'Bugetul: lunile și șablonul, cu categoriile și înregistrările lor (descriere, tip, sumă), și planurile de rate (nume, valoare, număr de rate, luna primei rate, data achiziției). Rămân până le ștergi tu sau ștergi contul.',
   'privacyPage.storedActivity': 'Istoricul activității: ce s-a schimbat în cont și când, de exemplu numele, parola sau o înregistrare din buget (cu descrierea și suma ei). Se păstrează 365 de zile, apoi se șterge singur.',
   'privacyPage.storedNot': 'Aplicația nu se conectează la bancă și nu păstrează adresa IP sau browserul cu care te autentifici.',
   'privacyPage.whereTitle': 'Unde',
@@ -286,6 +294,10 @@ export const ro = {
   'error.category_not_found': 'Categoria nu mai există.',
   'error.same_month': 'O lună nu poate fi importată în ea însăși.',
   'error.template_entry_move': 'O intrare din șablon rămâne în șablon.',
+  'error.plan_not_found': 'Planul de rate nu mai există.',
+  'error.plan_open': 'Închide planul înainte de a-l șterge definitiv.',
+  'error.installment_move': 'Ratele nu pot fi mutate în altă lună.',
+  'error.installment_type': 'O rată este o cheltuială.',
   'error.order_changed': 'Lista s-a schimbat între timp. Am reîncărcat-o.',
   'error.limit_reached': 'Ai atins numărul maxim permis. Șterge din cele existente ca să adaugi altele.',
   'error.network_error': 'Serverul nu răspunde. Verifică conexiunea și încearcă din nou.',
@@ -297,6 +309,7 @@ export const ro = {
   'error.payload_too_large': 'Cererea este prea mare.',
   'error.internal_error': 'A apărut o eroare neașteptată.',
   'error.unknown': 'Ceva nu a mers. Încearcă din nou.',
+  ...roPlans,
 }
 
 export type MessageKey = keyof typeof ro

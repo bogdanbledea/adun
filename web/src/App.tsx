@@ -5,6 +5,7 @@ import { VerifyEmailPage } from './features/auth/VerifyEmailPage.tsx'
 import { BudgetPage } from './features/budget/BudgetPage.tsx'
 import { PrivacyPage } from './features/privacy/PrivacyPage.tsx'
 import { SettingsPage } from './features/settings/SettingsPage.tsx'
+import { PlansPage } from './features/plans/PlansPage.tsx'
 import { TemplatePage } from './features/template/TemplatePage.tsx'
 import { AppShell } from './layout/AppShell.tsx'
 import { NotFound } from './layout/NotFound.tsx'
@@ -69,6 +70,7 @@ export function App() {
         <Route path="/buget" element={<BudgetPage />} />
         <Route path="/buget/:month" element={<BudgetPage />} />
         <Route path="/sablon" element={<TemplatePage />} />
+        <Route path="/planuri-de-rate" element={<PlansPage />} />
         <Route path="/mancare" element={<Section title="nav.food" subtitle="food.subtitle" />} />
         <Route path="/scadente" element={<Section title="nav.reminders" subtitle="reminders.subtitle" />} />
         <Route path="/setari" element={<SettingsPage />} />
