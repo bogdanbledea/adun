@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
 import { describe, test } from 'node:test'
 import { createUser } from '../../../test/auth.ts'
-import { tempDatabase } from '../../../test/helpers.ts'
+import { tempDatabase, tempDir } from '../../../test/helpers.ts'
+import { migrate, MIGRATIONS_DIR, openDatabase } from '../../db.ts'
 
 /* The budget tables guard their own data: whatever the code above them does,
    a row cannot point at another user's month or hold an impossible value. */
@@ -56,6 +59,65 @@ describe('months', () => {
     assert.throws(() => addMonth(anaId, '2026-01'), /UNIQUE constraint failed/)
     assert.doesNotThrow(() => addMonth(ionId, '2026-01'))
   })
+})
+
+describe('the template', () => {
+  const addTemplate = (userId: string) => {
+    const id = randomUUID()
+    db.prepare('INSERT INTO months (id, user_id, is_template, created_at) VALUES (?, ?, 1, ?)').run(id, userId, now)
+    return id
+  }
+
+  test('is a month row without a key, once per user', () => {
+    const template = addTemplate(anaId)
+    assert.throws(() => addTemplate(anaId), /UNIQUE constraint failed/)
+    assert.doesNotThrow(() => addTemplate(ionId))
+    assert.doesNotThrow(() => addEntry(anaId, template, addCategory(anaId, template, 'Home')))
+  })
+
+  test('only the template has no key, and the template has none', () => {
+    assert.throws(
+      () => db.prepare('INSERT INTO months (id, user_id, created_at) VALUES (?, ?, ?)').run(randomUUID(), anaId, now),
+      /CHECK constraint failed/,
+    )
+    assert.throws(
+      () =>
+        db
+          .prepare("INSERT INTO months (id, user_id, month_key, is_template, created_at) VALUES (?, ?, '2030-01', 1, ?)")
+          .run(randomUUID(), anaId, now),
+      /CHECK constraint failed/,
+    )
+  })
+})
+
+test('adding the template keeps the months, categories and entries there were', async () => {
+  const migrationsDir = tempDir()
+  for (const name of fs.readdirSync(MIGRATIONS_DIR).filter((name) => name.endsWith('.sql'))) {
+    if (name < '0010') fs.copyFileSync(path.join(MIGRATIONS_DIR, name), path.join(migrationsDir, name))
+  }
+  const old = openDatabase(tempDir())
+  migrate(old, migrationsDir)
+  await createUser(old, 'ana@example.com')
+  const userId = (old.prepare('SELECT id FROM users').get() as { id: string }).id
+  old.prepare("INSERT INTO months (id, user_id, month_key, created_at) VALUES ('m', ?, '2026-01', ?)").run(userId, now)
+  old.prepare("INSERT INTO categories (id, user_id, month_id, name) VALUES ('c', ?, 'm', 'Home')").run(userId)
+  old
+    .prepare(
+      `INSERT INTO entries (id, user_id, month_id, category_id, description, type, amount_bani, created_at)
+       VALUES ('e', ?, 'm', 'c', 'Rent', 'expense', 100, ?)`,
+    )
+    .run(userId, now)
+
+  assert.deepEqual(migrate(old), ['0010_budget_template.sql'])
+  assert.deepEqual({ ...old.prepare('SELECT month_key, is_template FROM months').get() }, {
+    month_key: '2026-01',
+    is_template: 0,
+  })
+  assert.equal(old.prepare("SELECT count(*) AS n FROM entries WHERE month_id = 'm' AND category_id = 'c'").get()?.n, 1)
+  // The children still point at months, which still cascades.
+  old.prepare("DELETE FROM months WHERE id = 'm'").run()
+  assert.equal(old.prepare('SELECT count(*) AS n FROM entries').get()?.n, 0)
+  old.close()
 })
 
 describe('categories', () => {

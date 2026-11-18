@@ -85,7 +85,12 @@ function readMigrations(dir: string): MigrationFile[] {
 
 /* Applies pending migrations and returns the names of those it applied. A
    failing migration is rolled back and stops the run; nothing is ever reset
-   or recreated. */
+   or recreated.
+
+   Foreign keys are off while migrations run, so a migration can rebuild a
+   table the way SQLite requires (create the new one, copy, drop the old one,
+   rename) without the drop deleting the rows that point at it. Each
+   migration is checked with foreign_key_check before it commits instead. */
 export function migrate(db: Database, migrationsDir = MIGRATIONS_DIR): string[] {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -105,17 +110,26 @@ export function migrate(db: Database, migrationsDir = MIGRATIONS_DIR): string[] 
 
   const record = db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)')
   const applied: string[] = []
-  for (const migration of pending) {
-    try {
-      transaction(db, () => {
-        db.exec(migration.sql)
-        record.run(migration.version, migration.name, new Date().toISOString())
-      })
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
-      throw new MigrationError(`Migration ${migration.name} failed: ${reason}`, { cause: error })
+  // The pragma has no effect inside a transaction, so it is set around them.
+  const foreignKeys = db.prepare('PRAGMA foreign_keys').get()?.foreign_keys as number
+  db.exec('PRAGMA foreign_keys = OFF')
+  try {
+    for (const migration of pending) {
+      try {
+        transaction(db, () => {
+          db.exec(migration.sql)
+          const broken = db.prepare('PRAGMA foreign_key_check').get()
+          if (broken) throw new Error(`a row in ${String(broken.table)} points at a missing ${String(broken.parent)} row`)
+          record.run(migration.version, migration.name, new Date().toISOString())
+        })
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error)
+        throw new MigrationError(`Migration ${migration.name} failed: ${reason}`, { cause: error })
+      }
+      applied.push(migration.name)
     }
-    applied.push(migration.name)
+  } finally {
+    db.exec(`PRAGMA foreign_keys = ${foreignKeys ? 'ON' : 'OFF'}`)
   }
   return applied
 }

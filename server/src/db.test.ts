@@ -99,6 +99,48 @@ describe('migrate', () => {
     db.close()
   })
 
+  test('a migration can rebuild a table without losing the rows that point at it', () => {
+    const { db, addMigration, run } = setup({
+      '0001_a.sql': `
+        CREATE TABLE a (id INTEGER PRIMARY KEY, name TEXT NOT NULL) STRICT;
+        CREATE TABLE b (a_id INTEGER NOT NULL REFERENCES a (id) ON DELETE CASCADE) STRICT;
+        INSERT INTO a VALUES (1, 'one');
+        INSERT INTO b VALUES (1);`,
+    })
+    run()
+    addMigration(
+      '0002_rebuild_a.sql',
+      `CREATE TABLE a_new (id INTEGER PRIMARY KEY, name TEXT) STRICT;
+       INSERT INTO a_new SELECT id, name FROM a;
+       DROP TABLE a;
+       ALTER TABLE a_new RENAME TO a;`,
+    )
+    assert.deepEqual(run(), ['0002_rebuild_a.sql'])
+    assert.equal(db.prepare('SELECT count(*) AS n FROM b').get()?.n, 1)
+    assert.equal(db.prepare('PRAGMA foreign_keys').get()?.foreign_keys, 1)
+    assert.throws(() => {
+      db.exec('INSERT INTO b VALUES (2)')
+    }, /FOREIGN KEY constraint failed/)
+    db.close()
+  })
+
+  test('a migration that leaves a row pointing nowhere is rolled back', () => {
+    const { db, addMigration, run } = setup({
+      '0001_a.sql': `
+        CREATE TABLE a (id INTEGER PRIMARY KEY) STRICT;
+        CREATE TABLE b (a_id INTEGER NOT NULL REFERENCES a (id)) STRICT;
+        INSERT INTO a VALUES (1);
+        INSERT INTO b VALUES (1);`,
+    })
+    run()
+    addMigration('0002_drop_a.sql', 'DROP TABLE a; CREATE TABLE a (id INTEGER PRIMARY KEY) STRICT;')
+    assert.throws(run, /0002_drop_a\.sql failed: a row in b points at a missing a row/)
+    assert.deepEqual(versions(db), [1])
+    assert.equal(db.prepare('SELECT count(*) AS n FROM a').get()?.n, 1)
+    assert.equal(db.prepare('PRAGMA foreign_keys').get()?.foreign_keys, 1)
+    db.close()
+  })
+
   test('refuses badly named or duplicate migration files', () => {
     const bad = setup({ '1_a.sql': 'SELECT 1;' })
     assert.throws(bad.run, /not understood: 1_a\.sql/)
