@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { App } from './App.tsx'
 import { testAccount } from './test/account.ts'
 import { renderWithProviders } from './test/render.tsx'
@@ -12,6 +12,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 const renderApp = (path: string) => renderWithProviders(<App />, { path, withAuth: true })
@@ -46,4 +47,44 @@ test('an unknown address shows a page not found with a way back', async () => {
   expect(await screen.findByRole('heading', { name: 'Pagina nu există' })).toBeDefined()
   await userEvent.click(screen.getByRole('link', { name: 'Înapoi la buget' }))
   expect(screen.getByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
+})
+
+describe('account menu', () => {
+  test('shows the initials and signs out of this session', async () => {
+    const fetchMock = fakeServer({ '/api/user/me': [200, testAccount], '/api/auth/logout': [200, { ok: true }] })
+    renderApp('/mancare')
+    const menu = await screen.findByRole('button', { name: 'Meniu cont' })
+    expect(menu.textContent).toBe('AP')
+
+    await userEvent.click(menu)
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Deconectare' }))
+    expect(await screen.findByRole('heading', { name: 'Autentificare' })).toBeDefined()
+    expect(fetchMock.mock.calls.some(([path]) => path === '/api/auth/logout')).toBe(true)
+  })
+
+  test('signs out on every device', async () => {
+    const fetchMock = fakeServer({ '/api/user/me': [200, testAccount], '/api/auth/logout-all': [200, { ok: true }] })
+    renderApp('/buget')
+    await userEvent.click(await screen.findByRole('button', { name: 'Meniu cont' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Ieși de pe toate dispozitivele' }))
+    expect(await screen.findByRole('heading', { name: 'Autentificare' })).toBeDefined()
+    expect(fetchMock.mock.calls.some(([path]) => path === '/api/auth/logout-all')).toBe(true)
+  })
+
+  test('if signing out everywhere fails, this browser stays signed in', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    fakeServer({ '/api/user/me': [200, testAccount], '/api/auth/logout-all': () => Promise.reject(new TypeError('offline')) })
+    renderApp('/buget')
+    await userEvent.click(await screen.findByRole('button', { name: 'Meniu cont' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Ieși de pe toate dispozitivele' }))
+    await vi.waitFor(() => { expect(console.error).toHaveBeenCalled() })
+    expect(screen.getByRole('heading', { level: 1, name: 'Buget' })).toBeDefined()
+  })
+
+  test('opens the privacy page', async () => {
+    renderApp('/buget')
+    await userEvent.click(await screen.findByRole('button', { name: 'Meniu cont' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Confidențialitate' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Confidențialitate' })).toBeDefined()
+  })
 })

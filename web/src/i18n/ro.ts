@@ -16,6 +16,10 @@ export const ro = {
   'nav.budget': 'Buget',
   'nav.food': 'Mâncare',
   'nav.reminders': 'Scadențe',
+  'nav.accountMenu': 'Meniu cont',
+  'nav.privacy': 'Confidențialitate',
+  'nav.signOutEverywhere': 'Ieși de pe toate dispozitivele',
+  'nav.signOut': 'Deconectare',
   'footer.copyright': '© {year} adun',
   'footer.privacy': 'Confidențialitate',
 

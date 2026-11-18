@@ -1,21 +1,34 @@
-import { BellRing, Moon, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
+import { BellRing, LogOut, MonitorSmartphone, Moon, ShieldCheck, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Outlet } from 'react-router'
+import { Outlet, useNavigate } from 'react-router'
+import { useAuth, type AuthUser } from '../lib/auth.tsx'
 import { useI18n } from '../lib/i18n.tsx'
 import { useTheme } from '../lib/theme.tsx'
 import { IconButton } from '../ui/Button.tsx'
+import { Menu } from '../ui/Menu.tsx'
 import { Tabs } from '../ui/Tabs.tsx'
 import { Brand } from './Brand.tsx'
 import { Footer } from './Footer.tsx'
 
-/* The frame around every page: the brand, the three section tabs and the
-   controls (theme, language) in one row on wide screens, the tabs on a row of
-   their own below on narrow ones; then the page, then the footer. The page is
-   the matched route, or `children` when given. */
+/* The frame around every signed-in page: the brand, the three section tabs
+   and the controls (theme, language, account menu) in one row on wide
+   screens, the tabs on a row of their own below on narrow ones; then the
+   page, then the footer. The page is the matched route, or `children` when
+   given. */
+
+function initialsFor({ displayName, email }: AuthUser): string {
+  const words = displayName.trim().split(/\s+/).filter(Boolean)
+  if (words.length >= 2) return `${words[0]?.[0] ?? ''}${words[1]?.[0] ?? ''}`.toUpperCase()
+  if (words.length === 1) return (words[0] ?? '').slice(0, 2).toUpperCase()
+  return (email.split('@')[0] ?? '').slice(0, 2).toUpperCase()
+}
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const { t, toggleLanguage } = useI18n()
   const { theme, toggleTheme } = useTheme()
+  const { state, signOut, signOutEverywhere } = useAuth()
+  const navigate = useNavigate()
+  const user = state.status === 'signed_in' ? state.user : null
 
   return (
     <div className="flex min-h-dvh flex-col overflow-x-clip bg-page text-ink">
@@ -41,6 +54,23 @@ export function AppShell({ children }: { children?: ReactNode }) {
             <IconButton label={t('language.switch')} onClick={toggleLanguage} className="w-auto px-2.5 text-xs font-semibold">
               {t('language.short')}
             </IconButton>
+            {user && (
+              <Menu
+                label={t('nav.accountMenu')}
+                trigger={initialsFor(user)}
+                triggerClassName="ml-1 grid size-9 place-items-center rounded-full bg-brand text-xs font-semibold text-on-brand transition-colors duration-150 hover:bg-brand-deep hover:text-page"
+                items={[
+                  { label: t('nav.privacy'), icon: <ShieldCheck />, onSelect: () => void navigate('/confidentialitate') },
+                  'separator',
+                  {
+                    label: t('nav.signOutEverywhere'),
+                    icon: <MonitorSmartphone />,
+                    onSelect: () => { signOutEverywhere().catch(console.error) },
+                  },
+                  { label: t('nav.signOut'), icon: <LogOut />, onSelect: () => void signOut(), tone: 'danger' },
+                ]}
+              />
+            )}
           </div>
         </div>
       </header>

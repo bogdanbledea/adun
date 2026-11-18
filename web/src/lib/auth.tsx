@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router'
 import { api, setUnauthorizedHandler } from './api.ts'
 
 /* Who is signed in. The answer comes from GET /api/user/me at start-up, then
    from the sign-in response; any failure at start-up means "signed out". When
-   a request later reports that the session is gone, the state drops to signed
-   out, which unmounts the signed-in screens and with them every piece of data
-   they held. */
+   a request later reports that the session is gone, or the user signs out, the
+   state drops to signed out, which unmounts the signed-in screens and with them
+   every piece of data they held. */
 
 /** The account as GET /api/user/me and POST /api/auth/login return it. */
 export interface AuthUser {
@@ -21,12 +22,17 @@ interface AuthValue {
   state: AuthState
   /** Called by the sign-in form with the account it received. */
   signedIn: (user: AuthUser) => void
+  /** Ends this session on the server, then everything held here. */
+  signOut: () => Promise<void>
+  /** Ends every session of the account, on every device, this one included. */
+  signOutEverywhere: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' })
+  const navigate = useNavigate()
 
   useEffect(() => {
     const controller = new AbortController()
@@ -42,7 +48,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signedIn = useCallback((user: AuthUser) => { setState({ status: 'signed_in', user }) }, [])
 
-  const value = useMemo(() => ({ state, signedIn }), [state, signedIn])
+  const signedOut = useCallback(() => {
+    setState({ status: 'signed_out' })
+    // Replace, so Back does not return to a page of the signed-out account.
+    void navigate('/', { replace: true })
+  }, [navigate])
+
+  const signOut = useCallback(async () => {
+    try {
+      await api('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // Signed out here either way; the server session expires on its own.
+    }
+    signedOut()
+  }, [signedOut])
+
+  // Unlike signOut, a failure changes nothing: signing out only this browser
+  // would look as if the other devices were signed out too.
+  const signOutEverywhere = useCallback(async () => {
+    await api('/api/auth/logout-all', { method: 'POST' })
+    signedOut()
+  }, [signedOut])
+
+  const value = useMemo(
+    () => ({ state, signedIn, signOut, signOutEverywhere }),
+    [state, signedIn, signOut, signOutEverywhere],
+  )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

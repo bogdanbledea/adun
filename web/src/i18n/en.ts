@@ -12,6 +12,10 @@ export const en: Record<MessageKey, string> = {
   'nav.budget': 'Budget',
   'nav.food': 'Food',
   'nav.reminders': 'Due dates',
+  'nav.accountMenu': 'Account menu',
+  'nav.privacy': 'Privacy',
+  'nav.signOutEverywhere': 'Sign out on every device',
+  'nav.signOut': 'Sign out',
   'footer.copyright': '© {year} adun',
   'footer.privacy': 'Privacy',
 
