@@ -3,6 +3,7 @@ import { useT } from '../../lib/i18n.tsx'
 import { PageHeader } from '../../layout/PageHeader.tsx'
 import { AccountSection } from './AccountSection.tsx'
 import { ActivitySection } from './ActivitySection.tsx'
+import { DeleteAccountSection } from './DeleteAccountSection.tsx'
 import { PasswordSection } from './PasswordSection.tsx'
 
 /* /setari: the account and what can be done with it. The account comes from
@@ -20,6 +21,7 @@ export function SettingsPage() {
         <AccountSection user={state.user} />
         <PasswordSection />
         <ActivitySection />
+        <DeleteAccountSection />
       </div>
     </>
   )

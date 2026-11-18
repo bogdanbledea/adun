@@ -185,3 +185,39 @@ describe('the activity section', () => {
     expect(screen.getByRole('button', { name: 'Încearcă din nou' })).toBeDefined()
   })
 })
+
+describe('deleting the account', () => {
+  async function deleteWith(password: string) {
+    await userEvent.click(await screen.findByRole('button', { name: 'Șterge contul' }))
+    await userEvent.type(screen.getByLabelText('Parola, pentru confirmare'), password)
+    await userEvent.click(screen.getByRole('button', { name: 'Șterge definitiv' }))
+  }
+
+  test('confirms the password, deletes the account and signs out', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/auth/confirm-password': [200, { ok: true }],
+      'DELETE /api/user': [200, { ok: true }],
+      '/api/auth/logout': [200, { ok: true }],
+    })
+    renderApp()
+    await deleteWith('Corect-cal-baterie-1')
+
+    expect(await screen.findByRole('heading', { name: 'Autentificare' })).toBeDefined()
+    expect(sentBody(fetchMock, '/api/auth/confirm-password')).toEqual({ password: 'Corect-cal-baterie-1' })
+    const paths = fetchMock.mock.calls.map((args) => `${args[1]?.method ?? 'GET'} ${args[0]}`)
+    expect(paths.indexOf('DELETE /api/user')).toBeGreaterThan(paths.indexOf('POST /api/auth/confirm-password'))
+  })
+
+  test('with a wrong password, deletes nothing and says so', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/auth/confirm-password': [401, { error: { code: 'wrong_password', message: 'The password is not correct.' } }],
+    })
+    renderApp()
+    await deleteWith('Gresit-dar-lung-1')
+    expect(await screen.findByText('Parola nu este corectă.')).toBeDefined()
+    expect(fetchMock.mock.calls.some((args) => args[0] === '/api/user' && args[1]?.method === 'DELETE')).toBe(false)
+    expect(screen.getByRole('heading', { level: 1, name: 'Setări' })).toBeDefined()
+  })
+})
