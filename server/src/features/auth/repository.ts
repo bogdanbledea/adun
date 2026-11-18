@@ -145,8 +145,13 @@ export function revokeOldestSessions(db: Database, userId: string, keep: number,
   ).run({ now, userId, keep })
 }
 
-export function revokeUserSessions(db: Database, userId: string, now: string): void {
-  db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, userId)
+/** Ends every live session of the account, except `keepSessionId` if given. */
+export function revokeUserSessions(db: Database, userId: string, now: string, keepSessionId: string | null = null): void {
+  db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND id IS NOT ?').run(
+    now,
+    userId,
+    keepSessionId,
+  )
 }
 
 // ── Email link tokens ───────────────────────────────────────────────────────

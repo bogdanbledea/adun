@@ -11,6 +11,7 @@ import { findUser } from '../user/repository.ts'
 import { confirmEmail } from './confirmation.ts'
 import { mayEmail } from './email-limits.ts'
 import { PASSWORD_MAX_LENGTH, passwordProblem } from './password.ts'
+import { changePassword } from './password-change.ts'
 import { resetPassword } from './password-reset.ts'
 import { currentSession, requireAuth } from './require-auth.ts'
 import * as auth from './service.ts'
@@ -51,6 +52,11 @@ const verifyBody = z.object({
   token: z.string().max(200),
   // Needed only where the link was not asked for (confirmation.ts).
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH).optional(),
+})
+
+const changePasswordBody = z.object({
+  currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  newPassword: z.string(),
 })
 
 const resetBody = z.object({
@@ -237,6 +243,14 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
     const token = readSessionToken(req, config)
     if (token) auth.logout(db, token)
     clearSessionCookie(res, config)
+    res.json({ ok: true })
+  })
+
+  // Keeps this session and ends every other one (password-change.ts).
+  router.post('/change-password', requireAuth(db, config), async (req, res) => {
+    const body = validate(changePasswordBody, req.body)
+    requireStrongPassword(body.newPassword)
+    await changePassword(db, req.log, currentSession(res), body.currentPassword, body.newPassword)
     res.json({ ok: true })
   })
 
