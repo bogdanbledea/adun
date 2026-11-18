@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import { appClient, createUser, signIn, TEST_PASSWORD } from '../../../test/auth.ts'
+import { appClient, createUser, EMAIL_ENV, signIn, TEST_PASSWORD } from '../../../test/auth.ts'
 import { tempDatabase } from '../../../test/helpers.ts'
+import { memoryMailer } from '../../email/mailer.ts'
 import { issueToken } from './tokens.ts'
 
 const { db, dataDir } = tempDatabase()
@@ -78,5 +79,39 @@ describe('POST /api/auth/change-password', () => {
     const res = await change(null, { currentPassword: NEW_PASSWORD, newPassword: TEST_PASSWORD })
     assert.equal(res.status, 401)
     assert.equal(await codeOf(res), 'unauthorized')
+  })
+})
+
+describe('with email on', async () => {
+  const mailer = memoryMailer()
+  const emailClient = await appClient(db, dataDir, EMAIL_ENV, mailer)
+
+  test('tells the owner, in their language, with a link to ask for a new password', async () => {
+    const ion = await signIn(emailClient, 'ion@example.com')
+    const res = await emailClient.request('POST', '/api/auth/change-password', {
+      body: { currentPassword: TEST_PASSWORD, newPassword: NEW_PASSWORD, language: 'en' },
+      headers: { cookie: ion },
+    })
+    assert.equal(res.status, 200)
+    for (let i = 0; i < 50 && mailer.sent.length < 1; i++) await new Promise((resolve) => setTimeout(resolve, 10))
+
+    const email = mailer.sent[0]
+    assert.ok(email)
+    assert.equal(email.kind, 'password_changed')
+    assert.equal(email.to, 'ion@example.com')
+    assert.equal(email.subject, 'Your adun password was changed')
+    assert.ok(email.text.includes('http://app.test/parola-uitata'))
+  })
+
+  test('sends nothing when the current password is wrong', async () => {
+    const before = mailer.sent.length
+    const ion = await signIn(emailClient, 'ion@example.com', NEW_PASSWORD)
+    const res = await emailClient.request('POST', '/api/auth/change-password', {
+      body: { currentPassword: TEST_PASSWORD, newPassword: 'Inca-una-buna-3' },
+      headers: { cookie: ion },
+    })
+    assert.equal(res.status, 401)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    assert.equal(mailer.sent.length, before)
   })
 })

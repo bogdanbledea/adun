@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { Config } from '../../config.ts'
 import type { Database } from '../../db.ts'
 import type { Mailer } from '../../email/mailer.ts'
-import { accountExists, passwordReset, verifyEmail } from '../../email/templates.ts'
+import { accountExists, passwordChanged, passwordReset, verifyEmail } from '../../email/templates.ts'
 import { badRequest, forbidden, unauthorized } from '../../http/errors.ts'
 import { validate } from '../../http/validate.ts'
 import type { Logger } from '../../lib/log.ts'
@@ -57,6 +57,7 @@ const verifyBody = z.object({
 const changePasswordBody = z.object({
   currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
   newPassword: z.string(),
+  language,
 })
 
 const resetBody = z.object({
@@ -246,12 +247,23 @@ export function authRoutes({ db, config, mailer }: AuthDeps): Router {
     res.json({ ok: true })
   })
 
-  // Keeps this session and ends every other one (password-change.ts).
+  /* Keeps this session and ends every other one (password-change.ts). With
+     email on, the owner is told, with a way back in should it not have been
+     them. Only a signed-in owner can cause it, so it has no per-address limit. */
   router.post('/change-password', requireAuth(db, config), async (req, res) => {
     const body = validate(changePasswordBody, req.body)
     requireStrongPassword(body.newPassword)
-    await changePassword(db, req.log, currentSession(res), body.currentPassword, body.newPassword)
+    const session = currentSession(res)
+    await changePassword(db, req.log, session, body.currentPassword, body.newPassword)
     res.json({ ok: true })
+
+    const user = config.email ? findUser(db, session.userId) : null
+    if (!user) return
+    const resetUrl = `${config.appUrl}/parola-uitata`
+    void mailer.send('password_changed', {
+      to: user.email,
+      ...passwordChanged(body.language, { displayName: user.displayName, resetUrl }),
+    })
   })
 
   // Ends every session of the account, on every device, this one included.

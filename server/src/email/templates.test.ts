@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import { accountExists, firstNameOf, passwordReset, verifyEmail, type Language } from './templates.ts'
+import { accountExists, firstNameOf, passwordChanged, passwordReset, verifyEmail, type Language } from './templates.ts'
 
 const URL = 'https://adun.example.com/verifica-email#token=abc'
 
@@ -26,6 +26,7 @@ describe('emails', () => {
     verifyEmail(language, { displayName: 'Ana Popescu', url: URL }),
     passwordReset(language, { displayName: 'Ana Popescu', url: URL }),
     accountExists(language, { displayName: 'Ana Popescu', signInUrl: URL, resetUrl: URL }),
+    passwordChanged(language, { displayName: 'Ana Popescu', resetUrl: URL }),
   ]
 
   test('each has a subject, and its link in both the text and the HTML', () => {

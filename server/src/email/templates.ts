@@ -154,3 +154,35 @@ export function accountExists(
     ],
   })
 }
+
+/** Sent after the password is changed from the settings, so the owner learns
+    of a change they did not make while there is still time to undo it. */
+export function passwordChanged(
+  language: Language,
+  { displayName, resetUrl }: { displayName: string; resetUrl: string },
+): RenderedEmail {
+  if (language === 'en') {
+    return render({
+      language,
+      subject: 'Your adun password was changed',
+      greeting: greet(language, displayName),
+      before: [
+        'The password of your adun account was just changed, and every other device was signed out.',
+        'If it was you, there is nothing to do. If not, ask for a new password now: the link comes to this address.',
+      ],
+      button: { label: 'Ask for a new password', url: resetUrl },
+      after: [],
+    })
+  }
+  return render({
+    language,
+    subject: 'Parola adun a fost schimbată',
+    greeting: greet(language, displayName),
+    before: [
+      'Parola contului tău adun tocmai a fost schimbată, iar celelalte dispozitive au fost deconectate.',
+      'Dacă ai fost tu, nu trebuie să faci nimic. Dacă nu, cere acum o parolă nouă: linkul vine pe această adresă.',
+    ],
+    button: { label: 'Cere o parolă nouă', url: resetUrl },
+    after: [],
+  })
+}
