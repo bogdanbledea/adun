@@ -117,8 +117,9 @@ the host's cron, followed by copying the file somewhere else.
 `scripts/container-test.sh <image>` checks a built image: data survives
 removing the container, an upgrade backs up before it migrates, and a backup
 restores into a new volume. CI (`.github/workflows/ci.yml`) runs the checks
-of both packages, builds the image, scans it with Trivy and runs this test;
-Dependabot proposes dependency updates weekly.
+of both packages, builds the image, scans it with Trivy, and runs this test
+and the Playwright smoke test against it; Dependabot proposes dependency
+updates weekly.
 
 ## Configure
 
