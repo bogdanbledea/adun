@@ -59,7 +59,7 @@ export function AccountSection({ user }: { user: AuthUser }) {
         {status.kind === 'failed' && <Notice tone="error">{errorText(status.error, t)}</Notice>}
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="quiet" disabled={!changed || status.kind === 'saving'} onClick={() => { edit(user.displayName) }}>
-            {t('settings.cancel')}
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={!changed || status.kind === 'saving'}>
             {status.kind === 'saving' ? t('auth.saving') : t('settings.save')}

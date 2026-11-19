@@ -166,6 +166,33 @@ describe('the security section', () => {
   })
 })
 
+describe('the privacy and appearance sections', () => {
+  test('link to what the app stores', async () => {
+    fakeServer({ '/api/user/me': [200, testAccount] })
+    renderApp()
+    const section = await screen.findByRole('region', { name: 'Confidențialitate' })
+    await userEvent.click(within(section).getByRole('link', { name: 'Ce date păstrează aplicația' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Confidențialitate' })).toBeDefined()
+  })
+
+  test('choose the theme, which the header button follows, and go back to the system one', async () => {
+    fakeServer({ '/api/user/me': [200, testAccount] })
+    renderApp()
+    const section = await screen.findByRole('region', { name: 'Aspect' })
+    expect(within(section).getByRole('radio', { name: 'Sistem' })).toHaveProperty('checked', true)
+
+    await userEvent.click(within(section).getByRole('radio', { name: 'Închisă' }))
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(localStorage.getItem('theme')).toBe('dark')
+    await userEvent.click(screen.getByRole('button', { name: 'Comută pe tema deschisă' }))
+    expect(within(section).getByRole('radio', { name: 'Deschisă' })).toHaveProperty('checked', true)
+
+    await userEvent.click(within(section).getByRole('radio', { name: 'Sistem' }))
+    expect(document.documentElement.className).toBe('')
+    expect(localStorage.getItem('theme')).toBeNull()
+  })
+})
+
 describe('the activity section', () => {
   const entry = (id: number, action: string, metadata: Record<string, unknown> | null = null) => ({
     id,

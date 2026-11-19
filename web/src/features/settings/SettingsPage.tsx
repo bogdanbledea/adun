@@ -5,12 +5,15 @@ import { PageHeader } from '../../layout/PageHeader.tsx'
 import { FamilySection } from '../family/FamilySection.tsx'
 import { AccountSection } from './AccountSection.tsx'
 import { ActivitySection } from './ActivitySection.tsx'
+import { AppearanceSection } from './AppearanceSection.tsx'
 import { DataSection } from './DataSection.tsx'
 import { FoodPeriodSection } from './FoodPeriodSection.tsx'
+import { PrivacySection } from './PrivacySection.tsx'
 import { SecuritySection } from './SecuritySection.tsx'
 
-/* /setari: the account, its data and what can be done with them. The account
-   comes from the auth state, which every change here updates. */
+/* /setari: account, security, privacy, appearance, family, food period and
+   my data, with the activity history beside them. The account comes from the
+   auth state, which every change here updates. */
 
 export function SettingsPage() {
   const t = useT()
@@ -27,6 +30,8 @@ export function SettingsPage() {
         <div className="card">
           <AccountSection user={state.user} />
           <SecuritySection />
+          <PrivacySection />
+          <AppearanceSection />
           <FamilySection />
           <FoodPeriodSection user={state.user} />
           <DataSection onChanged={() => { setActivityKey((key) => key + 1) }} />
