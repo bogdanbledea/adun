@@ -8,6 +8,7 @@ import { logActivity } from '../activity/service.ts'
 import { currentSession, requireAuth } from '../auth/require-auth.ts'
 import { clearSessionCookie } from '../auth/session.ts'
 import { requireRecentPassword } from '../auth/step-up.ts'
+import { departForAccountDeletion } from '../family/service.ts'
 import { deleteUser, findUser, setDisplayName, setFoodPeriod, setLanguage } from './repository.ts'
 
 // Other fields, such as the email address, are ignored.
@@ -55,11 +56,16 @@ export function userRoutes({ db, config }: { db: Database; config: Config }): Ro
     res.json(user)
   })
 
-  // Everything the account holds goes at once; nothing is kept.
+  // Everything the account holds goes at once; nothing is kept. A family it
+  // was in carries on without it (family/service.ts).
   router.delete('/', (req, res) => {
     const { userId } = currentSession(res)
     requireRecentPassword(db, res)
-    if (!deleteUser(db, userId)) throw notFound()
+    const deleted = transaction(db, () => {
+      departForAccountDeletion(db, userId)
+      return deleteUser(db, userId)
+    })
+    if (!deleted) throw notFound()
     req.log.warn({ userId }, 'user.account_deleted')
     clearSessionCookie(res, config)
     res.json({ ok: true })

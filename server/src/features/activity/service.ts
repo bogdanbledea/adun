@@ -40,6 +40,11 @@ export type ActivityAction =
   | 'food.period_rule_set'
   | 'calendar.day_set'
   | 'calendar.day_reset'
+  | 'family.created'
+  | 'family.renamed'
+  | 'family.owner_transferred'
+  | 'family.left'
+  | 'family.dissolved'
 
 /** Records an action, with what it was about when that helps the user
     recognise it. Call it inside the transaction that makes the change. */
