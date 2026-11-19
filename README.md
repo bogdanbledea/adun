@@ -68,16 +68,38 @@ cd server && npm start
 | `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`, `backup`, `restore`, `send-test-email` |
 | `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`                                         |
 
-## Docker image
+## Docker
 
 The `Dockerfile` builds one image with the server and the built web app. It
 runs as the unprivileged `node` user, has no npm inside, keeps its data in
 the `/data` volume and listens on port 8080. Its health check calls
 `/health`.
 
+`compose.yaml` runs it with a read-only file system, every Linux capability
+dropped, `no-new-privileges`, and limits on memory and processes. The app
+listens on `127.0.0.1:8080` of the host, for a reverse proxy on the same
+machine that serves it over HTTPS (Caddy, nginx, a tunnel connector).
+
 ```sh
-docker build -t adun .
+cp .env.example .env            # then set APP_URL and, if wanted, email
+docker compose up -d            # the published image
+docker compose up -d --build    # or one built from this checkout
 ```
+
+The commands from the Data section run inside the container:
+
+```sh
+docker compose exec app node src/cli/backup.ts
+docker compose cp app:/data/backups ./backups   # a copy off the volume
+
+docker compose stop app
+docker compose run --rm -T --no-deps app node src/cli/restore.ts - < adun-backup.sqlite
+docker compose start app
+```
+
+A backup already in the volume restores with its path instead of `-`, such
+as `/data/backups/pre-migration-0020-….sqlite`. A daily backup can run from
+the host's cron, followed by copying the file somewhere else.
 
 ## Configure
 
