@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react'
 import { expect, test } from 'vitest'
 import { translate, type Language, type Translate } from '../../lib/i18n.tsx'
-import { counted, fill, formatRange, isDelivery, percent, sameName } from './food-format.ts'
+import { counted, defaultSpentOn, fill, formatRange, formatWeekday, isDelivery, percent, sameName } from './food-format.ts'
 
 test('a name is the same whatever its case and spaces', () => {
   expect(sameName(' kaufland', 'Kaufland ')).toBe(true)
@@ -44,4 +44,16 @@ test('delivery apps are told apart from shops', () => {
   expect(isDelivery('Bolt Food')).toBe(true)
   expect(isDelivery('glovo')).toBe(true)
   expect(isDelivery('Kaufland')).toBe(false)
+})
+
+test('a day is written with its weekday', () => {
+  expect(formatWeekday('2026-11-03', 'ro')).toBe('Marți, 3 nov.')
+  expect(formatWeekday('2026-11-03', 'en')).toBe('Tuesday, 3 Nov')
+})
+
+test('a new purchase starts on today, kept inside the period', () => {
+  const period = { start: '2026-11-01', end: '2026-11-30' }
+  expect(defaultSpentOn(period, '2026-11-18')).toBe('2026-11-18')
+  expect(defaultSpentOn(period, '2026-10-20')).toBe('2026-11-01')
+  expect(defaultSpentOn(period, '2026-12-02')).toBe('2026-11-30')
 })

@@ -1,5 +1,6 @@
 import { Fragment, createElement, type ReactNode } from 'react'
 import type { Language, MessageKey, Translate } from '../../lib/i18n.tsx'
+import { dayShort } from '../budget/month-key.ts'
 import { takesDe } from '../reminders/kinds.ts'
 
 /* Small helpers the food screens share. Dates are calendar days, so they are
@@ -7,6 +8,9 @@ import { takesDe } from '../reminders/kinds.ts'
 
 const locale = (language: Language) => (language === 'ro' ? 'ro-RO' : 'en-GB')
 const utc = (date: string) => new Date(`${date}T00:00:00Z`)
+
+/** Shops offered as one tap in the purchase dialog, before the ones already used. */
+export const MERCHANT_PRESETS = ['Kaufland', 'Lidl', 'Auchan', 'Bolt Food']
 
 const DELIVERY = /bolt|glovo|tazz|wolt|foodpanda|livrare|delivery/i
 
@@ -26,6 +30,19 @@ export function formatRange(start: string, end: string, language: Language): str
     utc(start),
     utc(end),
   )
+}
+
+/** "Marți, 3 nov.", "Tuesday, 3 Nov". */
+export function formatWeekday(date: string, language: Language): string {
+  const weekday = new Intl.DateTimeFormat(locale(language), { weekday: 'long', timeZone: 'UTC' }).format(utc(date))
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${dayShort(date, language)}`
+}
+
+/** Today when it falls inside the period, else the nearest end of it. */
+export function defaultSpentOn(period: { start: string; end: string }, today: string): string {
+  if (today < period.start) return period.start
+  if (today > period.end) return period.end
+  return today
 }
 
 /* A counted noun has three texts: `<base>.one`, `<base>.many` and

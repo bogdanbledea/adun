@@ -45,6 +45,25 @@ export interface FoodCurrentWeek extends FoodWeek {
   status: 'ok' | 'behind' | 'over'
 }
 
+export interface FoodPurchase {
+  id: string
+  merchant: string
+  amountBani: number
+  spentOn: string
+  note: string | null
+  sourceId: string
+  sourceName: string
+  createdAt: string
+}
+
+export interface PurchaseInput {
+  merchant: string
+  amountBani: number
+  spentOn: string
+  sourceId: string
+  note: string | null
+}
+
 interface MonthCommon {
   monthKey: string
   period: FoodPeriod
@@ -65,6 +84,7 @@ export interface FoodMonth extends MonthCommon {
   weeks: FoodWeek[]
   currentWeek: FoodCurrentWeek | null
   merchants: { name: string; totalBani: number; count: number }[]
+  purchases: FoodPurchase[]
 }
 
 export type FoodMonthData = EmptyFoodMonth | FoodMonth
@@ -83,4 +103,9 @@ export const foodApi = {
   /** The month's sources as one list; `periodStart` only when it changes. */
   saveSources: (monthKey: string, sources: SourceInput[], periodStart?: string) =>
     api<FoodMonth>(`/api/food/${monthKey}/sources?today=${today()}`, { method: 'PUT', body: { sources, periodStart } }),
+  addPurchase: (monthKey: string, input: PurchaseInput) =>
+    api<FoodPurchase>(`/api/food/${monthKey}/purchases`, { method: 'POST', body: input }),
+  updatePurchase: (id: string, input: PurchaseInput) =>
+    api<FoodPurchase>(`/api/food/purchases/${id}`, { method: 'PATCH', body: input }),
+  deletePurchase: (id: string) => api(`/api/food/purchases/${id}`, { method: 'DELETE' }),
 }

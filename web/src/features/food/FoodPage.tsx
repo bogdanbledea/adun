@@ -10,9 +10,11 @@ import { EmptyState } from '../../ui/EmptyState.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
 import { currentMonthKey, monthKeyToParam, monthLong, monthName, paramToMonthKey, shiftMonth } from '../budget/month-key.ts'
-import { foodApi, type EmptyFoodMonth, type FoodMonth, type FoodMonthData } from './food-api.ts'
+import { foodApi, type EmptyFoodMonth, type FoodMonth, type FoodMonthData, type FoodPurchase } from './food-api.ts'
 import { formatRange } from './food-format.ts'
 import { CurrentWeekPanel, MerchantsPanel, MonthPanel, SourcesPanel } from './FoodSummary.tsx'
+import { PurchaseDialog } from './PurchaseDialog.tsx'
+import { PurchaseList } from './PurchaseList.tsx'
 import { SourcesDialog } from './SourcesDialog.tsx'
 import { WeekList } from './WeekList.tsx'
 
@@ -44,7 +46,7 @@ function CurrentFoodMonth() {
   return target ? <Navigate to={`/mancare/${monthKeyToParam(target)}`} replace /> : <PageLoading />
 }
 
-type Open = { dialog: 'sources' } | null
+type Open = { dialog: 'sources' } | { dialog: 'purchase'; purchase: FoodPurchase | null } | null
 
 function FoodMonthView({ monthKey }: { monthKey: string }) {
   const { t, language } = useI18n()
@@ -74,6 +76,7 @@ function FoodMonthView({ monthKey }: { monthKey: string }) {
   }, [load])
 
   const editSources = () => { setOpen({ dialog: 'sources' }) }
+  const addPurchase = () => { setOpen({ dialog: 'purchase', purchase: null }) }
 
   let body
   if (loadError !== null && !data) {
@@ -92,7 +95,16 @@ function FoodMonthView({ monthKey }: { monthKey: string }) {
   } else if (!data.exists) {
     body = <SetupState data={data} onStart={editSources} />
   } else {
-    body = <MonthLayout data={data} week={week} onWeek={setWeek} onEditSources={editSources} />
+    body = (
+      <MonthLayout
+        data={data}
+        week={week}
+        onWeek={setWeek}
+        onEditSources={editSources}
+        onAdd={addPurchase}
+        onOpen={(purchase) => { setOpen({ dialog: 'purchase', purchase }) }}
+      />
+    )
   }
 
   const navClass = 'grid size-11 pointer-fine:size-9 shrink-0 place-items-center rounded-lg text-muted hover:bg-hover hover:text-ink [&_svg]:size-5'
@@ -135,8 +147,32 @@ function FoodMonthView({ monthKey }: { monthKey: string }) {
 
       {body}
 
+      {data?.exists && (
+        <button
+          type="button"
+          onClick={addPurchase}
+          aria-label={t('food.addPurchase')}
+          title={t('food.addPurchase')}
+          className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 flex min-h-12 items-center gap-2 rounded-full shadow-lg bg-brand px-5 font-semibold text-on-brand transition-opacity duration-150 hover:opacity-90 sm:right-6 sm:bottom-6"
+        >
+          <Plus aria-hidden="true" className="size-5" />
+          {t('food.purchaseShort')}
+        </button>
+      )}
+
       {data && open?.dialog === 'sources' && (
         <SourcesDialog data={data} onClose={() => { setOpen(null) }} onSaved={setData} />
+      )}
+      {data?.exists && open?.dialog === 'purchase' && (
+        <PurchaseDialog
+          monthKey={monthKey}
+          period={data.period}
+          sources={data.sources}
+          usedMerchants={data.merchants.map((m) => m.name)}
+          purchase={open.purchase}
+          onClose={() => { setOpen(null) }}
+          onSaved={() => void load()}
+        />
       )}
     </>
   )
@@ -149,17 +185,31 @@ interface MonthLayoutProps {
   week: number | null
   onWeek: (week: number | null) => void
   onEditSources: () => void
+  onAdd: () => void
+  onOpen: (purchase: FoodPurchase) => void
 }
 
-function MonthLayout({ data, week, onWeek, onEditSources }: MonthLayoutProps) {
+function MonthLayout({ data, week, onWeek, onEditSources, onAdd, onOpen }: MonthLayoutProps) {
   const current = data.currentWeek
   const laterWeeks = current ? data.weeks.filter((w) => w.index > current.index).length : 0
+  const filter = week === null ? null : data.weeks.find((w) => w.index === week)
+  const purchases = filter ? data.purchases.filter((p) => p.spentOn >= filter.start && p.spentOn <= filter.end) : data.purchases
   return (
     <div className="grid gap-4 pb-20 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
       <div className="contents lg:flex lg:flex-col lg:gap-4">
         {current ? <CurrentWeekPanel week={current} laterWeeks={laterWeeks} /> : <MonthPanel data={data} compact={false} />}
         <div className="order-3 lg:order-none">
           <WeekList weeks={data.weeks} selected={week} onSelect={onWeek} />
+        </div>
+        <div className="order-5 lg:order-none">
+          <PurchaseList
+            purchases={purchases}
+            week={filter ? week : null}
+            showSource={data.sources.length > 1}
+            onClearWeek={() => { onWeek(null) }}
+            onAdd={onAdd}
+            onOpen={onOpen}
+          />
         </div>
       </div>
       <div className="contents lg:flex lg:flex-col lg:gap-4">

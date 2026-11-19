@@ -39,6 +39,7 @@ const november: FoodMonth = {
   weeks: [],
   currentWeek: null,
   merchants: [],
+  purchases: [],
 }
 
 const renderPage = (path: string) => renderWithProviders(<App />, { path, withAuth: true })
@@ -170,4 +171,93 @@ test('the running week shows what is left, the pace and the weeks', async () => 
     'Săpt. 2 · 2–8 nov.400leicheltuit 250lei · rămas 150lei',
   ])
   expect(screen.getByRole('heading', { name: 'Pe magazine' })).toBeDefined()
+})
+
+const lidl = {
+  id: 'p1',
+  merchant: 'Lidl',
+  amountBani: 8_450,
+  spentOn: '2026-11-03',
+  note: 'Plin',
+  sourceId: 's1',
+  sourceName: 'Card',
+  createdAt: '2026-11-03T10:00:00Z',
+}
+
+test('purchases are listed by day, and a week filters them', async () => {
+  const weeks = [
+    { index: 1, start: '2026-11-01', end: '2026-11-08', days: 7, allowanceBani: 0, spentBani: 0, remainingBani: 0, state: 'past' as const, estimated: false, beforeStart: false },
+    { index: 2, start: '2026-11-09', end: '2026-11-15', days: 7, allowanceBani: 0, spentBani: 0, remainingBani: 0, state: 'past' as const, estimated: false, beforeStart: false },
+  ]
+  const data: FoodMonth = {
+    ...november,
+    weeks,
+    purchases: [{ ...lidl, id: 'p2', merchant: 'Bolt Food', spentOn: '2026-11-10', note: null, sourceId: 's2', sourceName: 'Cash' }, lidl],
+  }
+  fakeServer({ '/api/user/me': [200, testAccount], [at('/api/food/2026-11')]: [200, data] })
+  renderPage('/mancare/11-26')
+
+  const list = (await screen.findByRole('heading', { name: 'Cumpărături' })).closest('section') as HTMLElement
+  expect(within(list).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+    'Marți, 10 nov.84,50lei',
+    'Marți, 3 nov.84,50lei',
+  ])
+  expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+    'Bolt FoodCash84,50lei',
+    'LidlCard · Plin84,50lei',
+  ])
+
+  await userEvent.click(screen.getByRole('button', { name: /Săpt\. 2/ }))
+  expect(within(list).getAllByRole('listitem')).toHaveLength(1)
+  await userEvent.click(within(list).getByRole('button', { name: 'Arată toate cumpărăturile' }))
+  expect(within(list).getAllByRole('listitem')).toHaveLength(2)
+})
+
+test('a purchase is added from the floating button', async () => {
+  const fetchMock = fakeServer({
+    '/api/user/me': [200, testAccount],
+    [at('/api/food/2026-11')]: [200, november],
+    'POST /api/food/2026-11/purchases': [201, lidl],
+  })
+  renderPage('/mancare/11-26')
+  await userEvent.click(await screen.findByRole('button', { name: 'Adaugă o cumpărătură' }))
+  const dialog = screen.getByRole('dialog', { name: 'Cumpărătură nouă' })
+
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Adaugă' }))
+  expect(within(dialog).getByText('Scrie suma plătită, de exemplu 45,50.')).toBeDefined()
+  expect(within(dialog).getByText('Alege sau scrie magazinul.')).toBeDefined()
+
+  await userEvent.type(within(dialog).getByLabelText('Sumă (lei)'), '84,50')
+  await userEvent.click(within(dialog).getByRole('radio', { name: 'Lidl' }))
+  // The source with the most left is chosen.
+  expect(within(dialog).getByRole<HTMLInputElement>('radio', { name: /Card/ }).checked).toBe(true)
+  await userEvent.click(within(dialog).getByRole('radio', { name: /Cash/ }))
+  await userEvent.clear(within(dialog).getByLabelText('Data'))
+  await userEvent.type(within(dialog).getByLabelText('Data'), '2026-11-03')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Adaugă' }))
+
+  expect(sentBody(fetchMock, '/api/food/2026-11/purchases')).toEqual({
+    merchant: 'Lidl',
+    amountBani: 8_450,
+    spentOn: '2026-11-03',
+    sourceId: 's2',
+    note: null,
+  })
+})
+
+test('a purchase opens for editing and can be deleted', async () => {
+  const fetchMock = fakeServer({
+    '/api/user/me': [200, testAccount],
+    [at('/api/food/2026-11')]: [200, { ...november, purchases: [{ ...lidl, merchant: 'Piața Obor' }] }],
+    'DELETE /api/food/purchases/p1': [200, { ok: true }],
+  })
+  renderPage('/mancare/11-26')
+  await userEvent.click(await screen.findByRole('button', { name: /Piața Obor/ }))
+  const dialog = screen.getByRole('dialog', { name: 'Editează cumpărătura' })
+  expect(within(dialog).getByLabelText<HTMLInputElement>('Sumă (lei)').value).toBe('84,50')
+  expect(within(dialog).getByLabelText<HTMLInputElement>('Numele magazinului').value).toBe('Piața Obor')
+
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Șterge cumpărătura' }))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Da, șterge' }))
+  expect(fetchMock.mock.calls.some(([path, init]) => path === '/api/food/purchases/p1' && init?.method === 'DELETE')).toBe(true)
 })
