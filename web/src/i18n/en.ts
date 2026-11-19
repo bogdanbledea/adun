@@ -278,6 +278,7 @@ export const en: Record<MessageKey, string> = {
   'activity.account.renamed': 'Display name changed',
   'activity.account.password_changed': 'Password changed',
   'activity.account.password_reset': 'Password reset by email',
+  'activity.account.password_reset_by_admin': 'Password reset by the server administrator',
   'activity.account.logged_out_everywhere': 'Signed out on every device',
   'activity.month.created': 'Budget month created',
   'activity.month.deleted': 'Budget month deleted',

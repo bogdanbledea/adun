@@ -65,10 +65,10 @@ cd web && npm run build
 cd server && npm start
 ```
 
-| Package  | Scripts                                                                                                          |
-| -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`, `backup`, `restore`, `send-test-email` |
-| `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`                                         |
+| Package  | Scripts                                                                                                                            |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`, `backup`, `restore`, `send-test-email`, `reset-password` |
+| `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`                                                           |
 
 ## Docker
 
@@ -88,10 +88,11 @@ docker compose up -d            # the published image
 docker compose up -d --build    # or one built from this checkout
 ```
 
-The commands from the Data section run inside the container:
+The commands from the Email and Data sections run inside the container:
 
 ```sh
 docker compose exec app node src/cli/backup.ts
+docker compose exec app node src/cli/reset-password.ts user@example.com
 docker compose cp app:/data/backups ./backups   # a copy off the volume
 
 docker compose stop app
@@ -146,8 +147,9 @@ its owner a notice (at most one a day) instead of a link, and changing the
 password tells the owner, with a way to ask for a new one. Reminders send
 one email at each warning the user chose (a week before, a month before),
 from 08:00 in `TIME_ZONE`, written in the language the user last chose in
-the app. With email off, accounts work as soon as they are created, passwords
-cannot be reset by email, and reminders show only in the app.
+the app. With email off, accounts work as soon as they are created, a
+forgotten password is reset by the administrator (below), and reminders show
+only in the app.
 
 | Variable          | Default | Meaning                                                     |
 | ----------------- | ------- | ----------------------------------------------------------- |
@@ -168,6 +170,19 @@ SMTP_HOST=smtp.gmail.com SMTP_PORT=465 SMTP_USER=you@gmail.com \
 SMTP_PASSWORD='app password' EMAIL_FROM=you@gmail.com \
 npm run send-test-email -- you@example.com
 ```
+
+Without email, the administrator resets a forgotten password:
+
+```sh
+cd server
+npm run reset-password -- user@example.com
+```
+
+It prints a new password once, signs the account out everywhere, ends any
+lockout and confirms the address if it was not confirmed; the owner sees the
+reset in the activity history. Give the password to its owner privately,
+preferably not in the same message thread the request came from, and ask
+them to choose their own under Settings → Security after signing in.
 
 ## Data
 

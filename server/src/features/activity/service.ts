@@ -15,6 +15,7 @@ export type ActivityAction =
   | 'account.renamed'
   | 'account.password_changed'
   | 'account.password_reset'
+  | 'account.password_reset_by_admin'
   | 'account.logged_out_everywhere'
   | 'month.created'
   | 'month.deleted'

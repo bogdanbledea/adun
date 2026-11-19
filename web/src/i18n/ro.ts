@@ -293,6 +293,7 @@ export const ro = {
   'activity.account.renamed': 'Numele afișat a fost schimbat',
   'activity.account.password_changed': 'Parola a fost schimbată',
   'activity.account.password_reset': 'Parola a fost resetată prin email',
+  'activity.account.password_reset_by_admin': 'Parola a fost resetată de administratorul serverului',
   'activity.account.logged_out_everywhere': 'Ieșire de pe toate dispozitivele',
   'activity.month.created': 'Lună adăugată în buget',
   'activity.month.deleted': 'Lună ștearsă din buget',
