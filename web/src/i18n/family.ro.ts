@@ -1,4 +1,4 @@
-/* The family part of the settings. Spread into ro.ts. */
+/* The family part of the settings, and sharing food months. Spread into ro.ts. */
 
 export const roFamily = {
   'family.section': 'Familie',
@@ -32,6 +32,9 @@ export const roFamily = {
   'family.codeValidUntil': 'Valabil până pe {date}.',
   'family.copyCode': 'Copiază codul',
   'family.codeCopied': 'Codul a fost copiat.',
+  'family.foodTitle': 'Mâncare comună',
+  'family.foodText': 'Lunile de mâncare ale familiei sunt comune. Lunile tale de dinainte rămân doar ale tale până le partajezi.',
+  'family.shareFood': 'Partajează lunile mele',
   'family.leave': 'Părăsește familia',
   'family.leaveText': 'Lunile de mâncare rămân familiei.',
   'family.leaveTextOwner': 'Predă întâi rolul de administrator altui membru.',
@@ -39,7 +42,25 @@ export const roFamily = {
   'family.leaveConfirmTitle': 'Părăsești familia?',
   'family.leaveConfirmText': 'Nu vei mai vedea bugetul de mâncare al familiei. Poți reveni doar cu un cod nou.',
   'family.leaveConfirmTextLast': 'Familia se desface. Lunile ei de mâncare devin lunile tale personale.',
+  'family.resolveFirst': 'Rezolvă lunile',
   'family.left': 'Ai părăsit familia.',
+
+  'share.title': 'Partajează mâncarea cu familia',
+  'share.text': 'Fiecare lună trece la familie întreagă sau așteaptă să alegi. Două luni nu se amestecă niciodată.',
+  'share.loadFailed': 'Lunile nu s-au putut verifica.',
+  'share.nothing': 'Nu ai luni de mâncare personale.',
+  'share.allDone': 'Toate lunile tale sunt acum ale familiei.',
+  'share.cleanTitle': 'Fără conflict',
+  'share.cleanText': 'Familia nu are încă buget pentru aceste luni. Trec la ea așa cum sunt.',
+  'share.shareClean': 'Partajează',
+  'share.conflictsTitle': 'Familia are deja aceste luni',
+  'share.conflictsText': 'Alege pentru fiecare ce rămâne. Varianta nealeasă se șterge, cu cumpărăturile ei.',
+  'share.mine': 'A ta',
+  'share.family': 'A familiei',
+  'share.keepTheirs': 'Păstrează-o pe a familiei',
+  'share.keepMine': 'Păstrează-o pe a mea',
+  'share.familyHasPurchases': 'Luna familiei are cumpărături, deci nu poate fi înlocuită.',
+  'share.done': 'Gata',
 
   'error.family_not_member': 'Nu faci parte dintr-o familie.',
   'error.family_already_member': 'Faci deja parte dintr-o familie. Părăsește-o mai întâi.',
@@ -49,4 +70,6 @@ export const roFamily = {
   'error.family_transfer_required': 'Predă rolul de administrator altui membru înainte să pleci.',
   'error.family_dissolve_conflicts':
     'Ai luni de mâncare personale care se suprapun cu ale familiei. Alege mai întâi ce păstrezi.',
+  'error.food_no_clash': 'Luna nu mai are conflict.',
+  'error.food_family_month_has_purchases': 'Luna familiei are deja cumpărături, deci nu poate fi înlocuită.',
 }

@@ -2,6 +2,8 @@ import type { roFood } from './food.ro.ts'
 
 export const enFood: Record<keyof typeof roFood, string> = {
   'food.title': 'Food',
+  'food.shared': 'Shared with the family',
+  'food.removedAccount': 'deleted account',
   'food.previousMonth': 'Previous month',
   'food.nextMonth': 'Next month',
   'food.loadFailed': 'Could not load the food budget.',

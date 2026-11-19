@@ -5,15 +5,18 @@ interface PageHeaderProps {
   subtitle: string
   /** The page's main button or controls: under the title on phones, beside it from `sm` up. */
   action?: ReactNode
+  /** Anything more under the subtitle. */
+  children?: ReactNode
 }
 
 /** The top of a page: its title and a line about it. */
-export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, action, children }: PageHeaderProps) {
   return (
     <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-2 max-w-xl text-muted">{subtitle}</p>
+        {children}
       </div>
       {action}
     </header>

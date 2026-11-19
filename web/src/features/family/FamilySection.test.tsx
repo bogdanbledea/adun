@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { App } from '../../App.tsx'
 import { testAccount } from '../../test/account.ts'
 import { renderWithProviders } from '../../test/render.tsx'
-import type { Family, FamilyMember } from './family-api.ts'
+import type { Family, FamilyMember, SharePreview } from './family-api.ts'
 
 type Body = Record<string, unknown>
 
@@ -20,9 +20,17 @@ const family = (members: FamilyMember[], role: Family['role'] = 'owner'): Family
 const answer = (status: number, body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status }))
 const failure = (status: number, code: string) => answer(status, { error: { code, message: code } })
 
+interface Options {
+  preview?: SharePreview
+  /** The next leave answers with this error code. */
+  leaveError?: string
+}
+
 /* The settings over a fake family API that keeps its state between calls. */
-function server(start: Family | null = null) {
+function server(start: Family | null = null, { preview = { clean: [], conflicts: [] }, leaveError }: Options = {}) {
   let current = start
+  let shares = preview
+  let leaveFails = leaveError
   const fetchMock = vi.fn((path: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     const body = init?.body ? (JSON.parse(init.body as string) as Body) : {}
@@ -49,9 +57,24 @@ function server(start: Family | null = null) {
       return answer(200, current)
     }
     if (route === 'POST /api/family/leave') {
+      if (leaveFails) {
+        const code = leaveFails
+        leaveFails = undefined
+        return failure(409, code)
+      }
       const dissolved = current?.members.length === 1
       current = null
       return answer(200, { ok: true, dissolved })
+    }
+    if (route === 'GET /api/food/share/preview') return answer(200, shares)
+    if (route === 'POST /api/food/share') {
+      const moved = shares.clean.map((c) => c.monthKey)
+      shares = { ...shares, clean: [] }
+      return answer(200, { moved, skipped: shares.conflicts.map((c) => c.monthKey) })
+    }
+    if (route === 'POST /api/food/share/resolve') {
+      shares = { ...shares, conflicts: shares.conflicts.filter((c) => c.monthKey !== body.monthKey) }
+      return answer(200, body)
     }
     return failure(404, 'not_found')
   })
@@ -177,5 +200,63 @@ describe('in a family', () => {
     expect(await within(region).findByText(/Familia nu s-a încărcat\./)).toBeDefined()
     await userEvent.click(within(region).getByRole('button', { name: 'Încearcă din nou' }))
     expect(await within(region).findByRole('button', { name: 'Creează' })).toBeDefined()
+  })
+})
+
+describe('sharing food months', () => {
+  test('months without a clash move together, and then the dialog says all is done', async () => {
+    const { sent } = server(family([ana, ion]), {
+      preview: {
+        clean: [
+          { monthKey: '2026-10', mine: { totalBani: 150_000, purchaseCount: 1 } },
+          { monthKey: '2026-09', mine: { totalBani: 120_000, purchaseCount: 21 } },
+        ],
+        conflicts: [],
+      },
+    })
+    openSettings()
+    const region = await section()
+    await userEvent.click(await within(region).findByRole('button', { name: /Partajează lunile mele/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Partajează mâncarea cu familia' })
+    expect(await within(dialog).findByText('Octombrie 2026')).toBeDefined()
+    expect(within(dialog).getByText('Septembrie 2026')).toBeDefined()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Partajează' }))
+    expect(sent('POST', '/api/food/share')).toHaveLength(1)
+    expect(await within(dialog).findByText('Toate lunile tale sunt acum ale familiei.')).toBeDefined()
+  })
+
+  test('the last member settles clashing months first, then the family ends', async () => {
+    const { sent } = server(family([ana]), {
+      leaveError: 'family_dissolve_conflicts',
+      preview: {
+        clean: [],
+        conflicts: [
+          {
+            monthKey: '2026-11',
+            mine: { totalBani: 100_000, purchaseCount: 0 },
+            family: { totalBani: 150_000, purchaseCount: 1 },
+          },
+        ],
+      },
+    })
+    openSettings()
+    const region = await section()
+    await userEvent.click(await within(region).findByRole('button', { name: 'Părăsește familia' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Părăsește familia' }))
+    expect(await within(region).findByText(/se suprapun cu ale familiei/)).toBeDefined()
+
+    await userEvent.click(within(region).getByRole('button', { name: 'Rezolvă lunile' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Partajează mâncarea cu familia' })
+    expect(await within(dialog).findByText('Noiembrie 2026')).toBeDefined()
+    expect(within(dialog).getByText('1 cumpărătură')).toBeDefined()
+    expect(within(dialog).getByText('Luna familiei are cumpărături, deci nu poate fi înlocuită.')).toBeDefined()
+    expect(within(dialog).getByRole('button', { name: 'Păstrează-o pe a mea' })).toHaveProperty('disabled', true)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Păstrează-o pe a familiei' }))
+    expect(sent('POST', '/api/food/share/resolve')).toEqual([{ monthKey: '2026-11', resolution: 'keep_theirs' }])
+    await userEvent.click(await within(dialog).findByRole('button', { name: 'Gata' }))
+
+    await userEvent.click(within(region).getByRole('button', { name: 'Părăsește familia' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Părăsește familia' }))
+    expect(await within(region).findByText('Ai părăsit familia.')).toBeDefined()
   })
 })

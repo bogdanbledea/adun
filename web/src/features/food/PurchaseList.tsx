@@ -7,13 +7,14 @@ import { formatWeekday, isDelivery } from './food-format.ts'
 
 /* The month's purchases, newest day first, grouped by day with the day's
    total. A row opens the purchase for editing. The source shows when there
-   is more than one. */
+   is more than one; who added it when the month is shared. */
 
 interface PurchaseListProps {
   purchases: FoodPurchase[]
   /** The week the list is filtered to, if any. */
   week: number | null
   showSource: boolean
+  showAddedBy: boolean
   onClearWeek: () => void
   onAdd: () => void
   onOpen: (purchase: FoodPurchase) => void
@@ -29,7 +30,7 @@ function byDay(purchases: FoodPurchase[]) {
   return days
 }
 
-export function PurchaseList({ purchases, week, showSource, onClearWeek, onAdd, onOpen }: PurchaseListProps) {
+export function PurchaseList({ purchases, week, showSource, showAddedBy, onClearWeek, onAdd, onOpen }: PurchaseListProps) {
   const { t, language } = useI18n()
   return (
     <section aria-labelledby="food-purchases">
@@ -78,7 +79,9 @@ export function PurchaseList({ purchases, week, showSource, onClearWeek, onAdd, 
               <ul className="divide-y divide-line overflow-hidden card">
                 {day.items.map((purchase) => {
                   const Icon = isDelivery(purchase.merchant) ? Bike : ShoppingCart
-                  const details = [showSource ? purchase.sourceName : null, purchase.note].filter(Boolean).join(' · ')
+                  // In a shared month, a purchase whose author deleted their account says so.
+                  const author = showAddedBy ? (purchase.addedBy ?? t('food.removedAccount')) : null
+                  const details = [showSource ? purchase.sourceName : null, author, purchase.note].filter(Boolean).join(' · ')
                   return (
                     <li key={purchase.id}>
                       <button

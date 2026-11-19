@@ -2,6 +2,8 @@
 
 export const roFood = {
   'food.title': 'Mâncare',
+  'food.shared': 'Comun cu familia',
+  'food.removedAccount': 'cont șters',
   'food.previousMonth': 'Luna anterioară',
   'food.nextMonth': 'Luna următoare',
   'food.loadFailed': 'Nu am putut încărca bugetul de mâncare.',

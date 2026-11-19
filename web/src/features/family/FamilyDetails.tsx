@@ -1,6 +1,6 @@
-import { Crown, LogOut, Pencil } from 'lucide-react'
+import { Crown, LogOut, Pencil, Share2 } from 'lucide-react'
 import { useState } from 'react'
-import { errorText } from '../../lib/api.ts'
+import { ApiError, errorText } from '../../lib/api.ts'
 import { useAuth } from '../../lib/auth.tsx'
 import { useT } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
@@ -9,14 +9,15 @@ import { Notice } from '../../ui/Notice.tsx'
 import { counted } from '../food/food-format.ts'
 import { SettingRow } from '../settings/SettingsSection.tsx'
 import { familyApi, type Family, type FamilyMember } from './family-api.ts'
+import { FoodShareDialog } from './FoodShareDialog.tsx'
 import { InvitePanel } from './InvitePanel.tsx'
 import { RenameFamilyDialog } from './RenameFamilyDialog.tsx'
 
 /* In a family: its name and members, the owner's controls (rename, invite,
-   hand over the role), and leaving. The server decides who may do what; the
+   hand over the role), sharing food months, and leaving. The server decides who may do what; the
    page only hides what it would refuse. */
 
-type Open = { dialog: 'rename' | 'leave' } | { dialog: 'transfer'; member: FamilyMember } | null
+type Open = { dialog: 'rename' | 'share' | 'leave' } | { dialog: 'transfer'; member: FamilyMember } | null
 
 interface FamilyDetailsProps {
   family: Family
@@ -60,6 +61,9 @@ export function FamilyDetails({ family, onChanged, onLeft }: FamilyDetailsProps)
       onChanged(await familyApi.transfer(member.userId))
     })
 
+  // The last member has personal months that clash with the family's.
+  const mustSettle = error instanceof ApiError && error.code === 'family_dissolve_conflicts'
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3">
@@ -101,6 +105,13 @@ export function FamilyDetails({ family, onChanged, onLeft }: FamilyDetailsProps)
 
       {isOwner && <InvitePanel />}
 
+      <SettingRow title={t('family.foodTitle')} description={t('family.foodText')}>
+        <Button variant="secondary" onClick={() => { setOpen({ dialog: 'share' }) }}>
+          <Share2 />
+          {t('family.shareFood')}
+        </Button>
+      </SettingRow>
+
       <SettingRow
         title={t('family.leave')}
         description={mustTransfer ? t('family.leaveTextOwner') : alone ? t('family.leaveTextLast') : t('family.leaveText')}
@@ -111,7 +122,22 @@ export function FamilyDetails({ family, onChanged, onLeft }: FamilyDetailsProps)
         </Button>
       </SettingRow>
 
-      {error !== null && <Notice tone="error">{errorText(error, t)}</Notice>}
+      {error !== null && (
+        <div className="flex flex-col items-start gap-2">
+          <Notice tone="error">{errorText(error, t)}</Notice>
+          {mustSettle && (
+            <Button
+              variant="quiet"
+              onClick={() => {
+                setError(null)
+                setOpen({ dialog: 'share' })
+              }}
+            >
+              {t('family.resolveFirst')}
+            </Button>
+          )}
+        </div>
+      )}
 
       {open?.dialog === 'rename' && (
         <RenameFamilyDialog
@@ -123,6 +149,7 @@ export function FamilyDetails({ family, onChanged, onLeft }: FamilyDetailsProps)
           }}
         />
       )}
+      {open?.dialog === 'share' && <FoodShareDialog onClose={() => { setOpen(null) }} />}
       <ConfirmDialog
         open={open?.dialog === 'leave'}
         title={t('family.leaveConfirmTitle')}

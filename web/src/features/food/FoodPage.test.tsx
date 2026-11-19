@@ -20,6 +20,7 @@ const period = { start: '2026-11-01', end: '2026-11-30', ruleStart: '2026-11-01'
 const empty: EmptyFoodMonth = {
   monthKey: '2026-12',
   period: { start: '2026-12-01', end: '2026-12-31', ruleStart: '2026-12-01', rule: 'calendar' },
+  shared: false,
   exists: false,
   suggestedFrom: null,
   suggestedSources: [],
@@ -28,6 +29,7 @@ const empty: EmptyFoodMonth = {
 const november: FoodMonth = {
   monthKey: '2026-11',
   period,
+  shared: false,
   exists: true,
   totalBani: 170_000,
   spentBani: 27_000,
@@ -182,6 +184,7 @@ const lidl = {
   sourceId: 's1',
   sourceName: 'Card',
   createdAt: '2026-11-03T10:00:00Z',
+  addedBy: 'Ana Popescu',
 }
 
 test('purchases are listed by day, and a week filters them', async () => {
@@ -211,6 +214,31 @@ test('purchases are listed by day, and a week filters them', async () => {
   expect(within(list).getAllByRole('listitem')).toHaveLength(1)
   await userEvent.click(within(list).getByRole('button', { name: 'Arată toate cumpărăturile' }))
   expect(within(list).getAllByRole('listitem')).toHaveLength(2)
+})
+
+test('a family’s month says it is shared, and who added each purchase', async () => {
+  const data: FoodMonth = {
+    ...november,
+    shared: true,
+    purchases: [{ ...lidl, id: 'p2', merchant: 'Mega', note: null, addedBy: null }, lidl],
+  }
+  fakeServer({ '/api/user/me': [200, testAccount], [at('/api/food/2026-11')]: [200, data] })
+  renderPage('/mancare/11-26')
+
+  expect(await screen.findByText('Comun cu familia')).toBeDefined()
+  const list = (await screen.findByRole('heading', { name: 'Cumpărături' })).closest('section') as HTMLElement
+  expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+    'MegaCard · cont șters84,50lei',
+    'LidlCard · Ana Popescu · Plin84,50lei',
+  ])
+})
+
+test('a month of one’s own does not say who added a purchase', async () => {
+  fakeServer({ '/api/user/me': [200, testAccount], [at('/api/food/2026-11')]: [200, { ...november, purchases: [lidl] }] })
+  renderPage('/mancare/11-26')
+  const list = (await screen.findByRole('heading', { name: 'Cumpărături' })).closest('section') as HTMLElement
+  expect(within(list).getByRole('listitem').textContent).toBe('LidlCard · Plin84,50lei')
+  expect(screen.queryByText('Comun cu familia')).toBeNull()
 })
 
 test('a purchase is added from the floating button', async () => {

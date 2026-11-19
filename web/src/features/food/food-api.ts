@@ -54,6 +54,8 @@ export interface FoodPurchase {
   sourceId: string
   sourceName: string
   createdAt: string
+  /** Who added it; null once their account is deleted. */
+  addedBy: string | null
 }
 
 export interface PurchaseInput {
@@ -67,6 +69,8 @@ export interface PurchaseInput {
 interface MonthCommon {
   monthKey: string
   period: FoodPeriod
+  /** The family's month, shared by its members. */
+  shared: boolean
 }
 
 export interface EmptyFoodMonth extends MonthCommon {

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Copy, Plus, UtensilsCrossed } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, Plus, Users, UtensilsCrossed } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router'
 import { PageHeader } from '../../layout/PageHeader.tsx'
@@ -145,7 +145,14 @@ function FoodMonthView({ monthKey }: { monthKey: string }) {
             {data?.exists && <FoodMonthMenu data={data} onDone={() => void load()} />}
           </div>
         }
-      />
+      >
+        {data?.shared && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-0.5 text-sm font-semibold text-brand-deep">
+            <Users aria-hidden="true" className="size-4" />
+            {t('food.shared')}
+          </p>
+        )}
+      </PageHeader>
 
       {body}
 
@@ -208,6 +215,7 @@ function MonthLayout({ data, week, onWeek, onEditSources, onAdd, onOpen }: Month
             purchases={purchases}
             week={filter ? week : null}
             showSource={data.sources.length > 1}
+            showAddedBy={data.shared}
             onClearWeek={() => { onWeek(null) }}
             onAdd={onAdd}
             onOpen={onOpen}
