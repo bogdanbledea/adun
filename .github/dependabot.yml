@@ -1,0 +1,39 @@
+# Weekly update proposals. Node itself follows .nvmrc and is moved by hand,
+# so the base image only gets new builds of the same major version.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /server
+    schedule:
+      interval: weekly
+    groups:
+      server:
+        patterns: ['*']
+    ignore:
+      # typescript-eslint does not support TypeScript 7 yet.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      web:
+        patterns: ['*']
+    ignore:
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
