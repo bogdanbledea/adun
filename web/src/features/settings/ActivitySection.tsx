@@ -79,6 +79,10 @@ function detailsOf({ action, metadata }: ActivityEntry, t: Translate, language: 
     ].filter(present)
   }
   if (action.startsWith('family.')) return [metadata.name].filter(present)
+  if (action === 'data.imported') {
+    const { months, plans, reminders, foodMonths } = metadata
+    return [t('activity.imported', { months: months ?? 0, plans: plans ?? 0, reminders: reminders ?? 0, foodMonths: foodMonths ?? 0 })]
+  }
   if (action === 'food.shared') {
     const { moved, skipped } = metadata
     return [

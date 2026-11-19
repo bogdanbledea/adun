@@ -32,6 +32,8 @@ you can simply sign up to. It is not in production yet.
   insurance, road tax, gas checks and the like, with an email before they
   are due.
 - **Family** — share the food budget with the people you live with.
+- **Your data** — export it all as one file from the settings, and import it
+  into a new account, here or on another server.
 
 ## Design
 

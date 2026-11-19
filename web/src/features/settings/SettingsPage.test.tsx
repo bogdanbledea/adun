@@ -318,6 +318,100 @@ describe('deleting the account', () => {
   })
 })
 
+describe('my data', () => {
+  test('exports after the password, and saves the file', async () => {
+    const file = { format: 'adun-export', version: 1 }
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/auth/confirm-password': [200, { ok: true }],
+      'POST /api/data/export': [200, file],
+      '/api/activity?limit=50': [200, []],
+    })
+    const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:export')
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }))
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    renderApp()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Exportă' }))
+    const dialog = screen.getByRole('dialog', { name: 'Confirmă parola' })
+    await userEvent.type(within(dialog).getByLabelText('Parolă'), 'Corect-cal-baterie-1')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Continuă' }))
+
+    expect(await screen.findByText('Fișierul cu datele tale a fost descărcat.')).toBeDefined()
+    expect(sentBody(fetchMock, '/api/auth/confirm-password')).toEqual({ password: 'Corect-cal-baterie-1' })
+    const paths = fetchMock.mock.calls.map((args) => `${args[1]?.method ?? 'GET'} ${args[0]}`)
+    expect(paths.indexOf('POST /api/data/export')).toBeGreaterThan(paths.indexOf('POST /api/auth/confirm-password'))
+    expect(click).toHaveBeenCalledOnce()
+    expect(JSON.parse(await (createObjectURL.mock.calls[0]?.[0] as Blob).text())).toEqual(file)
+    click.mockRestore()
+  })
+
+  test('with a wrong password, exports nothing and says so in the dialog', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/auth/confirm-password': [401, { error: { code: 'wrong_password', message: 'The password is not correct.' } }],
+    })
+    renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Exportă' }))
+    const dialog = screen.getByRole('dialog', { name: 'Confirmă parola' })
+    await userEvent.type(within(dialog).getByLabelText('Parolă'), 'Gresit-dar-lung-1')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Continuă' }))
+    expect(await within(dialog).findByText('Parola nu este corectă.')).toBeDefined()
+    expect(fetchMock.mock.calls.some((args) => args[0] === '/api/data/export')).toBe(false)
+  })
+
+  test('imports the chosen file and loads the account again', async () => {
+    const file = { format: 'adun-export', version: 1, months: [] }
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      'POST /api/data/import': [200, { ok: true, imported: { months: 0, plans: 0, reminders: 0, foodMonths: 0 } }],
+      '/api/activity?limit=50': [200, []],
+    })
+    renderApp()
+    await screen.findByRole('button', { name: 'Importă' })
+    await userEvent.upload(screen.getByLabelText('Importă datele'), new File([JSON.stringify(file)], 'adun.json', { type: 'application/json' }))
+
+    expect(await screen.findByText('Datele din fișier au fost importate.')).toBeDefined()
+    expect(sentBody(fetchMock, '/api/data/import')).toEqual(file)
+    expect(fetchMock.mock.calls.filter((args) => args[0] === '/api/user/me')).toHaveLength(2)
+  })
+
+  test('the history says what an import brought in', async () => {
+    fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/activity?limit=50': [
+        200,
+        [
+          { id: 2, action: 'data.imported', metadata: { months: 4, plans: 1, reminders: 2, foodMonths: 3 }, createdAt: '2026-11-18T10:00:00.000Z' },
+          { id: 1, action: 'data.exported', metadata: null, createdAt: '2026-11-18T09:00:00.000Z' },
+        ],
+      ],
+    })
+    renderApp()
+    const history = (await screen.findByText('Date importate')).closest('ul') as HTMLElement
+    expect(within(history).getAllByRole('listitem').map((item) => item.querySelector('span')?.textContent)).toEqual([
+      'Date importateluni: 4, planuri: 1, scadențe: 2, luni de mâncare: 3',
+      'Date exportate',
+    ])
+  })
+
+  test('says why a file was refused, and sends nothing that is not JSON', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      'POST /api/data/import': [409, { error: { code: 'account_not_empty', message: 'Import works only…' } }],
+    })
+    renderApp()
+    await screen.findByRole('button', { name: 'Importă' })
+    const input = screen.getByLabelText('Importă datele')
+    await userEvent.upload(input, new File(['{}'], 'adun.json', { type: 'application/json' }))
+    expect(await screen.findByText('Importul merge doar într-un cont fără date, care nu face parte dintr-o familie.')).toBeDefined()
+
+    await userEvent.upload(input, new File(['not json'], 'adun.json', { type: 'application/json' }))
+    expect(await screen.findByText('Fișierul nu este un export Adun valid.')).toBeDefined()
+    expect(fetchMock.mock.calls.filter((args) => args[0] === '/api/data/import')).toHaveLength(1)
+  })
+})
+
 test('food and calendar actions in the history say what they were about', async () => {
   const entry = (id: number, action: string, metadata: Record<string, string | number>) => ({
     id,

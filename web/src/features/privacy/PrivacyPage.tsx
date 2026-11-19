@@ -49,6 +49,7 @@ export function PrivacyPage() {
 
       <Section title={t('privacyPage.controlTitle')}>
         <p>{t('privacyPage.controlText')}</p>
+        <p>{t('privacyPage.controlExport')}</p>
         <p>{t('privacyPage.controlDelete')}</p>
         <p>{t('privacyPage.controlFamily')}</p>
       </Section>
