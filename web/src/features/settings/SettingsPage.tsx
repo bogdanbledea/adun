@@ -7,7 +7,7 @@ import { AccountSection } from './AccountSection.tsx'
 import { ActivitySection } from './ActivitySection.tsx'
 import { DataSection } from './DataSection.tsx'
 import { FoodPeriodSection } from './FoodPeriodSection.tsx'
-import { PasswordSection } from './PasswordSection.tsx'
+import { SecuritySection } from './SecuritySection.tsx'
 
 /* /setari: the account, its data and what can be done with them. The account
    comes from the auth state, which every change here updates. */
@@ -26,7 +26,7 @@ export function SettingsPage() {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="card">
           <AccountSection user={state.user} />
-          <PasswordSection />
+          <SecuritySection />
           <FamilySection />
           <FoodPeriodSection user={state.user} />
           <DataSection onChanged={() => { setActivityKey((key) => key + 1) }} />

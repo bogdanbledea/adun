@@ -1,4 +1,4 @@
-import { BellRing, CreditCard, Eye, EyeOff, LayoutTemplate, LogOut, MonitorSmartphone, Moon, Settings, ShieldCheck, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
+import { BellRing, CreditCard, Eye, EyeOff, LayoutTemplate, LogOut, Moon, Settings, ShieldCheck, Sun, UtensilsCrossed, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 import { api } from '../lib/api.ts'
@@ -29,7 +29,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const { t, language, setLanguage } = useI18n()
   const { theme, toggleTheme } = useTheme()
   const { amountsHidden, toggleAmounts } = usePrivacy()
-  const { state, signOut, signOutEverywhere } = useAuth()
+  const { state, signOut } = useAuth()
   const navigate = useNavigate()
   const user = state.status === 'signed_in' ? state.user : null
 
@@ -80,11 +80,6 @@ export function AppShell({ children }: { children?: ReactNode }) {
                   { label: t('nav.settings'), icon: <Settings />, onSelect: () => void navigate('/setari') },
                   { label: t('nav.privacy'), icon: <ShieldCheck />, onSelect: () => void navigate('/confidentialitate') },
                   'separator',
-                  {
-                    label: t('nav.signOutEverywhere'),
-                    icon: <MonitorSmartphone />,
-                    onSelect: () => { signOutEverywhere().catch(console.error) },
-                  },
                   { label: t('nav.signOut'), icon: <LogOut />, onSelect: () => void signOut(), tone: 'danger' },
                 ]}
               />

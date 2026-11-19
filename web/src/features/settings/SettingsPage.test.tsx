@@ -78,71 +78,91 @@ describe('the account section', () => {
   })
 })
 
-describe('the password section', () => {
+describe('the security section', () => {
   const NEW_PASSWORD = 'Alta-parola-buna-2'
 
-  async function openForm() {
+  async function openDialog() {
     await userEvent.click(await screen.findByRole('button', { name: 'Schimbă parola' }))
+    return screen.getByRole('dialog', { name: 'Schimbă parola' })
   }
 
-  async function fill(current: string, next: string, confirm = next) {
-    await userEvent.type(screen.getByLabelText('Parola actuală'), current)
-    await userEvent.type(screen.getByLabelText('Parolă (min. 12 caractere)'), next)
-    await userEvent.type(screen.getByLabelText('Confirmă parola'), confirm)
-    await userEvent.click(screen.getByRole('button', { name: 'Schimbă parola' }))
+  async function fill(dialog: HTMLElement, current: string, next: string, confirm = next) {
+    await userEvent.type(within(dialog).getByLabelText('Parola actuală'), current)
+    await userEvent.type(within(dialog).getByLabelText('Parolă (min. 12 caractere)'), next)
+    await userEvent.type(within(dialog).getByLabelText('Confirmă parola'), confirm)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Schimbă parola' }))
   }
 
-  test('changes the password, in the language shown, and says the other devices were signed out', async () => {
+  test('changes the password, in the language shown, and says the other sessions were ended', async () => {
     const fetchMock = fakeServer({ '/api/user/me': [200, testAccount], '/api/auth/change-password': [200, { ok: true }] })
     renderApp()
-    await openForm()
-    await fill('Corect-cal-baterie-1', NEW_PASSWORD)
+    await fill(await openDialog(), 'Corect-cal-baterie-1', NEW_PASSWORD)
 
-    expect(await screen.findByText('Parola a fost schimbată. Celelalte dispozitive au ieșit din cont.')).toBeDefined()
+    expect(await screen.findByText('Parola a fost schimbată. Celelalte sesiuni au fost închise.')).toBeDefined()
     expect(sentBody(fetchMock, '/api/auth/change-password')).toEqual({
       currentPassword: 'Corect-cal-baterie-1',
       newPassword: NEW_PASSWORD,
       language: 'ro',
     })
-    expect(screen.queryByLabelText('Parola actuală')).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Schimbă parola' })).toBeNull()
   })
 
   test('checks the new password before sending it', async () => {
     const fetchMock = fakeServer({ '/api/user/me': [200, testAccount] })
     renderApp()
-    await openForm()
-    await fill('Corect-cal-baterie-1', 'scurta')
-    expect(screen.getByText('Parola trebuie să aibă cel puțin 12 caractere.')).toBeDefined()
-    await userEvent.clear(screen.getByLabelText('Parolă (min. 12 caractere)'))
-    await userEvent.clear(screen.getByLabelText('Confirmă parola'))
-    await userEvent.type(screen.getByLabelText('Parolă (min. 12 caractere)'), NEW_PASSWORD)
-    await userEvent.type(screen.getByLabelText('Confirmă parola'), 'Alta-parola-buna-3')
-    await userEvent.click(screen.getByRole('button', { name: 'Schimbă parola' }))
-    expect(screen.getByText('Parolele nu se potrivesc.')).toBeDefined()
+    const dialog = await openDialog()
+    await fill(dialog, 'Corect-cal-baterie-1', 'scurta')
+    expect(within(dialog).getByText('Parola trebuie să aibă cel puțin 12 caractere.')).toBeDefined()
+    await userEvent.clear(within(dialog).getByLabelText('Parolă (min. 12 caractere)'))
+    await userEvent.clear(within(dialog).getByLabelText('Confirmă parola'))
+    await userEvent.type(within(dialog).getByLabelText('Parolă (min. 12 caractere)'), NEW_PASSWORD)
+    await userEvent.type(within(dialog).getByLabelText('Confirmă parola'), 'Alta-parola-buna-3')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Schimbă parola' }))
+    expect(within(dialog).getByText('Parolele nu se potrivesc.')).toBeDefined()
     expect(fetchMock.mock.calls.some((args) => args[0] === '/api/auth/change-password')).toBe(false)
   })
 
-  test('says so when the current password is wrong, and stays signed in', async () => {
+  test('says so in the dialog when the current password is wrong', async () => {
     fakeServer({
       '/api/user/me': [200, testAccount],
       '/api/auth/change-password': [401, { error: { code: 'wrong_password', message: 'The password is not correct.' } }],
     })
     renderApp()
-    await openForm()
-    await fill('Gresit-dar-lung-1', NEW_PASSWORD)
-    expect(await screen.findByText('Parola nu este corectă.')).toBeDefined()
-    expect(screen.getByRole('heading', { level: 1, name: 'Setări' })).toBeDefined()
+    const dialog = await openDialog()
+    await fill(dialog, 'Gresit-dar-lung-1', NEW_PASSWORD)
+    expect(await within(dialog).findByText('Parola nu este corectă.')).toBeDefined()
   })
 
-  test('cancel closes the form and forgets what was typed', async () => {
+  test('cancel closes the dialog and forgets what was typed', async () => {
     fakeServer({ '/api/user/me': [200, testAccount] })
     renderApp()
-    await openForm()
-    await userEvent.type(screen.getByLabelText('Parola actuală'), 'ceva')
-    const section = screen.getByRole('region', { name: 'Parolă' })
-    await userEvent.click(within(section).getByRole('button', { name: 'Renunță' }))
-    await openForm()
-    expect(screen.getByLabelText('Parola actuală')).toHaveProperty('value', '')
+    const dialog = await openDialog()
+    await userEvent.type(within(dialog).getByLabelText('Parola actuală'), 'ceva')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Anulează' }))
+    expect(screen.queryByRole('dialog', { name: 'Schimbă parola' })).toBeNull()
+    expect(within(await openDialog()).getByLabelText('Parola actuală')).toHaveProperty('value', '')
+  })
+
+  test('signs out on every device after asking', async () => {
+    const fetchMock = fakeServer({ '/api/user/me': [200, testAccount], '/api/auth/logout-all': [200, { ok: true }] })
+    renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Ieși de peste tot' }))
+    expect(fetchMock.mock.calls.some(([path]) => path === '/api/auth/logout-all')).toBe(false)
+    const dialog = screen.getByRole('dialog', { name: 'Ieși de pe toate dispozitivele?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Ieși de peste tot' }))
+    expect(await screen.findByRole('heading', { name: 'Autentificare' })).toBeDefined()
+    expect(fetchMock.mock.calls.some(([path]) => path === '/api/auth/logout-all')).toBe(true)
+  })
+
+  test('if signing out everywhere fails, this browser stays signed in and says so', async () => {
+    fakeServer({ '/api/user/me': [200, testAccount], '/api/auth/logout-all': () => Promise.reject(new TypeError('offline')) })
+    renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Ieși de peste tot' }))
+    const dialog = screen.getByRole('dialog', { name: 'Ieși de pe toate dispozitivele?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Ieși de peste tot' }))
+    const section = screen.getByRole('region', { name: 'Securitate' })
+    expect(await within(section).findByRole('alert')).toBeDefined()
+    expect(screen.getByRole('heading', { level: 1, name: 'Setări' })).toBeDefined()
   })
 })
 
