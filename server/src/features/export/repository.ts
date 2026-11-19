@@ -1,8 +1,12 @@
 import type { Database } from '../../db.ts'
+import type { OverrideRow } from '../food/repository.ts'
+import type { ReminderRow } from '../reminders/repository.ts'
 
-/* SQL for the export: every row a user keeps, read at once per table and
-   grouped by the caller. Each query filters by the user ID; the food months
-   are the user's own and, while they are in a family, the family's. */
+/* SQL for the export and the import. The export reads every row a user
+   keeps, at once per table, for the caller to group. Each query filters by
+   the user ID; the food months are the user's own and, while they are in a
+   family, the family's. The import writes rows for one user, with the IDs
+   and order the caller gives. */
 
 export interface MonthRow {
   id: string
@@ -171,4 +175,126 @@ export function exportFoodPurchases(db: Database, userId: string, familyId: stri
       note: row.note as string | null,
       createdAt: row.created_at as string,
     }))
+}
+
+// ── Import ───────────────────────────────────────────────────────────────────
+
+/** Whether the user has anything an import could clash with: budget months
+    or the template, plans, reminders, food months, calendar corrections, or
+    a family. */
+export function hasData(db: Database, userId: string): boolean {
+  const row = db
+    .prepare(
+      `SELECT EXISTS (SELECT 1 FROM months WHERE user_id = ?1)
+           OR EXISTS (SELECT 1 FROM payment_plans WHERE user_id = ?1)
+           OR EXISTS (SELECT 1 FROM reminders WHERE user_id = ?1)
+           OR EXISTS (SELECT 1 FROM food_budgets WHERE user_id = ?1)
+           OR EXISTS (SELECT 1 FROM work_calendar_overrides WHERE user_id = ?1)
+           OR EXISTS (SELECT 1 FROM family_members WHERE user_id = ?1) AS found`,
+    )
+    .get(userId)
+  return row?.found === 1
+}
+
+/* One prepared statement per table, made once for the whole import. Every
+   row is written for userId. */
+export function importer(db: Database, userId: string) {
+  const month = db.prepare(
+    'INSERT INTO months (id, user_id, month_key, is_template, created_at) VALUES (?, ?, ?, ?, ?)',
+  )
+  const category = db.prepare('INSERT INTO categories (id, user_id, month_id, name, sort_order) VALUES (?, ?, ?, ?, ?)')
+  const entry = db.prepare(
+    `INSERT INTO entries (id, user_id, month_id, category_id, description, type, amount_bani, payment_date, plan_id,
+                          installment_index, sort_order, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  const plan = db.prepare(
+    `INSERT INTO payment_plans (id, user_id, name, installments, total_bani, first_month_key, category_name,
+                                purchase_date, closed_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  const reminder = db.prepare(
+    `INSERT INTO reminders (id, user_id, kind, name, subject, due_date, interval_months, lead_days, notes, is_active,
+                            created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  const budget = db.prepare(
+    'INSERT INTO food_budgets (id, user_id, month_key, period_start, plan_from, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  )
+  const source = db.prepare(
+    'INSERT INTO food_sources (id, budget_id, name, amount_bani, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  )
+  const purchase = db.prepare(
+    `INSERT INTO food_purchases (id, budget_id, source_id, user_id, merchant, amount_bani, spent_on, note, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+  const calendarDay = db.prepare(
+    'INSERT INTO work_calendar_overrides (user_id, date, kind, note, created_at) VALUES (?, ?, ?, ?, ?)',
+  )
+
+  return {
+    month(row: { id: string; monthKey: string | null; createdAt: string }) {
+      month.run(row.id, userId, row.monthKey, row.monthKey === null ? 1 : 0, row.createdAt)
+    },
+    category(row: { id: string; monthId: string; name: string; sortOrder: number }) {
+      category.run(row.id, userId, row.monthId, row.name, row.sortOrder)
+    },
+    entry(row: Omit<EntryRow, 'categoryId'> & { id: string; monthId: string; categoryId: string; sortOrder: number }) {
+      entry.run(
+        row.id,
+        userId,
+        row.monthId,
+        row.categoryId,
+        row.description,
+        row.type,
+        row.amountBani,
+        row.paymentDate,
+        row.planId,
+        row.installmentIndex,
+        row.sortOrder,
+        row.createdAt,
+      )
+    },
+    plan(row: PlanRow) {
+      plan.run(
+        row.id,
+        userId,
+        row.name,
+        row.installmentCount,
+        row.totalBani,
+        row.firstMonthKey,
+        row.categoryName,
+        row.purchaseDate,
+        row.closedAt,
+        row.createdAt,
+      )
+    },
+    reminder(row: ReminderRow) {
+      reminder.run(
+        row.id,
+        userId,
+        row.kind,
+        row.name,
+        row.subject,
+        row.dueDate,
+        row.intervalMonths,
+        JSON.stringify(row.leadDays),
+        row.notes,
+        row.isActive ? 1 : 0,
+        row.createdAt,
+      )
+    },
+    budget(row: Omit<FoodBudgetRow, 'shared'>) {
+      budget.run(row.id, userId, row.monthKey, row.periodStart, row.planFrom, row.createdAt)
+    },
+    source(row: FoodSourceRow & { sortOrder: number }) {
+      source.run(row.id, row.budgetId, row.name, row.amountBani, row.sortOrder, row.createdAt)
+    },
+    purchase(row: FoodPurchaseRow & { id: string; budgetId: string }) {
+      purchase.run(row.id, row.budgetId, row.sourceId, userId, row.merchant, row.amountBani, row.spentOn, row.note, row.createdAt)
+    },
+    calendarDay(row: OverrideRow & { createdAt: string }) {
+      calendarDay.run(userId, row.date, row.kind, row.note, row.createdAt)
+    },
+  }
 }

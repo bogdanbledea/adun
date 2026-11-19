@@ -10,7 +10,7 @@ import type { Logger } from './lib/log.ts'
 import { activityRoutes } from './features/activity/routes.ts'
 import { authRoutes } from './features/auth/routes.ts'
 import { categoryRoutes, entryRoutes, monthRoutes, templateRoutes } from './features/budget/routes.ts'
-import { dataRoutes } from './features/export/routes.ts'
+import { dataRoutes, IMPORT_PATH } from './features/export/routes.ts'
 import { familyRoutes } from './features/family/routes.ts'
 import { foodRoutes } from './features/food/routes.ts'
 import { planRoutes } from './features/plans/routes.ts'
@@ -79,7 +79,13 @@ export function createApp({
   )
   app.use(securityHeaders)
   app.use('/api', noStore)
-  app.use(express.json({ limit: '32kb' }))
+  // An import file is far larger than any other body, so its route reads it
+  // itself, once the session is known (export/routes.ts).
+  const json: express.RequestHandler = express.json({ limit: '32kb' })
+  app.use((req, res, next) => {
+    if (req.path === IMPORT_PATH) next()
+    else json(req, res, next)
+  })
   app.use(generalLimit())
   app.use('/api/auth', authLimit())
   app.use('/api/family/join', familyJoinLimit())

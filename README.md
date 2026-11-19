@@ -206,6 +206,13 @@ and template, payment plans, reminders, food months with their purchases
 rule. The file holds no email address, password, sessions or activity
 history, and no IDs. Its `version` changes only when its shape does.
 
+The file imports into an account with no data that is not in a family, on
+this server or another (`POST /api/data/import`, up to 10 MB). An older
+file is upgraded first; a file from a newer version is refused. Every row is
+checked with the app's own rules and limits, and the import is one
+transaction, so a file with one bad row changes nothing. Rows get new IDs,
+and a family's food months come back as the user's own.
+
 Amounts are kept as whole bani (1 leu = 100 bani), so totals are exact. To
 keep any one account from filling the disk, an account holds at most 600
 budget months, each with up to 200 categories and 500 entries; the template
