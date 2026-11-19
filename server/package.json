@@ -13,6 +13,7 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "migrate": "node src/cli/migrate.ts",
     "backup": "node src/cli/backup.ts",
+    "restore": "node src/cli/restore.ts",
     "send-test-email": "node src/cli/send-test-email.ts"
   },
   "dependencies": {

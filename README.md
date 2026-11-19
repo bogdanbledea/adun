@@ -150,6 +150,13 @@ kept; the server never deletes the ones made with `npm run backup`.
 A copy in the data folder is lost with the disk it is on, so copy backups
 somewhere else as well.
 
+To go back to a backup, stop the server and run
+`npm run restore -- <backup file>`. It refuses while the server has the
+database open, and refuses a file that is damaged, is not an Adun database,
+or comes from a newer version. The database it replaces is kept as
+`backups/pre-restore-<UTC time>.sqlite`. Migrations the backup does not have
+yet run when the server starts.
+
 Amounts are kept as whole bani (1 leu = 100 bani), so totals are exact. To
 keep any one account from filling the disk, an account holds at most 600
 budget months, each with up to 200 categories and 500 entries; the template

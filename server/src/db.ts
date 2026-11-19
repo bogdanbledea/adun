@@ -107,7 +107,7 @@ interface MigrationFile {
 
 const MIGRATION_NAME = /^(\d{4})_[a-z0-9_]+\.sql$/
 
-function readMigrations(dir: string): MigrationFile[] {
+export function readMigrations(dir: string): MigrationFile[] {
   const files = fs
     .readdirSync(dir)
     .filter((name) => name.endsWith('.sql'))
