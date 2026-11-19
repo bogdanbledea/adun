@@ -68,7 +68,17 @@ cd server && npm start
 | Package  | Scripts                                                                                                                            |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`, `backup`, `restore`, `send-test-email`, `reset-password` |
-| `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`                                                           |
+| `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`, `e2e` (Playwright)                                       |
+
+`npm run e2e` in `web/` is a smoke test of the built app: one new account
+goes through the app in Romanian and in English in Chromium. It starts a
+fresh container of the image named by `ADUN_E2E_IMAGE` (default `adun:dev`),
+or tests the server at `ADUN_E2E_URL` instead:
+
+```sh
+docker build -t adun:dev .
+cd web && npx playwright install chromium && npm run e2e
+```
 
 ## Docker
 

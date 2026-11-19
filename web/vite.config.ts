@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 // The API listens on its own port in development; Vite forwards to it so the
 // browser sees one origin, as in production.
@@ -23,6 +23,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // e2e/ holds the Playwright smoke test, run with npm run e2e.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     // Vitest skips stylesheets by default, which would make tokens.test.ts
     // read an empty file through ?raw.
     css: { include: [/tokens\.css/] },
