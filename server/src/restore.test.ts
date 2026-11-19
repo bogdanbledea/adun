@@ -125,7 +125,7 @@ describe('restoreDatabase', () => {
     bytes.fill(0xff, 4096, 4096 + 200)
     fs.writeFileSync(backup, bytes)
 
-    assert.throws(() => restoreDatabase(dataDir, backup, migrationsDir), refused(/damaged/))
+    assert.throws(() => restoreDatabase(dataDir, backup, migrationsDir), refused(/damaged|cannot be read/))
     assert.equal(valueIn(path.join(dataDir, 'adun.sqlite')), 2)
   })
 

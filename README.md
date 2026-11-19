@@ -166,7 +166,8 @@ To go back to a backup, stop the server and run
 database open, and refuses a file that is damaged, is not an Adun database,
 or comes from a newer version. The database it replaces is kept as
 `backups/pre-restore-<UTC time>.sqlite`. Migrations the backup does not have
-yet run when the server starts.
+yet run when the server starts. With `-` for the file, the backup is read
+from standard input.
 
 Amounts are kept as whole bani (1 leu = 100 bani), so totals are exact. To
 keep any one account from filling the disk, an account holds at most 600

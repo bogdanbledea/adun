@@ -54,17 +54,17 @@ export function restoreDatabase(dataDir: string, source: string, migrationsDir =
 /* A backup must be a sound SQLite file whose migrations are all ones this
    version knows, under the same names. Returns its last migration. */
 function checkBackup(file: string, migrationsDir: string): string {
-  const header = Buffer.alloc(16)
-  const fd = fs.openSync(file, 'r')
-  try {
-    fs.readSync(fd, header, 0, 16, 0)
-  } finally {
-    fs.closeSync(fd)
-  }
-  if (header.toString('latin1') !== 'SQLite format 3\0') throw new RestoreError('Not a SQLite database')
-
   let db: DatabaseSync | undefined
   try {
+    const header = Buffer.alloc(16)
+    const fd = fs.openSync(file, 'r')
+    try {
+      fs.readSync(fd, header, 0, 16, 0)
+    } finally {
+      fs.closeSync(fd)
+    }
+    if (header.toString('latin1') !== 'SQLite format 3\0') throw new RestoreError('Not a SQLite database')
+
     db = new DatabaseSync(file, { readOnly: true })
     const integrity = db.prepare('PRAGMA integrity_check').get()?.integrity_check
     if (integrity !== 'ok') throw new RestoreError('The backup is damaged (integrity_check failed)')
@@ -90,7 +90,7 @@ function checkBackup(file: string, migrationsDir: string): string {
   } catch (error) {
     if (error instanceof RestoreError) throw error
     const reason = error instanceof Error ? error.message : String(error)
-    throw new RestoreError(`The backup is damaged (${reason})`, { cause: error })
+    throw new RestoreError(`The backup cannot be read (${reason})`, { cause: error })
   } finally {
     db?.close()
   }
