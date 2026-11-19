@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { en } from '../src/i18n/en.ts'
 import { ro, type MessageKey } from '../src/i18n/ro.ts'
 
@@ -13,6 +13,16 @@ const dictionaries = { ro, en }
 function translator(language: Language): Translate {
   return (key, params = {}) =>
     dictionaries[language][key].replace(/\{(\w+)\}/g, (match, name: string) => (name in params ? String(params[name]) : match))
+}
+
+// A date in YYYY-MM-DD, `days` from now.
+function daysFromNow(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
+}
+
+async function openFromAccountMenu(page: Page, t: Translate, key: MessageKey) {
+  await page.getByRole('button', { name: t('nav.accountMenu') }).click()
+  await page.getByRole('menuitem', { name: t(key) }).click()
 }
 
 const PASSWORD = 'Smoke-test-pass-1!'
@@ -62,6 +72,46 @@ for (const language of ['ro', 'en'] as const) {
     await entry.getByRole('button', { name: t('common.save'), exact: true }).click()
     await expect(entry).toBeHidden()
     await expect(page.getByText('Salariu smoke')).toBeVisible()
+
+    // A payment plan, whose instalments go into the budget.
+    await openFromAccountMenu(page, t, 'nav.plans')
+    await page.getByRole('button', { name: t('plans.addFirst') }).click()
+    const plan = page.getByRole('dialog', { name: t('plans.newTitle') })
+    await plan.getByRole('textbox', { name: t('plans.name') }).fill('Frigider smoke')
+    await plan.getByRole('textbox', { name: t('plans.totalAmount') }).fill('2000')
+    await plan.getByRole('textbox', { name: t('plans.count') }).fill('3')
+    await plan.getByRole('textbox', { name: t('budget.newCategory') }).fill('Electrocasnice')
+    await plan.getByRole('button', { name: t('plans.create') }).click()
+    await expect(plan).toBeHidden()
+    await expect(page.getByText('Frigider smoke').first()).toBeVisible()
+
+    // A reminder.
+    await page.getByRole('link', { name: t('nav.reminders') }).click()
+    await page.getByRole('button', { name: t('reminders.addFirst') }).click()
+    const reminder = page.getByRole('dialog', { name: t('reminders.newTitle') })
+    await reminder.getByRole('textbox', { name: t('reminders.name') }).fill('ITP smoke')
+    await reminder.getByLabel(t('reminders.dueDate')).fill(daysFromNow(30))
+    await reminder.getByRole('button', { name: t('reminders.create') }).click()
+    await expect(reminder).toBeHidden()
+    await expect(page.getByText('ITP smoke')).toBeVisible()
+
+    // Food: the month's money, then a purchase.
+    await page.getByRole('link', { name: t('nav.food') }).click()
+    await page.getByRole('button', { name: t('food.setBudget') }).click()
+    const sources = page.getByRole('dialog')
+    await sources.getByRole('textbox', { name: t('food.sourceName', { number: 1 }) }).fill('Card')
+    await sources.getByRole('textbox', { name: t('food.sourceAmount', { number: 1 }) }).fill('1500')
+    await sources.getByRole('button', { name: t('common.save'), exact: true }).click()
+    await expect(sources).toBeHidden()
+
+    await page.getByRole('button', { name: t('food.addPurchase') }).first().click()
+    const purchase = page.getByRole('dialog', { name: t('food.newPurchase') })
+    await purchase.getByRole('textbox', { name: t('food.amount') }).fill('123,45')
+    await purchase.getByText(t('food.otherStore'), { exact: true }).click()
+    await purchase.getByRole('textbox', { name: t('food.storeName') }).fill('Piața smoke')
+    await purchase.getByRole('button', { name: t('food.add'), exact: true }).click()
+    await expect(purchase).toBeHidden()
+    await expect(page.getByText('Piața smoke').first()).toBeVisible()
 
     expect(problems, 'blocked by the CSP or thrown in the page').toEqual([])
   })
