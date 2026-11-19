@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { en } from '../src/i18n/en.ts'
 import { ro, type MessageKey } from '../src/i18n/ro.ts'
@@ -112,6 +113,36 @@ for (const language of ['ro', 'en'] as const) {
     await purchase.getByRole('button', { name: t('food.add'), exact: true }).click()
     await expect(purchase).toBeHidden()
     await expect(page.getByText('Piața smoke').first()).toBeVisible()
+
+    // Export: signing in does not count as confirming the password, so it is asked.
+    await openFromAccountMenu(page, t, 'nav.settings')
+    await page.getByRole('button', { name: t('settings.exportButton') }).click()
+    const exportStepUp = page.getByRole('dialog', { name: t('settings.confirmTitle') })
+    await exportStepUp.getByLabel(t('auth.password'), { exact: true }).fill(PASSWORD)
+    const downloading = page.waitForEvent('download')
+    await exportStepUp.getByRole('button', { name: t('settings.confirm') }).click()
+    const download = await downloading
+    const exported = JSON.parse(await readFile(await download.path(), 'utf8')) as Record<string, unknown>
+    expect(exported.format).toBe('adun-export')
+    expect(JSON.stringify(exported)).toContain('Piața smoke')
+    await expect(page.getByText(t('settings.exported'))).toBeVisible()
+
+    // Delete the account: the word first, then the password again, since one
+    // confirmation allows one action.
+    await page.getByRole('button', { name: t('settings.deleteAccount') }).click()
+    const deletion = page.getByRole('dialog', { name: t('settings.deleteAccount') })
+    await deletion.getByRole('textbox').fill(t('settings.deleteWord'))
+    await deletion.getByRole('button', { name: t('settings.deleteForever') }).click()
+    const deleteStepUp = page.getByRole('dialog', { name: t('settings.confirmTitle') })
+    await deleteStepUp.getByLabel(t('auth.password'), { exact: true }).fill(PASSWORD)
+    await deleteStepUp.getByRole('button', { name: t('settings.confirm') }).click()
+
+    // Signed out, and the account is gone.
+    await expect(page.getByRole('heading', { name: t('auth.signInTitle') })).toBeVisible()
+    await page.getByLabel(t('auth.email')).fill(email)
+    await page.getByLabel(t('auth.password'), { exact: true }).fill(PASSWORD)
+    await page.getByRole('button', { name: t('auth.signIn') }).click()
+    await expect(page.getByText(t('error.invalid_credentials'))).toBeVisible()
 
     expect(problems, 'blocked by the CSP or thrown in the page').toEqual([])
   })
