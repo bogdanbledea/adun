@@ -33,8 +33,8 @@ export function leadLabel(days: number, t: Translate): string {
 }
 
 /** Romanian puts "de" after 20 and up, unless the number ends in 01–19
-    ("7 zile", "30 de zile", "101 zile"); the texts come in both forms. */
-export const takesDe = (count: number) => count % 100 === 0 || count % 100 >= 20
+    ("0 zile", "7 zile", "30 de zile", "101 zile"); the texts come in both forms. */
+export const takesDe = (count: number) => count >= 20 && (count % 100 === 0 || count % 100 >= 20)
 
 const DAY_MS = 24 * 60 * 60 * 1000
 

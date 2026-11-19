@@ -37,6 +37,8 @@ test('days are counted with "de" from 20 up in Romanian', () => {
   expect(counted(t('ro'), 'food.count.days', 6)).toBe('6 zile')
   expect(counted(t('ro'), 'food.count.days', 21)).toBe('21 de zile')
   expect(counted(t('ro'), 'food.count.days', 101)).toBe('101 zile')
+  expect(counted(t('ro'), 'food.count.days', 200)).toBe('200 de zile')
+  expect(counted(t('ro'), 'food.count.purchases', 0)).toBe('0 cumpărături')
   expect(counted(t('en'), 'food.count.days', 21)).toBe('21 days')
 })
 
