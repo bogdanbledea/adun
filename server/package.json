@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "test": "node --test \"src/**/*.test.ts\"",
     "migrate": "node src/cli/migrate.ts",
+    "backup": "node src/cli/backup.ts",
     "send-test-email": "node src/cli/send-test-email.ts"
   },
   "dependencies": {

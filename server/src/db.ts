@@ -8,8 +8,8 @@ export const DATABASE_FILE = 'adun.sqlite'
 export const MIGRATIONS_DIR = path.resolve(import.meta.dirname, '..', 'migrations')
 
 /* Opens (or creates) <dataDir>/adun.sqlite. The process umask is tightened first
-   so the directory, the database and its WAL and SHM files are readable by
-   this user only (0700 / 0600). */
+   so the directory, the database, its WAL and SHM files and every backup are
+   readable by this user only (0700 / 0600). */
 export function openDatabase(dataDir: string): Database {
   process.umask(0o077)
   fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 })
@@ -45,6 +45,48 @@ export function transaction<T>(db: Database, fn: () => T): T {
     db.exec('ROLLBACK')
     throw error
   }
+}
+
+// ── Backups ──────────────────────────────────────────────────────────────────
+//
+// Copies go to <dataDir>/backups as <prefix>-<UTC time>.sqlite, so the names
+// sort in the order they were taken. `npm run backup` writes adun-…; the
+// server writes pre-migration-NNNN-… before it changes the schema.
+
+export const BACKUPS_DIR = 'backups'
+
+// Older pre-migration copies are deleted; the operator's own are never touched.
+const KEEP_PRE_MIGRATION = 5
+
+function fileTimestamp(date: Date): string {
+  return date.toISOString().replace(/[-:]/g, '').replace('T', '-').replace(/\.\d+Z$/, 'Z')
+}
+
+/* Writes a consistent copy of the database and returns its path. VACUUM INTO
+   reads one snapshot, so the server can keep writing meanwhile, and the copy
+   is compacted and needs no WAL file next to it. */
+export function backupDatabase(db: Database, prefix: string, now = new Date()): string {
+  const location = db.location()
+  if (location === null) throw new Error('An in-memory database has no backups')
+  const dir = path.join(path.dirname(location), BACKUPS_DIR)
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
+  const file = path.join(dir, `${prefix}-${fileTimestamp(now)}.sqlite`)
+  db.prepare('VACUUM INTO ?').run(file)
+  fs.chmodSync(file, 0o600)
+  if (prefix.startsWith('pre-migration-')) prune(dir, 'pre-migration-', KEEP_PRE_MIGRATION)
+  return file
+}
+
+// Sorted by the time at the end of the name, since the migration number before
+// it can go back down after a restore.
+function prune(dir: string, prefix: string, keep: number): void {
+  const time = (name: string) => name.slice(-'20261119-143005Z.sqlite'.length)
+  const old = fs
+    .readdirSync(dir)
+    .filter((name) => name.startsWith(prefix) && name.endsWith('.sqlite'))
+    .sort((a, b) => time(a).localeCompare(time(b)))
+    .slice(0, -keep)
+  for (const name of old) fs.rmSync(path.join(dir, name))
 }
 
 // ── Migrations ───────────────────────────────────────────────────────────────
@@ -83,15 +125,24 @@ function readMigrations(dir: string): MigrationFile[] {
   return migrations
 }
 
-/* Applies pending migrations and returns the names of those it applied. A
-   failing migration is rolled back and stops the run; nothing is ever reset
-   or recreated.
+export interface MigrationResult {
+  applied: string[]
+  // Path of the copy taken before the first pending migration, or null when
+  // nothing was pending or the database was new.
+  backup: string | null
+}
+
+/* Applies pending migrations. On a database that already has some, it first
+   writes backups/pre-migration-NNNN-<time>.sqlite, NNNN being the first
+   migration to apply; if that copy fails, nothing is applied. A failing
+   migration is rolled back and stops the run; nothing is ever reset or
+   recreated.
 
    Foreign keys are off while migrations run, so a migration can rebuild a
    table the way SQLite requires (create the new one, copy, drop the old one,
    rename) without the drop deleting the rows that point at it. Each
    migration is checked with foreign_key_check before it commits instead. */
-export function migrate(db: Database, migrationsDir = MIGRATIONS_DIR): string[] {
+export function migrate(db: Database, migrationsDir = MIGRATIONS_DIR): MigrationResult {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version INTEGER PRIMARY KEY,
@@ -107,6 +158,18 @@ export function migrate(db: Database, migrationsDir = MIGRATIONS_DIR): string[] 
       .map((row) => row.version as number),
   )
   const pending = readMigrations(migrationsDir).filter((m) => !done.has(m.version))
+  const first = pending[0]
+  if (!first) return { applied: [], backup: null }
+
+  let backup: string | null = null
+  if (done.size > 0) {
+    try {
+      backup = backupDatabase(db, `pre-migration-${String(first.version).padStart(4, '0')}`)
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      throw new MigrationError(`Backup before ${first.name} failed: ${reason}`, { cause: error })
+    }
+  }
 
   const record = db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)')
   const applied: string[] = []
@@ -131,5 +194,5 @@ export function migrate(db: Database, migrationsDir = MIGRATIONS_DIR): string[] 
   } finally {
     db.exec(`PRAGMA foreign_keys = ${foreignKeys ? 'ON' : 'OFF'}`)
   }
-  return applied
+  return { applied, backup }
 }

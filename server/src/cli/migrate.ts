@@ -7,7 +7,8 @@ import { closeDatabase, migrate, openDatabase } from '../db.ts'
 const { dataDir } = loadConfig(process.env)
 const db = openDatabase(dataDir)
 try {
-  const applied = migrate(db)
+  const { applied, backup } = migrate(db)
+  if (backup) console.log(`Backup written to ${backup}`)
   console.log(applied.length > 0 ? `Applied: ${applied.join(', ')}` : 'Database is up to date.')
 } finally {
   closeDatabase(db)

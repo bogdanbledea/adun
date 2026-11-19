@@ -3,17 +3,19 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, test } from 'node:test'
 import { tempDir } from '../test/helpers.ts'
-import { migrate, MigrationError, openDatabase, transaction, type Database } from './db.ts'
+import { DatabaseSync } from 'node:sqlite'
+import { backupDatabase, migrate, MigrationError, openDatabase, transaction, type Database } from './db.ts'
 
 function setup(files: Record<string, string>) {
   const migrationsDir = tempDir()
   for (const [name, sql] of Object.entries(files)) fs.writeFileSync(path.join(migrationsDir, name), sql)
-  const db = openDatabase(tempDir())
+  const dataDir = tempDir()
+  const db = openDatabase(dataDir)
   const addMigration = (name: string, sql: string) => {
     fs.writeFileSync(path.join(migrationsDir, name), sql)
   }
-  const run = () => migrate(db, migrationsDir)
-  return { db, addMigration, run }
+  const run = () => migrate(db, migrationsDir).applied
+  return { db, dataDir, migrationsDir, addMigration, run }
 }
 
 const tables = (db: Database) =>
@@ -154,7 +156,105 @@ describe('migrate', () => {
   test('the real migrations folder applies cleanly', () => {
     const db = openDatabase(tempDir())
     migrate(db)
-    assert.deepEqual(migrate(db), [])
+    assert.deepEqual(migrate(db), { applied: [], backup: null })
+    db.close()
+  })
+})
+
+const backups = (dataDir: string) => fs.readdirSync(path.join(dataDir, 'backups')).sort()
+
+describe('backupDatabase', () => {
+  test('writes a private copy that opens on its own', () => {
+    const { db, dataDir } = setup({})
+    db.exec('CREATE TABLE t (x INTEGER) STRICT; INSERT INTO t VALUES (1)')
+    const file = backupDatabase(db, 'adun', new Date('2026-11-19T14:30:05.123Z'))
+    db.close()
+
+    assert.equal(file, path.join(fs.realpathSync(dataDir), 'backups', 'adun-20261119-143005Z.sqlite'))
+    assert.equal(fs.statSync(path.dirname(file)).mode & 0o777, 0o700)
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600)
+    const copy = new DatabaseSync(file, { readOnly: true })
+    assert.equal(copy.prepare('SELECT x FROM t').get()?.x, 1)
+    copy.close()
+  })
+
+  test('leaves out what another connection has not committed', () => {
+    const { db, dataDir } = setup({})
+    db.exec('CREATE TABLE t (x INTEGER) STRICT; INSERT INTO t VALUES (1)')
+    const writer = new DatabaseSync(path.join(dataDir, 'adun.sqlite'))
+    writer.exec('BEGIN; INSERT INTO t VALUES (2)')
+    const file = backupDatabase(db, 'adun')
+    writer.exec('COMMIT')
+    writer.close()
+    db.close()
+
+    const copy = new DatabaseSync(file, { readOnly: true })
+    assert.deepEqual(
+      copy.prepare('SELECT x FROM t').all().map((row) => row.x),
+      [1],
+    )
+    copy.close()
+  })
+
+  test('keeps the five newest copies taken before migrations, and every other copy', () => {
+    const { db, dataDir } = setup({})
+    backupDatabase(db, 'adun', new Date('2026-01-01T00:00:00Z'))
+    for (let day = 1; day <= 7; day++) {
+      backupDatabase(db, `pre-migration-000${String(day)}`, new Date(`2026-02-0${String(day)}T00:00:00Z`))
+    }
+    db.close()
+    assert.deepEqual(backups(dataDir), [
+      'adun-20260101-000000Z.sqlite',
+      'pre-migration-0003-20260203-000000Z.sqlite',
+      'pre-migration-0004-20260204-000000Z.sqlite',
+      'pre-migration-0005-20260205-000000Z.sqlite',
+      'pre-migration-0006-20260206-000000Z.sqlite',
+      'pre-migration-0007-20260207-000000Z.sqlite',
+    ])
+  })
+})
+
+describe('migrate backups', () => {
+  test('copies the database before changing its schema', () => {
+    const { db, dataDir, migrationsDir, addMigration } = setup({
+      '0001_a.sql': 'CREATE TABLE a (id INTEGER PRIMARY KEY) STRICT;',
+    })
+    migrate(db, migrationsDir)
+    addMigration('0002_b.sql', 'CREATE TABLE b (id INTEGER PRIMARY KEY) STRICT;')
+    addMigration('0003_c.sql', 'CREATE TABLE c (id INTEGER PRIMARY KEY) STRICT;')
+    const { applied, backup } = migrate(db, migrationsDir)
+    db.close()
+
+    assert.deepEqual(applied, ['0002_b.sql', '0003_c.sql'])
+    assert.ok(backup)
+    assert.match(path.basename(backup), /^pre-migration-0002-\d{8}-\d{6}Z\.sqlite$/)
+    assert.deepEqual(backups(dataDir), [path.basename(backup)])
+    const copy = new DatabaseSync(backup, { readOnly: true })
+    assert.deepEqual(tables(copy), ['a', 'schema_migrations'])
+    copy.close()
+  })
+
+  test('takes none for a new database or when nothing is pending', () => {
+    const { db, dataDir, migrationsDir } = setup({ '0001_a.sql': 'CREATE TABLE a (id INTEGER PRIMARY KEY) STRICT;' })
+    assert.equal(migrate(db, migrationsDir).backup, null)
+    assert.equal(migrate(db, migrationsDir).backup, null)
+    db.close()
+    assert.equal(fs.existsSync(path.join(dataDir, 'backups')), false)
+  })
+
+  test('applies nothing when the copy cannot be written', () => {
+    const { db, dataDir, migrationsDir, addMigration } = setup({
+      '0001_a.sql': 'CREATE TABLE a (id INTEGER PRIMARY KEY) STRICT;',
+    })
+    migrate(db, migrationsDir)
+    addMigration('0002_b.sql', 'CREATE TABLE b (id INTEGER PRIMARY KEY) STRICT;')
+    fs.writeFileSync(path.join(dataDir, 'backups'), 'not a folder')
+
+    assert.throws(
+      () => migrate(db, migrationsDir),
+      (error: unknown) => error instanceof MigrationError && error.message.startsWith('Backup before 0002_b.sql failed'),
+    )
+    assert.deepEqual(versions(db), [1])
     db.close()
   })
 })

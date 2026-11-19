@@ -134,7 +134,7 @@ test('adding plans keeps the entries there were', () => {
     )
     .run(userId, now)
 
-  assert.equal(migrate(old)[0], '0011_payment_plans.sql')
+  assert.equal(migrate(old).applied[0], '0011_payment_plans.sql')
   assert.deepEqual({ ...old.prepare('SELECT description, amount_bani, sort_order, plan_id FROM entries').get() }, {
     description: 'Rent',
     amount_bani: 100,

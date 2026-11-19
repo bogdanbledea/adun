@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { createApp } from './app.ts'
 import { ConfigError, loadConfig } from './config.ts'
 import { migrate, MigrationError, openDatabase } from './db.ts'
@@ -23,7 +24,8 @@ const log = createLogger(config.logLevel)
 const db = openDatabase(config.dataDir)
 
 try {
-  const applied = migrate(db)
+  const { applied, backup } = migrate(db)
+  if (backup) log.info({ file: path.basename(backup) }, 'db.backup')
   if (applied.length > 0) log.info({ count: applied.length, latest: applied.at(-1) }, 'db.migrated')
 } catch (error) {
   if (!(error instanceof MigrationError)) throw error

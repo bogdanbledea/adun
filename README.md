@@ -138,6 +138,18 @@ The schema is built from the numbered SQL files in `server/migrations/`. The
 server applies any pending ones at startup; `npm run migrate` applies them
 without starting it.
 
+### Backups
+
+`npm run backup` writes a consistent copy of the database to
+`backups/adun-<UTC time>.sqlite` in the data folder. It is safe while the
+server runs. Before applying new migrations to a database that already has
+data, the server writes `backups/pre-migration-NNNN-<UTC time>.sqlite`; if
+that copy fails, it does not start. The five newest pre-migration copies are
+kept; the server never deletes the ones made with `npm run backup`.
+
+A copy in the data folder is lost with the disk it is on, so copy backups
+somewhere else as well.
+
 Amounts are kept as whole bani (1 leu = 100 bani), so totals are exact. To
 keep any one account from filling the disk, an account holds at most 600
 budget months, each with up to 200 categories and 500 entries; the template

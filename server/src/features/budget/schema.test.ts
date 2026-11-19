@@ -111,7 +111,7 @@ test('adding the template keeps the months, categories and entries there were', 
     )
     .run(userId, now)
 
-  assert.equal(migrate(old)[0], '0010_budget_template.sql')
+  assert.equal(migrate(old).applied[0], '0010_budget_template.sql')
   assert.deepEqual({ ...old.prepare('SELECT month_key, is_template FROM months').get() }, {
     month_key: '2026-01',
     is_template: 0,
