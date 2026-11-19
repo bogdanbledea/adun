@@ -1,6 +1,7 @@
 import { useAuth } from '../../lib/auth.tsx'
 import { useT } from '../../lib/i18n.tsx'
 import { PageHeader } from '../../layout/PageHeader.tsx'
+import { FamilySection } from '../family/FamilySection.tsx'
 import { AccountSection } from './AccountSection.tsx'
 import { ActivitySection } from './ActivitySection.tsx'
 import { DeleteAccountSection } from './DeleteAccountSection.tsx'
@@ -21,6 +22,7 @@ export function SettingsPage() {
       <div className="card max-w-3xl">
         <AccountSection user={state.user} />
         <PasswordSection />
+        <FamilySection />
         <FoodPeriodSection user={state.user} />
         <ActivitySection />
         <DeleteAccountSection />

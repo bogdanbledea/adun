@@ -3,6 +3,7 @@
    filled in by t(key, { name }). */
 
 import { roPlans } from './plans.ro.ts'
+import { roFamily } from './family.ro.ts'
 import { roFood } from './food.ro.ts'
 import { roReminders } from './reminders.ro.ts'
 
@@ -345,6 +346,7 @@ export const ro = {
   ...roPlans,
   ...roReminders,
   ...roFood,
+  ...roFamily,
 }
 
 export type MessageKey = keyof typeof ro

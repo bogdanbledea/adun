@@ -271,7 +271,11 @@ describe('the activity section', () => {
   })
 
   test('offers to try again when the list cannot be loaded', async () => {
-    fakeServer({ '/api/user/me': [200, testAccount], '/api/activity?limit=50': [500, { error: { code: 'internal_error', message: 'x' } }] })
+    fakeServer({
+      '/api/user/me': [200, testAccount],
+      '/api/family': [200, null],
+      '/api/activity?limit=50': [500, { error: { code: 'internal_error', message: 'x' } }],
+    })
     renderApp()
     expect(await screen.findByText('A apărut o eroare neașteptată.')).toBeDefined()
     expect(screen.getByRole('button', { name: 'Încearcă din nou' })).toBeDefined()

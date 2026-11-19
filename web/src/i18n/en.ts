@@ -1,4 +1,5 @@
 import { enPlans } from './plans.en.ts'
+import { enFamily } from './family.en.ts'
 import { enFood } from './food.en.ts'
 import { enReminders } from './reminders.en.ts'
 import type { MessageKey } from './ro.ts'
@@ -328,6 +329,7 @@ export const en: Record<MessageKey, string> = {
   ...enPlans,
   ...enReminders,
   ...enFood,
+  ...enFamily,
 }
 
 export const enMottos = ['the family’s money', 'monthly peace of mind', 'what matters', 'money, not worries', 'today for tomorrow']
