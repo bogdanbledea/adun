@@ -197,6 +197,15 @@ or comes from a newer version. The database it replaces is kept as
 yet run when the server starts. With `-` for the file, the backup is read
 from standard input.
 
+### A user's own data
+
+Each user can export what they keep in the app as one JSON file, after
+entering their password again (`POST /api/data/export`): the budget months
+and template, payment plans, reminders, food months with their purchases
+(a family's months marked as shared), calendar corrections and the pay-period
+rule. The file holds no email address, password, sessions or activity
+history, and no IDs. Its `version` changes only when its shape does.
+
 Amounts are kept as whole bani (1 leu = 100 bani), so totals are exact. To
 keep any one account from filling the disk, an account holds at most 600
 budget months, each with up to 200 categories and 500 entries; the template

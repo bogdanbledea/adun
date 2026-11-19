@@ -49,6 +49,7 @@ export type ActivityAction =
   | 'family.owner_transferred'
   | 'family.left'
   | 'family.dissolved'
+  | 'data.exported'
 
 /** Records an action, with what it was about when that helps the user
     recognise it. Call it inside the transaction that makes the change. */
