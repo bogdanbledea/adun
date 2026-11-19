@@ -120,3 +120,8 @@ export function claimInvite(db: Database, codeHash: string, userId: string, now:
     .get(now, userId, codeHash, now)
   return row ? (row.family_id as string) : null
 }
+
+/** For the daily cleanup: invites that were used or have expired, of every family. */
+export function deleteDeadInvites(db: Database, now: string): number {
+  return Number(db.prepare('DELETE FROM family_invites WHERE used_at IS NOT NULL OR expires_at <= ?').run(now).changes)
+}

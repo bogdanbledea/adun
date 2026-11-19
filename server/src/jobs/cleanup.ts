@@ -3,14 +3,15 @@ import { deleteActivityBefore } from '../features/activity/repository.ts'
 import { ACTIVITY_RETENTION_DAYS } from '../features/activity/service.ts'
 import { deleteAuthEmailsBefore, deleteDeadSessions, deleteDeadTokens } from '../features/auth/repository.ts'
 import { REARM_WINDOW_MS } from '../features/auth/tokens.ts'
+import { deleteDeadInvites } from '../features/family/repository.ts'
 import { deleteNotificationsBefore } from '../features/reminders/repository.ts'
 import type { Logger } from '../lib/log.ts'
 
 /* Once at startup and then once a day: removes activity older than 365 days,
    sessions that expired or were revoked, email links that were used or can
-   no longer be used or re-armed, email send records older than a day, and
+   no longer be used or re-armed, email send records older than a day,
    reminder email records of due dates two days gone (two, so no time zone
-   is still on that day).
+   is still on that day), and family invites that were used or expired.
    None of these can be used again, so removing them changes nothing the user
    can see; it only stops the database keeping what it no longer needs. */
 
@@ -22,6 +23,7 @@ export interface CleanupResult {
   tokens: number
   authEmails: number
   reminderNotifications: number
+  familyInvites: number
 }
 
 export function runCleanup(db: Database, now = Date.now()): CleanupResult {
@@ -32,6 +34,7 @@ export function runCleanup(db: Database, now = Date.now()): CleanupResult {
     tokens: deleteDeadTokens(db, iso(now), iso(now - REARM_WINDOW_MS)),
     authEmails: deleteAuthEmailsBefore(db, iso(now - DAY_MS)),
     reminderNotifications: deleteNotificationsBefore(db, iso(now - 2 * DAY_MS).slice(0, 10)),
+    familyInvites: deleteDeadInvites(db, iso(now)),
   }))
 }
 

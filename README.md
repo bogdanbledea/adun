@@ -144,12 +144,13 @@ budget months, each with up to 200 categories and 500 entries; the template
 has the same limits as a month. An account holds at most 200 payment plans,
 and their instalments count towards each month's entries, at most 200
 reminders, up to 2,000 food purchases a month, and 500 corrections to the
-working calendar.
+working calendar. A family has at most 20 members.
 
 At startup and then once a day the server removes what it no longer needs:
 activity history older than 365 days, ended sessions, used or expired email
-links, email send records older than a day, and the record of reminder
-emails for due dates that have passed.
+links, email send records older than a day, the record of reminder
+emails for due dates that have passed, and family invite codes that were used
+or expired.
 
 ## License
 

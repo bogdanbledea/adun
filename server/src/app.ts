@@ -16,7 +16,7 @@ import { planRoutes } from './features/plans/routes.ts'
 import { reminderRoutes } from './features/reminders/routes.ts'
 import { userRoutes } from './features/user/routes.ts'
 import { errorHandler, notFoundHandler } from './http/errors.ts'
-import { authLimit, generalLimit } from './http/rate-limits.ts'
+import { authLimit, familyJoinLimit, generalLimit } from './http/rate-limits.ts'
 import { sameOriginGuard } from './http/same-origin.ts'
 import { noStore, securityHeaders } from './http/security.ts'
 import { staticFiles } from './http/static-files.ts'
@@ -81,6 +81,7 @@ export function createApp({
   app.use(express.json({ limit: '32kb' }))
   app.use(generalLimit())
   app.use('/api/auth', authLimit())
+  app.use('/api/family/join', familyJoinLimit())
   app.use('/api', sameOriginGuard(config.appUrl))
 
   app.get('/health', (req, res) => {

@@ -66,16 +66,39 @@ describe('runCleanup', () => {
     insertNotification.run(1, anaId, '2026-11-15', at(-4 * DAY))
     insertNotification.run(2, anaId, '2026-11-16', at(-4 * DAY))
 
-    assert.deepEqual(runCleanup(db, NOW), { activity: 1, sessions: 2, tokens: 2, authEmails: 1, reminderNotifications: 1 })
+    db.prepare("INSERT INTO families (id, name, created_at) VALUES ('f', 'Popescu', ?)").run(at(-DAY))
+    const insertInvite = db.prepare(
+      "INSERT INTO family_invites (id, family_id, code_hash, expires_at, used_at, created_at) VALUES (?, 'f', ?, ?, ?, ?)",
+    )
+    insertInvite.run(1, hash(), at(DAY), null, at(-DAY))
+    insertInvite.run(2, hash(), at(DAY), at(-HOUR), at(-DAY))
+    insertInvite.run(3, hash(), at(-1), null, at(-7 * DAY))
+
+    assert.deepEqual(runCleanup(db, NOW), {
+      activity: 1,
+      sessions: 2,
+      tokens: 2,
+      authEmails: 1,
+      reminderNotifications: 1,
+      familyInvites: 2,
+    })
     assert.deepEqual(ids('sessions'), ['live'])
     assert.deepEqual(ids('auth_tokens'), ['rearmable', 'unused'])
     assert.deepEqual(ids('activity_logs'), [1])
     assert.deepEqual(ids('auth_emails'), [1])
     assert.deepEqual(ids('reminder_notifications'), [2])
+    assert.deepEqual(ids('family_invites'), [1])
   })
 
   test('a second run finds nothing more', () => {
-    assert.deepEqual(runCleanup(db, NOW), { activity: 0, sessions: 0, tokens: 0, authEmails: 0, reminderNotifications: 0 })
+    assert.deepEqual(runCleanup(db, NOW), {
+      activity: 0,
+      sessions: 0,
+      tokens: 0,
+      authEmails: 0,
+      reminderNotifications: 0,
+      familyInvites: 0,
+    })
   })
 })
 
@@ -87,8 +110,8 @@ describe('startDailyCleanup', () => {
     const line = lines.find((entry) => entry.msg === 'job.cleanup')
     assert.ok(line)
     assert.deepEqual(
-      [line.activity, line.sessions, line.tokens, line.authEmails, line.reminderNotifications].map((value) => typeof value),
-      ['number', 'number', 'number', 'number', 'number'],
+      [line.activity, line.sessions, line.tokens, line.authEmails, line.reminderNotifications, line.familyInvites].map((value) => typeof value),
+      ['number', 'number', 'number', 'number', 'number', 'number'],
     )
   })
 

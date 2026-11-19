@@ -16,6 +16,7 @@ export const LIMITS = {
   foodPurchasesPerMonth: 2000,
   /** Working-calendar corrections per account. */
   calendarDays: 500,
+  familyMembers: 20,
 } as const
 
 export const limitReached = () =>

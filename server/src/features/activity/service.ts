@@ -42,6 +42,8 @@ export type ActivityAction =
   | 'calendar.day_reset'
   | 'family.created'
   | 'family.renamed'
+  | 'family.invite_created'
+  | 'family.joined'
   | 'family.owner_transferred'
   | 'family.left'
   | 'family.dissolved'

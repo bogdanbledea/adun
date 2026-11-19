@@ -25,3 +25,6 @@ export const generalLimit = (): RequestHandler => limiter(5 * MINUTE, 300)
 
 // /api/auth/*: sign in, register, password reset.
 export const authLimit = (): RequestHandler => limiter(15 * MINUTE, 40)
+
+// /api/family/join: a few tries at an invite code, from one address.
+export const familyJoinLimit = (): RequestHandler => limiter(15 * MINUTE, 10)
