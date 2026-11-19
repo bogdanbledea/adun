@@ -1,0 +1,108 @@
+# Starts a release from main: runs CI, bumps the version of both packages,
+# commits and tags it, and opens a draft GitHub Release with the commits since
+# the last one. Publishing the draft (after writing its notes) builds and
+# pushes the image (publish.yml).
+
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact version (for example 1.0.0); leave empty to use the bump
+        required: false
+        type: string
+      bump:
+        description: Bump used when the version is empty
+        required: false
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # The commit CI just tested; if main has moved since, the push fails.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Bump the version
+        id: version
+        env:
+          REQUESTED: ${{ inputs.version || inputs.bump }}
+        run: |
+          current=$(node -p "require('./server/package.json').version")
+          if [ "$current" != "$(node -p "require('./web/package.json').version")" ]; then
+            echo "::error::server and web have different versions"
+            exit 1
+          fi
+          case "$REQUESTED" in
+            patch | minor | major) ;;
+            *) echo "$REQUESTED" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+                 echo "::error::expected x.y.z, patch, minor or major, got \"$REQUESTED\""
+                 exit 1
+               } ;;
+          esac
+          for package in server web; do
+            (cd "$package" && npm version "$REQUESTED" --no-git-tag-version > /dev/null)
+          done
+          version=$(node -p "require('./server/package.json').version")
+          newest=$(printf '%s\n%s\n' "$current" "$version" | sort -V | tail -n 1)
+          if [ "$version" = "$current" ] || [ "$newest" != "$version" ]; then
+            echo "::error::$version is not newer than $current"
+            exit 1
+          fi
+          if git rev-parse --quiet --verify "refs/tags/v$version" > /dev/null; then
+            echo "::error::v$version is already tagged"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add server/package.json server/package-lock.json web/package.json web/package-lock.json
+          git commit -m "Release v$VERSION"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin HEAD:main "v$VERSION"
+
+      # The notes are written by hand: the sections to fill, and under them
+      # the commits since the previous release to sort into them.
+      - name: Draft the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          previous=$(git describe --tags --abbrev=0 --match 'v*' "v$VERSION^" 2> /dev/null || true)
+          {
+            printf '## Features\n\n## Bug fixes\n\n## Security\n\n## Other changes\n\n'
+            printf '## Upgrading\n\n```sh\ndocker compose pull\ndocker compose up -d\n```\n\n'
+            printf '<!-- Commits since %s; sort them into the sections above, then delete this list.\n\n' "${previous:-the start}"
+            git log --reverse --no-merges --format='- %s (%h)' ${previous:+"$previous.."}"v$VERSION^"
+            printf '\n-->\n'
+          } > notes.md
+          gh release create "v$VERSION" --draft --verify-tag --title "v$VERSION" --notes-file notes.md
+          echo "Draft v$VERSION is ready to edit and publish under Releases." >> "$GITHUB_STEP_SUMMARY"

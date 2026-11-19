@@ -1,5 +1,6 @@
 # Lint, type-check, test and audit both packages; build the image, scan it,
-# and run the container tests and the Playwright smoke test against it.
+# and run the container tests and the Playwright smoke test against it. The
+# release workflow runs it too, before it tags anything.
 # Third-party actions are pinned by commit; Dependabot proposes updates.
 
 name: ci
@@ -9,6 +10,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
   # Weekly, so new advisories against unchanged dependencies still surface.
   schedule:
     - cron: '17 5 * * 1'
@@ -16,8 +18,10 @@ on:
 permissions:
   contents: read
 
+# Called by the release, github.workflow is "release", so a release never
+# cancels (or is cancelled by) the CI of a push to main.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
