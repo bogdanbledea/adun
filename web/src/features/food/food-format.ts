@@ -55,6 +55,13 @@ export function counted(t: Translate, noun: CountedNoun, count: number): string 
   return t(`${noun}.${takesDe(count) ? 'manyDe' : 'many'}` as MessageKey, { count })
 }
 
+/** "a 3-a zi lucrătoare", "3rd working day": payday as the n-th working day (1 to 10). */
+export function paydayText(t: Translate, language: Language, n: number): string {
+  if (n === 1) return t('foodPeriod.ordinalFirst')
+  const suffix = n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'
+  return t('foodPeriod.ordinal', { n: language === 'en' ? `${String(n)}${suffix}` : String(n) })
+}
+
 /** A translated sentence with React nodes in place of its {placeholders}:
     fill(t('food.ofTotal'), { amount: <Money bani={2000} /> }). */
 export function fill(text: string, values: Record<string, ReactNode>): ReactNode {

@@ -2,11 +2,12 @@ import { CalendarDays } from 'lucide-react'
 import { useState } from 'react'
 import { api, errorText } from '../../lib/api.ts'
 import { useAuth, type AuthUser } from '../../lib/auth.tsx'
-import { useI18n, type Language } from '../../lib/i18n.tsx'
+import { useI18n } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
 import { Select } from '../../ui/Field.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { segmentClass, segmentGroup } from '../../ui/segmented.ts'
+import { paydayText } from '../food/food-format.ts'
 import { WorkCalendarDialog } from '../food/WorkCalendarDialog.tsx'
 import { SettingRow, SettingsSection } from './SettingsSection.tsx'
 
@@ -17,13 +18,6 @@ import { SettingRow, SettingsSection } from './SettingsSection.tsx'
 type Rule = AuthUser['foodPeriodRule']
 
 const WORKING_DAYS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-function englishOrdinal(n: number): string {
-  const suffix = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'
-  return `${String(n)}${suffix}`
-}
-
-const ordinalParam = (n: number, language: Language) => (language === 'en' ? englishOrdinal(n) : String(n))
 
 export function FoodPeriodSection({ user }: { user: AuthUser }) {
   const { t, language } = useI18n()
@@ -80,7 +74,7 @@ export function FoodPeriodSection({ user }: { user: AuthUser }) {
             >
               {WORKING_DAYS.map((n) => (
                 <option key={n} value={String(n)}>
-                  {n === 1 ? t('foodPeriod.ordinalFirst') : t('foodPeriod.ordinal', { n: ordinalParam(n, language) })}
+                  {paydayText(t, language, n)}
                 </option>
               ))}
             </Select>

@@ -314,6 +314,37 @@ describe('deleting the account', () => {
   })
 })
 
+test('food and calendar actions in the history say what they were about', async () => {
+  const entry = (id: number, action: string, metadata: Record<string, string | number>) => ({
+    id,
+    action,
+    metadata,
+    createdAt: '2026-11-18T10:00:00.000Z',
+  })
+  fakeServer({
+    '/api/user/me': [200, testAccount],
+    '/api/activity?limit=50': [
+      200,
+      [
+        entry(1, 'food.purchase_added', { monthKey: '2026-11', merchant: 'Lidl', amountBani: 8_450 }),
+        entry(2, 'food.budget_set', { monthKey: '2026-11', totalBani: 210_000, sources: 2 }),
+        entry(3, 'food.purchases_cleared', { monthKey: '2026-11', deleted: 21 }),
+        entry(4, 'food.period_rule_set', { rule: 'working_day', paydayWorkingDay: 3 }),
+        entry(5, 'calendar.day_set', { date: '2026-12-24', kind: 'off' }),
+      ],
+    ],
+  })
+  renderApp()
+  const history = (await screen.findByText('Cumpărătură adăugată')).closest('ul') as HTMLElement
+  expect(within(history).getAllByRole('listitem').map((item) => item.querySelector('span')?.textContent)).toEqual([
+    'Cumpărătură adăugatăLidl · 84,50lei · Noiembrie 2026',
+    'Buget de mâncare setat2.100lei · surse: 2 · Noiembrie 2026',
+    'Cumpărăturile lunii ștersecumpărături: 21 · Noiembrie 2026',
+    'Perioada bugetului de mâncare schimbatăDe la salariu · a 3-a zi lucrătoare',
+    'Zi din calendar modificată24 decembrie 2026 · Liber',
+  ])
+})
+
 describe('the food period section', () => {
   const calendar2026 = {
     year: 2026,

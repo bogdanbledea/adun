@@ -26,7 +26,8 @@ you can simply sign up to. It is not in production yet.
   shows up in the right month until it is paid off.
 - **Food** — a monthly food budget, the purchases against it, and how much
   is left for the rest of the week. The month can start on payday instead of
-  the 1st.
+  the 1st, counted on the Romanian working calendar (from 2024), which each
+  user can correct.
 - **Reminders** — the dates that are easy to forget: car inspection and
   insurance, road tax, gas checks and the like, with an email before they
   are due.

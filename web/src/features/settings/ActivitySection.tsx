@@ -6,12 +6,13 @@ import { Money } from '../../ui/Money.tsx'
 import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
 import { dayLong, monthLong } from '../budget/month-key.ts'
+import { paydayText } from '../food/food-format.ts'
 import { SettingsSection } from './SettingsSection.tsx'
 
 /* The newest 50 entries, with "show more" for older pages, and a way to erase
    them all. An action this version has no text for shows its raw name. A
-   budget or reminder action also shows what it was about, from the entry's
-   details. */
+   budget, reminder, food or calendar action also shows what it was about,
+   from the entry's details. */
 
 const PAGE = 50
 
@@ -75,6 +76,29 @@ function detailsOf({ action, metadata }: ActivityEntry, t: Translate, language: 
       isMessageKey(kindKey) ? t(kindKey) : null,
       day(dueDate),
       from && to ? `${day(from) ?? ''} → ${day(to) ?? ''}` : null,
+    ].filter(present)
+  }
+  if (action.startsWith('food.')) {
+    const { merchant, amountBani, totalBani, sources, deleted, rule, paydayWorkingDay } = metadata
+    if (action === 'food.period_rule_set') {
+      return rule === 'working_day' && typeof paydayWorkingDay === 'number'
+        ? [t('foodPeriod.payday'), paydayText(t, language, paydayWorkingDay)]
+        : [t('foodPeriod.calendar')]
+    }
+    return [
+      merchant,
+      typeof amountBani === 'number' ? { bani: amountBani, income: false } : null,
+      typeof totalBani === 'number' ? { bani: totalBani, income: false } : null,
+      typeof sources === 'number' ? t('activity.sources', { count: sources }) : null,
+      typeof deleted === 'number' ? t('activity.purchases', { count: deleted }) : null,
+      month(metadata.monthKey),
+    ].filter(present)
+  }
+  if (action.startsWith('calendar.')) {
+    const { date, kind } = metadata
+    return [
+      typeof date === 'string' ? dayLong(date, language) : null,
+      kind === 'off' ? t('calendar.dayOff') : kind === 'working' ? t('calendar.workingDay') : null,
     ].filter(present)
   }
   if (!action.startsWith('entry.')) return []
