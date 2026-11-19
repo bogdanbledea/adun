@@ -23,14 +23,19 @@ export function SettingsPage() {
   return (
     <>
       <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} />
-      <div className="card max-w-3xl">
-        <AccountSection user={state.user} />
-        <PasswordSection />
-        <FamilySection />
-        <FoodPeriodSection user={state.user} />
-        <ActivitySection key={activityKey} />
-        <DataSection onChanged={() => { setActivityKey((key) => key + 1) }} />
-        <DeleteAccountSection />
+      {/* The history has a card of its own, beside the settings on a wide screen. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="card">
+          <AccountSection user={state.user} />
+          <PasswordSection />
+          <FamilySection />
+          <FoodPeriodSection user={state.user} />
+          <DataSection onChanged={() => { setActivityKey((key) => key + 1) }} />
+          <DeleteAccountSection />
+        </div>
+        <div className="card">
+          <ActivitySection key={activityKey} />
+        </div>
       </div>
     </>
   )

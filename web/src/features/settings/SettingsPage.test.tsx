@@ -21,6 +21,16 @@ test('opens from the account menu', async () => {
   expect(screen.getByRole('heading', { level: 1, name: 'Setări' })).toBeDefined()
 })
 
+test('keeps the activity history on a card of its own, apart from the settings', async () => {
+  fakeServer({ '/api/user/me': [200, testAccount], '/api/activity?limit=50': [200, []] })
+  renderApp()
+  const history = (await screen.findByRole('region', { name: 'Activitate' })).closest('.card')
+  const account = screen.getByRole('region', { name: 'Cont' }).closest('.card')
+  expect(history).not.toBeNull()
+  expect(history).not.toBe(account)
+  expect(within(history as HTMLElement).getAllByRole('region').length).toBe(1)
+})
+
 describe('the account section', () => {
   test('saves a new name, trimmed, and the header follows', async () => {
     const renamed = { ...testAccount, displayName: 'Maria Ionescu' }
@@ -180,7 +190,7 @@ describe('the activity section', () => {
     renderApp()
     const section = await screen.findByRole('region', { name: 'Activitate' })
     const items = await within(section).findAllByRole('listitem')
-    expect(items.map((item) => item.firstElementChild?.textContent)).toEqual([
+    expect(items.map((item) => item.children[1]?.textContent)).toEqual([
       'Înregistrare mutată în altă lunăChirie · Casă · 1.500lei · Noiembrie 2026 → Decembrie 2026',
       'Înregistrare adăugatăSalariu · Venituri · +1.500lei · Noiembrie 2026',
       'Înregistrare ștearsăChirie · Casă · 1.500lei · Noiembrie 2026',
@@ -204,7 +214,7 @@ describe('the activity section', () => {
     renderApp()
     const section = await screen.findByRole('region', { name: 'Activitate' })
     const items = await within(section).findAllByRole('listitem')
-    expect(items.map((item) => item.firstElementChild?.textContent)).toEqual([
+    expect(items.map((item) => item.children[1]?.textContent)).toEqual([
       'Scadență ștearsăGaze · Revizie gaze',
       'Scadență reînnoităITP Logan · 1 decembrie 2026 → 1 decembrie 2028',
       'Scadență modificatăITP Logan',
@@ -241,7 +251,7 @@ describe('the activity section', () => {
     renderApp()
     const section = await screen.findByRole('region', { name: 'Activitate' })
     const items = await within(section).findAllByRole('listitem')
-    expect(items.map((item) => item.firstElementChild?.textContent)).toEqual([
+    expect(items.map((item) => item.children[1]?.textContent)).toEqual([
       'Înregistrare adăugatăChirie · Casă · 1.500lei · Șablon',
       'Intrări importateDecembrie 2026 · din Șablon · intrări: 2',
       'Lună adăugată în bugetDecembrie 2026 · din Noiembrie 2026 · intrări: 5',
@@ -389,7 +399,7 @@ describe('my data', () => {
     })
     renderApp()
     const history = (await screen.findByText('Date importate')).closest('ul') as HTMLElement
-    expect(within(history).getAllByRole('listitem').map((item) => item.querySelector('span')?.textContent)).toEqual([
+    expect(within(history).getAllByRole('listitem').map((item) => item.children[1]?.textContent)).toEqual([
       'Date importateluni: 4, planuri: 1, scadențe: 2, luni de mâncare: 3',
       'Date exportate',
     ])
@@ -434,7 +444,7 @@ test('food and calendar actions in the history say what they were about', async 
   })
   renderApp()
   const history = (await screen.findByText('Cumpărătură adăugată')).closest('ul') as HTMLElement
-  expect(within(history).getAllByRole('listitem').map((item) => item.querySelector('span')?.textContent)).toEqual([
+  expect(within(history).getAllByRole('listitem').map((item) => item.children[1]?.textContent)).toEqual([
     'Cumpărătură adăugatăLidl · 84,50lei · Noiembrie 2026',
     'Buget de mâncare setat2.100lei · surse: 2 · Noiembrie 2026',
     'Cumpărăturile lunii ștersecumpărături: 21 · Noiembrie 2026',
@@ -467,7 +477,7 @@ test('family changes show the family or the member they were about', async () =>
   })
   renderApp()
   const history = (await screen.findByText('Familie creată')).closest('ul') as HTMLElement
-  expect(within(history).getAllByRole('listitem').map((item) => item.querySelector('span')?.textContent)).toEqual([
+  expect(within(history).getAllByRole('listitem').map((item) => item.children[1]?.textContent)).toEqual([
     'Familie creatăFamilia Pop',
     'Rol de administrator predatIon Popescu',
     'Cod de invitație generat',

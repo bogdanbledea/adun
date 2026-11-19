@@ -7,6 +7,7 @@ import { Notice } from '../../ui/Notice.tsx'
 import { Skeleton } from '../../ui/Skeleton.tsx'
 import { dayLong, monthLong } from '../budget/month-key.ts'
 import { paydayText } from '../food/food-format.ts'
+import { activityIcon } from './activity-icon.ts'
 import { SettingsSection } from './SettingsSection.tsx'
 
 /* The newest 50 entries, with "show more" for older pages, and a way to erase
@@ -195,6 +196,7 @@ export function ActivitySection() {
           <span className="sr-only">{t('common.loading')}</span>
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
         </div>
       )}
       {state.kind === 'failed' && (
@@ -206,29 +208,33 @@ export function ActivitySection() {
         </div>
       )}
       {state.kind === 'ready' && state.entries.length === 0 && (
-        <p className="py-4 text-center text-sm text-muted">{t('settings.noActivity')}</p>
+        <p className="py-6 text-center text-sm text-muted">{t('settings.noActivity')}</p>
       )}
       {hasEntries && (
         <>
           <ul>
             {state.entries.map((entry) => {
               const details = detailsOf(entry, t, language)
+              const Icon = activityIcon(entry.action, entry.metadata)
               return (
-                <li key={entry.id} className="flex items-baseline justify-between gap-3 border-t border-line py-2.5 first:border-t-0">
-                  <span className="min-w-0">
-                    {labelOf(entry.action, t)}
+                <li key={entry.id} className="flex items-start gap-3 border-t border-line py-3 first:border-t-0">
+                  <span aria-hidden="true" className="mt-0.5 grid size-7 shrink-0 place-items-center text-brand [&_svg]:size-4">
+                    <Icon />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{labelOf(entry.action, t)}</p>
                     {details.length > 0 && (
-                      <span className="block text-sm break-words text-muted">
+                      <p className="truncate text-sm text-muted">
                         {details.map((part, index) => (
                           <Fragment key={index}>
                             {index > 0 && ' · '}
                             {typeof part === 'string' ? part : <>{part.income && '+'}<Money bani={part.bani} /></>}
                           </Fragment>
                         ))}
-                      </span>
+                      </p>
                     )}
-                  </span>
-                  <time dateTime={entry.createdAt} className="shrink-0 text-right text-xs text-muted">
+                  </div>
+                  <time dateTime={entry.createdAt} className="mt-0.5 shrink-0 text-right text-xs text-muted">
                     {formatInstant(entry.createdAt, language)}
                   </time>
                 </li>
