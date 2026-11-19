@@ -101,6 +101,10 @@ A backup already in the volume restores with its path instead of `-`, such
 as `/data/backups/pre-migration-0020-….sqlite`. A daily backup can run from
 the host's cron, followed by copying the file somewhere else.
 
+`scripts/container-test.sh <image>` checks a built image: data survives
+removing the container, an upgrade backs up before it migrates, and a backup
+restores into a new volume.
+
 ## Configure
 
 The server reads these environment variables once at startup and refuses to
