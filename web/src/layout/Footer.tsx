@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import { build } from '../lib/build.ts'
 import { useT } from '../lib/i18n.tsx'
 import { Brand } from './Brand.tsx'
 
@@ -13,7 +14,12 @@ export function Footer() {
             {t('footer.privacy')}
           </Link>
         </nav>
-        <p className="text-xs text-muted">{t('footer.copyright', { year: new Date().getFullYear() })}</p>
+        <div className="flex flex-col items-center gap-1 sm:items-end">
+          <p className="text-xs text-muted">{t('footer.copyright', { year: new Date().getFullYear() })}</p>
+          <p className="text-[0.6875rem] text-muted/80 tabular-nums" title={build.commit}>
+            v{build.version} · {build.shortCommit}
+          </p>
+        </div>
       </div>
     </footer>
   )

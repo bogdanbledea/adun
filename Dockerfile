@@ -16,6 +16,8 @@ WORKDIR /build/web
 COPY web/package.json web/package-lock.json web/.npmrc ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY web/ ./
+# Only what names the current commit, for the footer; no history, no config.
+COPY .git/ /build/.git/
 RUN npm run build
 
 # Argon2 comes as a prebuilt binary per platform, so this stage runs on the

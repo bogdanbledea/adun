@@ -1,5 +1,6 @@
 # Keep the build context to what the image needs: package files, source,
-# migrations. Tests, tooling and local data never enter it.
+# migrations, and the git files that name the commit. Tests, tooling, the
+# git history and local data never enter it.
 *
 !server/package.json
 !server/package-lock.json
@@ -14,6 +15,9 @@
 !web/tsconfig*.json
 !web/public/
 !web/src/
+!.git/HEAD
+!.git/refs/heads/
+!.git/packed-refs
 **/*.test.ts
 **/*.test.tsx
 web/src/test/
