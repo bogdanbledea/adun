@@ -10,8 +10,8 @@ import { paydayText } from '../food/food-format.ts'
 import { activityIcon } from './activity-icon.ts'
 import { SettingsSection } from './SettingsSection.tsx'
 
-/* The newest 50 entries, with "show more" for older pages, and a way to erase
-   them all. An action this version has no text for shows its raw name. A
+/* The newest 50 entries, with "show more" for older pages (erasing them is
+   under "Datele mele"). An action this version has no text for shows its raw name. A
    budget, reminder, food, calendar or family action also shows what it was
    about, from the entry's details. */
 
@@ -139,7 +139,6 @@ function formatInstant(iso: string, language: Language): string {
 export function ActivitySection() {
   const { t, language } = useI18n()
   const [state, setState] = useState<State>({ kind: 'loading' })
-  const [erase, setErase] = useState<{ asking: boolean; busy: boolean; error: unknown }>({ asking: false, busy: false, error: null })
 
   // The first page; replaces whatever is shown when it arrives.
   const fetchFirst = useCallback((signal?: AbortSignal) => {
@@ -175,22 +174,10 @@ export function ActivitySection() {
     }
   }
 
-  const eraseAll = async () => {
-    setErase({ asking: true, busy: true, error: null })
-    try {
-      await api('/api/activity', { method: 'DELETE' })
-      setErase({ asking: false, busy: false, error: null })
-      setState({ kind: 'ready', entries: [], more: false, loadingMore: false, moreError: null })
-    } catch (error) {
-      setErase({ asking: true, busy: false, error })
-    }
-  }
-
   const hasEntries = state.kind === 'ready' && state.entries.length > 0
 
   return (
     <SettingsSection title={t('settings.activity')}>
-      <p className="mb-3 text-sm text-muted">{t('settings.activityText')}</p>
       {state.kind === 'loading' && (
         <div role="status" className="space-y-3 py-2">
           <span className="sr-only">{t('common.loading')}</span>
@@ -249,28 +236,6 @@ export function ActivitySection() {
               </Button>
             </div>
           )}
-          <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4">
-            {erase.asking ? (
-              <>
-                <p className="text-sm">{t('settings.eraseActivityConfirm')}</p>
-                {erase.error !== null && <Notice tone="error">{errorText(erase.error, t)}</Notice>}
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button variant="quiet" disabled={erase.busy} onClick={() => { setErase({ asking: false, busy: false, error: null }) }}>
-                    {t('settings.cancel')}
-                  </Button>
-                  <Button variant="danger" disabled={erase.busy} onClick={() => void eraseAll()}>
-                    {t('settings.eraseActivityYes')}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div>
-                <Button variant="secondary" onClick={() => { setErase({ asking: true, busy: false, error: null }) }}>
-                  {t('settings.eraseActivity')}
-                </Button>
-              </div>
-            )}
-          </div>
         </>
       )}
     </SettingsSection>

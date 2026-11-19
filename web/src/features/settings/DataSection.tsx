@@ -1,20 +1,22 @@
-import { Download, Upload } from 'lucide-react'
-import { useRef, useState, type ChangeEvent, type SubmitEvent } from 'react'
+import { Download, Eraser, Trash2, Upload } from 'lucide-react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { api, ApiError, errorText } from '../../lib/api.ts'
 import { useAuth, type AuthUser } from '../../lib/auth.tsx'
 import { useT } from '../../lib/i18n.tsx'
 import { Button } from '../../ui/Button.tsx'
-import { Dialog } from '../../ui/Dialog.tsx'
+import { ConfirmDialog } from '../../ui/Dialog.tsx'
 import { Notice } from '../../ui/Notice.tsx'
-import { PasswordField } from '../auth/PasswordField.tsx'
 import { todayDate } from '../budget/month-key.ts'
+import { DeleteAccountDialog } from './DeleteAccountDialog.tsx'
+import { PasswordDialog } from './PasswordDialog.tsx'
 import { SettingRow, SettingsSection } from './SettingsSection.tsx'
 
-/* Export and import of the user's own data. The export asks for the password
-   first (the server wants it confirmed on this session just before) and
-   saves the file it answers with; the import sends a chosen file, which the
-   server takes only into an empty account. Both are written in the activity
-   history, so the section tells the page to load it again. */
+/* Export, import, erasing the activity history and deleting the account.
+   Export and deletion ask for the password first; the import sends a chosen
+   file, which the server takes only into an empty account. Each of the first
+   three changes the history, so the section tells the page to load it again. */
+
+type Open = 'export' | 'clearActivity' | 'deleteAccount' | null
 
 type Outcome = { tone: 'success'; text: string } | { tone: 'error'; error: unknown } | null
 
@@ -40,14 +42,14 @@ async function readFile(file: File): Promise<unknown> {
 export function DataSection({ onChanged }: { onChanged: () => void }) {
   const t = useT()
   const { signedIn } = useAuth()
-  const [asking, setAsking] = useState(false)
-  const [busy, setBusy] = useState<'export' | 'import' | null>(null)
+  const [open, setOpen] = useState<Open>(null)
+  const [busy, setBusy] = useState<'import' | 'clear' | null>(null)
   const [outcome, setOutcome] = useState<Outcome>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const exported = (data: unknown) => {
     saveFile(data)
-    setAsking(false)
+    setOpen(null)
     setOutcome({ tone: 'success', text: t('settings.exported') })
     onChanged()
   }
@@ -71,12 +73,26 @@ export function DataSection({ onChanged }: { onChanged: () => void }) {
     setBusy(null)
   }
 
+  const clearActivity = async () => {
+    setBusy('clear')
+    setOutcome(null)
+    try {
+      await api('/api/activity', { method: 'DELETE' })
+      setOutcome({ tone: 'success', text: t('settings.activityCleared') })
+      onChanged()
+    } catch (error) {
+      setOutcome({ tone: 'error', error })
+    }
+    setBusy(null)
+    setOpen(null)
+  }
+
   return (
     <SettingsSection title={t('settings.dataTitle')}>
       <SettingRow title={t('settings.export')} description={t('settings.exportText')}>
-        <Button variant="secondary" disabled={busy !== null} onClick={() => { setOutcome(null); setAsking(true) }}>
+        <Button variant="secondary" disabled={busy !== null} onClick={() => { setOutcome(null); setOpen('export') }}>
           <Download />
-          {busy === 'export' ? t('settings.exporting') : t('settings.exportButton')}
+          {t('settings.exportButton')}
         </Button>
       </SettingRow>
       <SettingRow title={t('settings.import')} description={t('settings.importText')}>
@@ -93,78 +109,48 @@ export function DataSection({ onChanged }: { onChanged: () => void }) {
           onChange={(event) => void importFile(event)}
         />
       </SettingRow>
+      <SettingRow title={t('settings.clearActivity')} description={t('settings.clearActivityText')}>
+        <Button variant="secondary" disabled={busy !== null} onClick={() => { setOpen('clearActivity') }}>
+          <Eraser />
+          {t('settings.clearActivityButton')}
+        </Button>
+      </SettingRow>
+      <SettingRow title={t('settings.deleteAccount')} description={t('settings.deleteAccountText')}>
+        <Button
+          variant="secondary"
+          className="border-danger text-danger! hover:text-danger!"
+          disabled={busy !== null}
+          onClick={() => { setOpen('deleteAccount') }}
+        >
+          <Trash2 />
+          {t('settings.deleteAccount')}
+        </Button>
+      </SettingRow>
       {outcome && (
         <div className="mt-2">
           <Notice tone={outcome.tone}>{outcome.tone === 'success' ? outcome.text : errorText(outcome.error, t)}</Notice>
         </div>
       )}
-      {asking && (
-        <ExportDialog
-          onBusy={(exporting) => { setBusy(exporting ? 'export' : null) }}
+      {open === 'export' && (
+        <PasswordDialog
+          action={() => api<unknown>('/api/data/export', { method: 'POST' })}
+          busyLabel={t('settings.exporting')}
           onDone={exported}
-          onClose={() => { setAsking(false) }}
+          onClose={() => { setOpen(null) }}
         />
       )}
+      <ConfirmDialog
+        open={open === 'clearActivity'}
+        title={t('settings.clearActivityConfirmTitle')}
+        confirmLabel={t('settings.clearActivityButton')}
+        destructive
+        busy={busy === 'clear'}
+        onConfirm={() => void clearActivity()}
+        onCancel={() => { setOpen(null) }}
+      >
+        {t('settings.clearActivityConfirmText')}
+      </ConfirmDialog>
+      {open === 'deleteAccount' && <DeleteAccountDialog onClose={() => { setOpen(null) }} />}
     </SettingsSection>
-  )
-}
-
-interface ExportDialogProps {
-  onBusy: (busy: boolean) => void
-  onDone: (data: unknown) => void
-  onClose: () => void
-}
-
-/** Asks for the password, confirms it on this session, then fetches the file. */
-function ExportDialog({ onBusy, onDone, onClose }: ExportDialogProps) {
-  const t = useT()
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [failure, setFailure] = useState<{ error: unknown } | null>(null)
-
-  const submit = async (event: SubmitEvent) => {
-    event.preventDefault()
-    setFailure(null)
-    setBusy(true)
-    onBusy(true)
-    try {
-      await api('/api/auth/confirm-password', { method: 'POST', body: { password } })
-      onDone(await api<unknown>('/api/data/export', { method: 'POST' }))
-    } catch (error) {
-      setFailure({ error })
-      setBusy(false)
-    }
-    onBusy(false)
-  }
-
-  return (
-    <Dialog
-      open
-      onClose={() => { if (!busy) onClose() }}
-      title={t('settings.confirmTitle')}
-      footer={
-        <>
-          <Button variant="quiet" onClick={onClose} disabled={busy}>
-            {t('settings.cancel')}
-          </Button>
-          <Button type="submit" form="export-password" disabled={busy}>
-            {busy ? t('settings.exporting') : t('settings.confirm')}
-          </Button>
-        </>
-      }
-    >
-      <form id="export-password" onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">
-        <p className="text-sm text-muted">{t('settings.confirmText')}</p>
-        <PasswordField
-          label={t('auth.password')}
-          autoComplete="current-password"
-          required
-          data-autofocus
-          value={password}
-          onChange={(event) => { setPassword(event.target.value) }}
-        />
-        {failure && <Notice tone="error">{errorText(failure.error, t)}</Notice>}
-      </form>
-    </Dialog>
   )
 }

@@ -24,7 +24,7 @@ test('opens from the account menu', async () => {
 test('keeps the activity history on a card of its own, apart from the settings', async () => {
   fakeServer({ '/api/user/me': [200, testAccount], '/api/activity?limit=50': [200, []] })
   renderApp()
-  const history = (await screen.findByRole('region', { name: 'Activitate' })).closest('.card')
+  const history = (await screen.findByRole('region', { name: 'Activitate recentă' })).closest('.card')
   const account = screen.getByRole('region', { name: 'Cont' }).closest('.card')
   expect(history).not.toBeNull()
   expect(history).not.toBe(account)
@@ -162,7 +162,7 @@ describe('the activity section', () => {
       '/api/activity?limit=50&offset=50': [200, [entry(1, 'account.password_changed'), entry(0, 'budget.something_new')]],
     })
     renderApp()
-    const section = await screen.findByRole('region', { name: 'Activitate' })
+    const section = await screen.findByRole('region', { name: 'Activitate recentă' })
     expect((await within(section).findAllByText('Numele afișat a fost schimbat')).length).toBe(50)
 
     await userEvent.click(within(section).getByRole('button', { name: 'Arată mai multe' }))
@@ -188,7 +188,7 @@ describe('the activity section', () => {
       ],
     })
     renderApp()
-    const section = await screen.findByRole('region', { name: 'Activitate' })
+    const section = await screen.findByRole('region', { name: 'Activitate recentă' })
     const items = await within(section).findAllByRole('listitem')
     expect(items.map((item) => item.children[1]?.textContent)).toEqual([
       'Înregistrare mutată în altă lunăChirie · Casă · 1.500lei · Noiembrie 2026 → Decembrie 2026',
@@ -212,7 +212,7 @@ describe('the activity section', () => {
       ],
     })
     renderApp()
-    const section = await screen.findByRole('region', { name: 'Activitate' })
+    const section = await screen.findByRole('region', { name: 'Activitate recentă' })
     const items = await within(section).findAllByRole('listitem')
     expect(items.map((item) => item.children[1]?.textContent)).toEqual([
       'Scadență ștearsăGaze · Revizie gaze',
@@ -229,7 +229,7 @@ describe('the activity section', () => {
       '/api/activity?limit=50': [200, [entry(1, 'plan.created', { name: 'Telefon', installments: 6, totalBani: 360_000 })]],
     })
     renderApp()
-    const section = await screen.findByRole('region', { name: 'Activitate' })
+    const section = await screen.findByRole('region', { name: 'Activitate recentă' })
     const [item] = await within(section).findAllByRole('listitem')
     expect(item?.querySelector('.amount-masked')?.textContent).toBe('3.600')
     expect(within(section).getByText('sumă ascunsă')).toBeDefined()
@@ -249,7 +249,7 @@ describe('the activity section', () => {
       ],
     })
     renderApp()
-    const section = await screen.findByRole('region', { name: 'Activitate' })
+    const section = await screen.findByRole('region', { name: 'Activitate recentă' })
     const items = await within(section).findAllByRole('listitem')
     expect(items.map((item) => item.children[1]?.textContent)).toEqual([
       'Înregistrare adăugatăChirie · Casă · 1.500lei · Șablon',
@@ -259,25 +259,11 @@ describe('the activity section', () => {
     ])
   })
 
-  test('says when there is nothing yet, with nothing to erase', async () => {
+  test('says when there is nothing yet', async () => {
     fakeServer({ '/api/user/me': [200, testAccount], '/api/activity?limit=50': [200, []] })
     renderApp()
-    expect(await screen.findByText('Nimic încă.')).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'Șterge istoricul' })).toBeNull()
-  })
-
-  test('erases the history after asking once more', async () => {
-    const fetchMock = fakeServer({
-      '/api/user/me': [200, testAccount],
-      'GET /api/activity?limit=50': [200, [entry(1, 'account.renamed')]],
-      'DELETE /api/activity': [200, { ok: true }],
-    })
-    renderApp()
-    await userEvent.click(await screen.findByRole('button', { name: 'Șterge istoricul' }))
-    expect(fetchMock.mock.calls.some((args) => args[1]?.method === 'DELETE')).toBe(false)
-    await userEvent.click(screen.getByRole('button', { name: 'Da, șterge' }))
-    expect(await screen.findByText('Nimic încă.')).toBeDefined()
-    expect(fetchMock.mock.calls.some((args) => args[0] === '/api/activity' && args[1]?.method === 'DELETE')).toBe(true)
+    const section = await screen.findByRole('region', { name: 'Activitate recentă' })
+    expect(await within(section).findByText('Nimic încă.')).toBeDefined()
   })
 
   test('offers to try again when the list cannot be loaded', async () => {
@@ -295,9 +281,27 @@ describe('the activity section', () => {
 describe('deleting the account', () => {
   async function deleteWith(password: string) {
     await userEvent.click(await screen.findByRole('button', { name: 'Șterge contul' }))
-    await userEvent.type(screen.getByLabelText('Parola, pentru confirmare'), password)
-    await userEvent.click(screen.getByRole('button', { name: 'Șterge definitiv' }))
+    const dialog = screen.getByRole('dialog', { name: 'Șterge contul' })
+    await userEvent.type(within(dialog).getByLabelText('Scrie ȘTERGE pentru a confirma'), 'ȘTERGE')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Șterge definitiv' }))
+    const confirm = screen.getByRole('dialog', { name: 'Confirmă parola' })
+    await userEvent.type(within(confirm).getByLabelText('Parolă'), password)
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Continuă' }))
   }
+
+  test('asks for the word before anything else', async () => {
+    fakeServer({ '/api/user/me': [200, testAccount] })
+    renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Șterge contul' }))
+    const dialog = screen.getByRole('dialog', { name: 'Șterge contul' })
+    const button = within(dialog).getByRole('button', { name: 'Șterge definitiv' })
+    expect(button).toHaveProperty('disabled', true)
+    await userEvent.type(within(dialog).getByLabelText('Scrie ȘTERGE pentru a confirma'), 'șterge')
+    expect(button).toHaveProperty('disabled', true)
+    await userEvent.clear(within(dialog).getByLabelText('Scrie ȘTERGE pentru a confirma'))
+    await userEvent.type(within(dialog).getByLabelText('Scrie ȘTERGE pentru a confirma'), 'ȘTERGE')
+    expect(button).toHaveProperty('disabled', false)
+  })
 
   test('confirms the password, deletes the account and signs out', async () => {
     const fetchMock = fakeServer({
@@ -322,13 +326,45 @@ describe('deleting the account', () => {
     })
     renderApp()
     await deleteWith('Gresit-dar-lung-1')
-    expect(await screen.findByText('Parola nu este corectă.')).toBeDefined()
+    const confirm = screen.getByRole('dialog', { name: 'Confirmă parola' })
+    expect(await within(confirm).findByText('Parola nu este corectă.')).toBeDefined()
     expect(fetchMock.mock.calls.some((args) => args[0] === '/api/user' && args[1]?.method === 'DELETE')).toBe(false)
-    expect(screen.getByRole('heading', { level: 1, name: 'Setări' })).toBeDefined()
+  })
+
+  test('cancelling the password goes back to the first dialog', async () => {
+    fakeServer({ '/api/user/me': [200, testAccount] })
+    renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Șterge contul' }))
+    const dialog = screen.getByRole('dialog', { name: 'Șterge contul' })
+    await userEvent.type(within(dialog).getByLabelText('Scrie ȘTERGE pentru a confirma'), 'ȘTERGE')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Șterge definitiv' }))
+    const confirm = screen.getByRole('dialog', { name: 'Confirmă parola' })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Anulează' }))
+    expect(screen.queryByRole('dialog', { name: 'Confirmă parola' })).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Șterge contul' })).toBeDefined()
   })
 })
 
 describe('my data', () => {
+  test('clears the activity history after asking, and loads it again', async () => {
+    const fetchMock = fakeServer({
+      '/api/user/me': [200, testAccount],
+      'GET /api/activity?limit=50': [200, []],
+      'DELETE /api/activity': [200, { ok: true }],
+    })
+    renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Șterge istoricul' }))
+    const dialog = screen.getByRole('dialog', { name: 'Ștergi istoricul activității?' })
+    expect(fetchMock.mock.calls.some((args) => args[1]?.method === 'DELETE')).toBe(false)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Șterge istoricul' }))
+
+    expect(await screen.findByText('Istoricul activității a fost șters.')).toBeDefined()
+    expect(fetchMock.mock.calls.some((args) => args[0] === '/api/activity' && args[1]?.method === 'DELETE')).toBe(true)
+    await vi.waitFor(() => {
+      expect(fetchMock.mock.calls.filter((args) => args[0] === '/api/activity?limit=50').length).toBe(2)
+    })
+  })
+
   test('exports after the password, and saves the file', async () => {
     const file = { format: 'adun-export', version: 1 }
     const fetchMock = fakeServer({

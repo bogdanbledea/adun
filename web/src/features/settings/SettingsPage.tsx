@@ -6,7 +6,6 @@ import { FamilySection } from '../family/FamilySection.tsx'
 import { AccountSection } from './AccountSection.tsx'
 import { ActivitySection } from './ActivitySection.tsx'
 import { DataSection } from './DataSection.tsx'
-import { DeleteAccountSection } from './DeleteAccountSection.tsx'
 import { FoodPeriodSection } from './FoodPeriodSection.tsx'
 import { PasswordSection } from './PasswordSection.tsx'
 
@@ -16,7 +15,7 @@ import { PasswordSection } from './PasswordSection.tsx'
 export function SettingsPage() {
   const t = useT()
   const { state } = useAuth()
-  // Bumped after an export or import, so the history shows it.
+  // Bumped after an export, an import or erasing the history, so the history shows it.
   const [activityKey, setActivityKey] = useState(0)
   if (state.status !== 'signed_in') return null
 
@@ -31,7 +30,6 @@ export function SettingsPage() {
           <FamilySection />
           <FoodPeriodSection user={state.user} />
           <DataSection onChanged={() => { setActivityKey((key) => key + 1) }} />
-          <DeleteAccountSection />
         </div>
         <div className="card">
           <ActivitySection key={activityKey} />
