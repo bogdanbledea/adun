@@ -349,6 +349,40 @@ test('food and calendar actions in the history say what they were about', async 
   ])
 })
 
+test('family changes show the family or the member they were about', async () => {
+  const entry = (id: number, action: string, metadata: Record<string, string | number> | null) => ({
+    id,
+    action,
+    metadata,
+    createdAt: '2026-11-18T10:00:00.000Z',
+  })
+  fakeServer({
+    '/api/user/me': [200, testAccount],
+    '/api/family': [200, null],
+    '/api/activity?limit=50': [
+      200,
+      [
+        entry(1, 'family.created', { name: 'Familia Pop' }),
+        entry(2, 'family.owner_transferred', { name: 'Ion Popescu' }),
+        entry(3, 'family.invite_created', null),
+        entry(4, 'food.shared', { moved: 3, skipped: 1 }),
+        entry(5, 'food.share_resolved', { monthKey: '2026-11', resolution: 'keep_theirs' }),
+        entry(6, 'family.dissolved', { name: 'Familia Pop' }),
+      ],
+    ],
+  })
+  renderApp()
+  const history = (await screen.findByText('Familie creată')).closest('ul') as HTMLElement
+  expect(within(history).getAllByRole('listitem').map((item) => item.querySelector('span')?.textContent)).toEqual([
+    'Familie creatăFamilia Pop',
+    'Rol de administrator predatIon Popescu',
+    'Cod de invitație generat',
+    'Luni de mâncare partajate cu familialuni partajate: 3 · în conflict: 1',
+    'Conflict de partajare rezolvatNoiembrie 2026 · ai păstrat luna familiei',
+    'Ai părăsit familia, care s-a desfăcutFamilia Pop',
+  ])
+})
+
 describe('the food period section', () => {
   const calendar2026 = {
     year: 2026,

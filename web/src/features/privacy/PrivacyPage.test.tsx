@@ -19,6 +19,7 @@ test('can be read without signing in', async () => {
   expect(screen.getByRole('heading', { name: 'Ce se păstrează' })).toBeDefined()
   expect(screen.getByText(/Istoricul activității/)).toBeDefined()
   expect(screen.getByText(/Bugetul: lunile și șablonul, cu categoriile și înregistrările lor/)).toBeDefined()
+  expect(screen.getByText(/Un cod de invitație se păstrează doar ca amprentă/)).toBeDefined()
   expect(screen.getByRole('heading', { name: 'Ce poți face' })).toBeDefined()
   expect(screen.queryByRole('navigation', { name: 'Secțiuni' })).toBeNull()
 })

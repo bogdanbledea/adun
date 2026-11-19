@@ -11,8 +11,8 @@ import { SettingsSection } from './SettingsSection.tsx'
 
 /* The newest 50 entries, with "show more" for older pages, and a way to erase
    them all. An action this version has no text for shows its raw name. A
-   budget, reminder, food or calendar action also shows what it was about,
-   from the entry's details. */
+   budget, reminder, food, calendar or family action also shows what it was
+   about, from the entry's details. */
 
 const PAGE = 50
 
@@ -76,6 +76,21 @@ function detailsOf({ action, metadata }: ActivityEntry, t: Translate, language: 
       isMessageKey(kindKey) ? t(kindKey) : null,
       day(dueDate),
       from && to ? `${day(from) ?? ''} → ${day(to) ?? ''}` : null,
+    ].filter(present)
+  }
+  if (action.startsWith('family.')) return [metadata.name].filter(present)
+  if (action === 'food.shared') {
+    const { moved, skipped } = metadata
+    return [
+      typeof moved === 'number' ? t('activity.monthsShared', { count: moved }) : null,
+      typeof skipped === 'number' && skipped > 0 ? t('activity.monthsSkipped', { count: skipped }) : null,
+    ].filter(present)
+  }
+  if (action === 'food.share_resolved') {
+    const { resolution } = metadata
+    return [
+      month(metadata.monthKey),
+      resolution === 'keep_mine' ? t('activity.keptMine') : resolution === 'keep_theirs' ? t('activity.keptTheirs') : null,
     ].filter(present)
   }
   if (action.startsWith('food.')) {

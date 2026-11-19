@@ -27,6 +27,7 @@ export function PrivacyPage() {
           <li>{t('privacyPage.storedSessions')}</li>
           <li>{t('privacyPage.storedBudget')}</li>
           <li>{t('privacyPage.storedFood')}</li>
+          <li>{t('privacyPage.storedFamily')}</li>
           <li>{t('privacyPage.storedReminders')}</li>
           <li>{t('privacyPage.storedActivity')}</li>
         </ul>
@@ -49,6 +50,7 @@ export function PrivacyPage() {
       <Section title={t('privacyPage.controlTitle')}>
         <p>{t('privacyPage.controlText')}</p>
         <p>{t('privacyPage.controlDelete')}</p>
+        <p>{t('privacyPage.controlFamily')}</p>
       </Section>
 
       <Section title={t('privacyPage.contactTitle')}>
