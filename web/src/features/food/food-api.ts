@@ -95,6 +95,38 @@ export interface SourceInput {
   amountBani: number
 }
 
+export type HolidayKey =
+  | 'new_year'
+  | 'epiphany'
+  | 'st_john'
+  | 'union_day'
+  | 'good_friday'
+  | 'easter'
+  | 'labour_day'
+  | 'children_day'
+  | 'pentecost'
+  | 'assumption'
+  | 'st_andrew'
+  | 'national_day'
+  | 'christmas'
+
+export interface CalendarDay {
+  date: string
+  holiday: HolidayKey | null
+  legal: boolean
+  override: 'off' | 'working' | null
+  note: string | null
+  isWorkingDay: boolean
+}
+
+export interface WorkCalendar {
+  year: number
+  rule: 'calendar' | 'working_day'
+  paydayWorkingDay: number
+  days: CalendarDay[]
+  paydays: { monthKey: string; date: string }[]
+}
+
 const today = () => todayDate()
 
 export const foodApi = {
@@ -111,4 +143,8 @@ export const foodApi = {
   updatePurchase: (id: string, input: PurchaseInput) =>
     api<FoodPurchase>(`/api/food/purchases/${id}`, { method: 'PATCH', body: input }),
   deletePurchase: (id: string) => api(`/api/food/purchases/${id}`, { method: 'DELETE' }),
+  calendar: (year: number, signal?: AbortSignal) => api<WorkCalendar>(`/api/food/calendar/${String(year)}`, { signal }),
+  setDay: (date: string, kind: 'off' | 'working', note: string | null = null) =>
+    api(`/api/food/calendar/${date}`, { method: 'PUT', body: { kind, note } }),
+  resetDay: (date: string) => api(`/api/food/calendar/${date}`, { method: 'DELETE' }),
 }

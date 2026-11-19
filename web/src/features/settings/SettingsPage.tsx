@@ -4,6 +4,7 @@ import { PageHeader } from '../../layout/PageHeader.tsx'
 import { AccountSection } from './AccountSection.tsx'
 import { ActivitySection } from './ActivitySection.tsx'
 import { DeleteAccountSection } from './DeleteAccountSection.tsx'
+import { FoodPeriodSection } from './FoodPeriodSection.tsx'
 import { PasswordSection } from './PasswordSection.tsx'
 
 /* /setari: the account and what can be done with it. The account comes from
@@ -20,6 +21,7 @@ export function SettingsPage() {
       <div className="card max-w-3xl">
         <AccountSection user={state.user} />
         <PasswordSection />
+        <FoodPeriodSection user={state.user} />
         <ActivitySection />
         <DeleteAccountSection />
       </div>

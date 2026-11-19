@@ -13,6 +13,10 @@ export interface AuthUser {
   id: string
   email: string
   displayName: string
+  /** When a food month's money starts: the 1st, or payday. */
+  foodPeriodRule: 'calendar' | 'working_day'
+  /** Payday as the N-th working day of the month. */
+  foodPaydayWorkingDay: number
   createdAt: string
 }
 

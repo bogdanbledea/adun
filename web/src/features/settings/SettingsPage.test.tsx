@@ -8,6 +8,7 @@ import { fakeServer, sentBody } from '../../test/server.ts'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 const renderApp = (path = '/setari') => renderWithProviders(<App />, { path, withAuth: true })
@@ -310,5 +311,72 @@ describe('deleting the account', () => {
     expect(await screen.findByText('Parola nu este corectă.')).toBeDefined()
     expect(fetchMock.mock.calls.some((args) => args[0] === '/api/user' && args[1]?.method === 'DELETE')).toBe(false)
     expect(screen.getByRole('heading', { level: 1, name: 'Setări' })).toBeDefined()
+  })
+})
+
+describe('the food period section', () => {
+  const calendar2026 = {
+    year: 2026,
+    rule: 'working_day',
+    paydayWorkingDay: 3,
+    days: [
+      { date: '2026-05-31', holiday: 'pentecost', legal: true, override: null, note: null, isWorkingDay: false },
+      { date: '2026-06-01', holiday: 'children_day', legal: true, override: null, note: null, isWorkingDay: false },
+      { date: '2026-06-01', holiday: 'pentecost', legal: true, override: null, note: null, isWorkingDay: false },
+      { date: '2026-12-01', holiday: 'national_day', legal: true, override: 'working', note: null, isWorkingDay: true },
+      { date: '2026-12-24', holiday: null, legal: false, override: 'off', note: 'Ajun', isWorkingDay: false },
+    ],
+    paydays: Array.from({ length: 12 }, (_, i) => ({
+      monthKey: `2026-${String(i + 1).padStart(2, '0')}`,
+      date: `2026-${String(i + 1).padStart(2, '0')}-05`,
+    })),
+  }
+
+  test('switches to payday and picks the working day, saving each change', async () => {
+    const payday = { ...testAccount, foodPeriodRule: 'working_day' as const }
+    const fetchMock = fakeServer({ 'GET /api/user/me': [200, testAccount], 'PATCH /api/user/me': [200, payday] })
+    renderApp()
+    await userEvent.click(await screen.findByRole('radio', { name: 'De la salariu' }))
+    expect(sentBody(fetchMock, '/api/user/me')).toEqual({ foodPeriodRule: 'working_day' })
+
+    const select = await screen.findByLabelText('Salariul vine în')
+    expect(within(select).getAllByRole('option').map((o) => o.textContent).slice(0, 3)).toEqual([
+      'prima zi lucrătoare',
+      'a 2-a zi lucrătoare',
+      'a 3-a zi lucrătoare',
+    ])
+    await userEvent.selectOptions(select, '5')
+    const bodies = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH').map(([, init]) => JSON.parse(init?.body as string) as unknown)
+    expect(bodies.at(-1)).toEqual({ foodPaydayWorkingDay: 5 })
+  })
+
+  test('opens the working calendar, with the paydays and one switch per holiday date', async () => {
+    // The dialog opens on this year.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-19T12:00:00'))
+    const fetchMock = fakeServer({
+      'GET /api/user/me': [200, { ...testAccount, foodPeriodRule: 'working_day' }],
+      '/api/food/calendar/2026': [200, calendar2026],
+      'PUT /api/food/calendar/2026-06-01': [200, { ok: true }],
+      'DELETE /api/food/calendar/2026-12-24': [200, { ok: true }],
+    })
+    renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Zile nelucrătoare și salarii' }))
+    const dialog = screen.getByRole('dialog', { name: 'Zile nelucrătoare' })
+
+    expect(await within(dialog).findByText('Salariul în 2026')).toBeDefined()
+    const switches = within(dialog).getAllByRole('switch')
+    expect(switches.map((s) => s.getAttribute('aria-label'))).toEqual([
+      'Rusaliile, 31 mai 2026: zi liberă',
+      'Ziua Copilului · Rusaliile, 1 iunie 2026: zi liberă',
+      'Ziua Națională, 1 decembrie 2026: zi liberă',
+    ])
+    expect(switches[2]?.getAttribute('aria-checked')).toBe('false')
+    expect(within(dialog).getByText('Ajun')).toBeDefined()
+
+    await userEvent.click(switches[1] as HTMLElement)
+    expect(sentBody(fetchMock, '/api/food/calendar/2026-06-01')).toEqual({ kind: 'working', note: null })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Șterge 24 decembrie 2026' }))
+    expect(fetchMock.mock.calls.some(([path, init]) => path === '/api/food/calendar/2026-12-24' && init?.method === 'DELETE')).toBe(true)
   })
 })
