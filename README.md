@@ -255,6 +255,47 @@ links, email send records older than a day, the record of reminder
 emails for due dates that have passed, and family invite codes that were used
 or expired.
 
+## Releases and upgrading
+
+Releases are numbered `MAJOR.MINOR.PATCH`, tagged `vX.Y.Z`, and described
+under [Releases](https://github.com/bogdanbledea/adun/releases). The image is
+published as `bogdanbledea/adun` with the tags `1.2.3`, `1.2`, `1` and
+`latest` (the newest release). Work on `main` between releases is not
+published. The footer of the app shows the version and the commit it was
+built from.
+
+To upgrade, read the release notes, then:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+At startup the server applies the release's new migrations, after writing
+`backups/pre-migration-NNNN-….sqlite`. `compose.yaml` follows `latest`; to
+stay on one major version, set `ADUN_IMAGE=bogdanbledea/adun:1` in `.env`.
+
+To go back to the previous release, stop the app, pin its version and restore
+the copy taken before the upgrade, with that version's image. Anything
+entered since the upgrade is lost, so export what you need first.
+
+```sh
+docker compose stop app
+# in .env: ADUN_IMAGE=bogdanbledea/adun:1.0.0
+docker compose run --rm --no-deps app ls /data/backups
+docker compose run --rm --no-deps app node src/cli/restore.ts /data/backups/pre-migration-….sqlite
+docker compose up -d
+```
+
+A release that added no migrations needs only the pinned version.
+
+To make a release, run the `release` workflow from `main` with a version
+(or a bump). After CI passes, it commits the new version of both packages,
+tags it and opens a draft release with the commits since the last one. Write
+the notes and publish the draft; publishing builds the image for amd64 and
+arm64 and, after an approval, pushes it with the Docker Hub credentials of
+the `docker-hub` environment, which only `v*` tags can use.
+
 ## License
 
 Adun is free software under the GNU Affero General Public License v3.0. See
