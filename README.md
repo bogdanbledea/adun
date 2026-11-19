@@ -63,10 +63,21 @@ cd web && npm run build
 cd server && npm start
 ```
 
-| Package  | Scripts                                                                                     |
-| -------- | ------------------------------------------------------------------------------------------- |
-| `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`, `send-test-email` |
-| `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`                    |
+| Package  | Scripts                                                                                                          |
+| -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `server` | `dev`, `start`, `test` (`node:test`), `check` (types), `lint`, `migrate`, `backup`, `restore`, `send-test-email` |
+| `web`    | `dev`, `build` (to `web/dist`), `test` (Vitest), `check` (types), `lint`                                         |
+
+## Docker image
+
+The `Dockerfile` builds one image with the server and the built web app. It
+runs as the unprivileged `node` user, has no npm inside, keeps its data in
+the `/data` volume and listens on port 8080. Its health check calls
+`/health`.
+
+```sh
+docker build -t adun .
+```
 
 ## Configure
 

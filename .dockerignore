@@ -1,0 +1,21 @@
+# Keep the build context to what the image needs: package files, source,
+# migrations. Tests, tooling and local data never enter it.
+*
+!server/package.json
+!server/package-lock.json
+!server/.npmrc
+!server/migrations/
+!server/src/
+!web/package.json
+!web/package-lock.json
+!web/.npmrc
+!web/index.html
+!web/vite.config.ts
+!web/tsconfig*.json
+!web/public/
+!web/src/
+**/*.test.ts
+**/*.test.tsx
+web/src/test/
+**/node_modules/
+**/.DS_Store
