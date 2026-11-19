@@ -7,6 +7,7 @@ import { currentSession, requireAuth } from '../auth/require-auth.ts'
 import { calendarYear, FIRST_YEAR, LAST_YEAR, resetDay, setDay } from './calendar.ts'
 import * as purchases from './purchases.ts'
 import * as food from './service.ts'
+import * as sharing from './sharing.ts'
 
 // YYYY-MM from 2024 to 2099, the years whose working calendar is known.
 const monthKey = z.string().regex(/^(202[4-9]|20[3-9]\d)-(0[1-9]|1[0-2])$/)
@@ -48,6 +49,7 @@ const calendarBody = z.object({
 })
 
 const purchaseParams = z.object({ id: z.uuid() })
+const resolveBody = z.object({ monthKey, resolution: z.enum(['keep_mine', 'keep_theirs']) })
 
 const purchaseFields = {
   // Trimmed, with runs of spaces made one.
@@ -78,8 +80,8 @@ interface Deps {
   config: Config
 }
 
-/* /api/food: food budgets, their purchases, and the working calendar payday
-   is counted on. */
+/* /api/food: food budgets, their purchases, sharing them with a family, and
+   the working calendar payday is counted on. */
 export function foodRoutes({ db, config }: Deps): Router {
   const router = Router()
   router.use(requireAuth(db, config))
@@ -100,6 +102,20 @@ export function foodRoutes({ db, config }: Deps): Router {
     const { date } = validate(dateParams, req.params)
     resetDay(db, currentSession(res).userId, date)
     res.json({ ok: true })
+  })
+
+  // Before /:monthKey, which would take "share" for a month.
+  router.get('/share/preview', (_req, res) => {
+    res.json(sharing.sharePreview(db, currentSession(res).userId))
+  })
+
+  router.post('/share', (_req, res) => {
+    res.json(sharing.shareClean(db, currentSession(res).userId))
+  })
+
+  router.post('/share/resolve', (req, res) => {
+    const { monthKey, resolution } = validate(resolveBody, req.body)
+    res.json(sharing.resolveClash(db, currentSession(res).userId, monthKey, resolution))
   })
 
   router.get('/current', (req, res) => {

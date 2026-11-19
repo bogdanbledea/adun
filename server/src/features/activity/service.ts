@@ -38,6 +38,8 @@ export type ActivityAction =
   | 'food.purchase_deleted'
   | 'food.purchases_cleared'
   | 'food.period_rule_set'
+  | 'food.shared'
+  | 'food.share_resolved'
   | 'calendar.day_set'
   | 'calendar.day_reset'
   | 'family.created'

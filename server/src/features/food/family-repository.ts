@@ -31,3 +31,48 @@ export function makeFamilyBudgetsPersonal(db: Database, familyId: string, userId
 export function deleteFamilyBudgets(db: Database, familyId: string): void {
   db.prepare('DELETE FROM food_budgets WHERE family_id = ?').run(familyId)
 }
+
+// ── Sharing ──────────────────────────────────────────────────────────────────
+
+export interface MonthBudget {
+  id: string
+  monthKey: string
+}
+
+/** The user's personal budgets, latest month first. */
+export function personalBudgets(db: Database, userId: string): MonthBudget[] {
+  return db
+    .prepare('SELECT id, month_key FROM food_budgets WHERE user_id = ? AND family_id IS NULL ORDER BY month_key DESC')
+    .all(userId)
+    .map((row) => ({ id: row.id as string, monthKey: row.month_key as string }))
+}
+
+/** The family's budgets for the given months. */
+export function familyBudgetsIn(db: Database, familyId: string, monthKeys: string[]): MonthBudget[] {
+  return db
+    .prepare(
+      `SELECT id, month_key FROM food_budgets
+       WHERE family_id = ? AND month_key IN (SELECT value FROM json_each(?))`,
+    )
+    .all(familyId, JSON.stringify(monthKeys))
+    .map((row) => ({ id: row.id as string, monthKey: row.month_key as string }))
+}
+
+/** A budget's total and how many purchases it has, for one of the budgets above. */
+export function budgetSummary(db: Database, budgetId: string): { totalBani: number; purchaseCount: number } {
+  const row = db
+    .prepare(
+      `SELECT (SELECT coalesce(sum(amount_bani), 0) FROM food_sources WHERE budget_id = ?) AS total_bani,
+              (SELECT count(*) FROM food_purchases WHERE budget_id = ?) AS purchase_count`,
+    )
+    .get(budgetId, budgetId)
+  return { totalBani: row?.total_bani as number, purchaseCount: row?.purchase_count as number }
+}
+
+/** Moves the user's personal budgets with these IDs into the family; the user keeps them. */
+export function shareBudgets(db: Database, userId: string, familyId: string, budgetIds: string[]): void {
+  db.prepare(
+    `UPDATE food_budgets SET family_id = ?
+     WHERE user_id = ? AND family_id IS NULL AND id IN (SELECT value FROM json_each(?))`,
+  ).run(familyId, userId, JSON.stringify(budgetIds))
+}
