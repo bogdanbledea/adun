@@ -12,6 +12,7 @@ import { Skeleton } from '../../ui/Skeleton.tsx'
 import { currentMonthKey, monthKeyToParam, monthLong, monthName, paramToMonthKey, shiftMonth } from '../budget/month-key.ts'
 import { foodApi, type EmptyFoodMonth, type FoodMonth, type FoodMonthData, type FoodPurchase } from './food-api.ts'
 import { formatRange } from './food-format.ts'
+import { FoodMonthMenu } from './FoodMonthMenu.tsx'
 import { CurrentWeekPanel, MerchantsPanel, MonthPanel, SourcesPanel } from './FoodSummary.tsx'
 import { PurchaseDialog } from './PurchaseDialog.tsx'
 import { PurchaseList } from './PurchaseList.tsx'
@@ -141,6 +142,7 @@ function FoodMonthView({ monthKey }: { monthKey: string }) {
             >
               <ChevronRight aria-hidden="true" />
             </Link>
+            {data?.exists && <FoodMonthMenu data={data} onDone={() => void load()} />}
           </div>
         }
       />

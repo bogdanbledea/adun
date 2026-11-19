@@ -48,7 +48,7 @@ export function defaultSpentOn(period: { start: string; end: string }, today: st
 /* A counted noun has three texts: `<base>.one`, `<base>.many` and
    `<base>.manyDe` for the Romanian counts that take "de" (English repeats
    `many`). */
-export type CountedNoun = 'food.count.days'
+export type CountedNoun = 'food.count.days' | 'food.count.purchases' | 'food.count.sources'
 
 export function counted(t: Translate, noun: CountedNoun, count: number): string {
   if (count === 1) return t(`${noun}.one`)

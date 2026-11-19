@@ -103,6 +103,9 @@ export const foodApi = {
   /** The month's sources as one list; `periodStart` only when it changes. */
   saveSources: (monthKey: string, sources: SourceInput[], periodStart?: string) =>
     api<FoodMonth>(`/api/food/${monthKey}/sources?today=${today()}`, { method: 'PUT', body: { sources, periodStart } }),
+  deleteBudget: (monthKey: string) => api(`/api/food/${monthKey}`, { method: 'DELETE' }),
+  clearPurchases: (monthKey: string) =>
+    api<{ ok: true; deleted: number }>(`/api/food/${monthKey}/purchases`, { method: 'DELETE' }),
   addPurchase: (monthKey: string, input: PurchaseInput) =>
     api<FoodPurchase>(`/api/food/${monthKey}/purchases`, { method: 'POST', body: input }),
   updatePurchase: (id: string, input: PurchaseInput) =>

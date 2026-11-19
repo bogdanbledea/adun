@@ -261,3 +261,35 @@ test('a purchase opens for editing and can be deleted', async () => {
   await userEvent.click(within(dialog).getByRole('button', { name: 'Da, șterge' }))
   expect(fetchMock.mock.calls.some(([path, init]) => path === '/api/food/purchases/p1' && init?.method === 'DELETE')).toBe(true)
 })
+
+test('the month menu clears the purchases, keeping the sources, after saying what goes', async () => {
+  const fetchMock = fakeServer({
+    '/api/user/me': [200, testAccount],
+    [at('/api/food/2026-11')]: [200, { ...november, purchases: [lidl, { ...lidl, id: 'p2' }] }],
+    'DELETE /api/food/2026-11/purchases': [200, { ok: true, deleted: 2 }],
+  })
+  renderPage('/mancare/11-26')
+  await userEvent.click(await screen.findByRole('button', { name: 'Opțiuni lună' }))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Șterge cumpărăturile' }))
+  const dialog = screen.getByRole('dialog', { name: 'Ștergi cumpărăturile din Noiembrie 2026?' })
+  expect(dialog.textContent).toContain('2 cumpărături în valoare de 270lei')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Șterge cumpărăturile' }))
+  expect(fetchMock.mock.calls.some(([path, init]) => path === '/api/food/2026-11/purchases' && init?.method === 'DELETE')).toBe(true)
+})
+
+test('without purchases, the month menu offers only to delete the budget', async () => {
+  const fetchMock = fakeServer({
+    '/api/user/me': [200, testAccount],
+    [at('/api/food/2026-11')]: [200, november],
+    'DELETE /api/food/2026-11': [200, { ok: true }],
+  })
+  renderPage('/mancare/11-26')
+  await userEvent.click(await screen.findByRole('button', { name: 'Opțiuni lună' }))
+  expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Șterge bugetul lunii'])
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Șterge bugetul lunii' }))
+  const dialog = screen.getByRole('dialog', { name: 'Ștergi bugetul din Noiembrie 2026?' })
+  expect(dialog.textContent).toContain('nicio cumpărătură')
+  expect(dialog.textContent).toContain('2 surse · total 1.700lei')
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Șterge bugetul lunii' }))
+  expect(fetchMock.mock.calls.some(([path, init]) => path === '/api/food/2026-11' && init?.method === 'DELETE')).toBe(true)
+})
