@@ -56,8 +56,8 @@ export function userRoutes({ db, config }: { db: Database; config: Config }): Ro
     res.json(user)
   })
 
-  // Everything the account holds goes at once; nothing is kept. A family it
-  // was in carries on without it (family/service.ts).
+  // Everything the account holds goes at once. A family it was in carries on
+  // without it, keeping its food months and their purchases (family/service.ts).
   router.delete('/', (req, res) => {
     const { userId } = currentSession(res)
     requireRecentPassword(db, res)

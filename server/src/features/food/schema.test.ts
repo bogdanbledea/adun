@@ -17,22 +17,24 @@ const idOf = (email: string) => (db.prepare('SELECT id FROM users WHERE email = 
 const anaId = idOf('ana@example.com')
 const ionId = idOf('ion@example.com')
 const now = new Date().toISOString()
+// A user's personal budgets.
+const own = (userId: string): repo.FoodScope => ({ userId, familyId: null })
 
 function addBudget(userId: string, monthKey: string): string {
   const id = randomUUID()
-  repo.insertBudget(db, { id, userId, monthKey, periodStart: `${monthKey}-01`, planFrom: `${monthKey}-01`, now })
+  repo.insertBudget(db, own(userId), { id, monthKey, periodStart: `${monthKey}-01`, planFrom: `${monthKey}-01`, now })
   return id
 }
 
 function addSource(userId: string, budgetId: string, fields: { name?: string; amountBani?: number } = {}): string {
   const id = randomUUID()
-  repo.insertSource(db, userId, { name: 'Card', amountBani: 150000, sortOrder: 0, ...fields, id, budgetId, now })
+  repo.insertSource(db, own(userId), { name: 'Card', amountBani: 150000, sortOrder: 0, ...fields, id, budgetId, now })
   return id
 }
 
 function addPurchase(userId: string, budgetId: string, sourceId: string, fields: Partial<repo.PurchaseFields> = {}): string {
   const id = randomUUID()
-  repo.insertPurchase(db, userId, {
+  repo.insertPurchase(db, own(userId), {
     sourceId,
     merchant: 'Lidl',
     amountBani: 8450,
@@ -68,11 +70,11 @@ describe('food budgets', () => {
   })
 
   test('are found only by their user', () => {
-    assert.equal(repo.findBudget(db, anaId, '2026-11')?.id, anaBudget)
-    assert.equal(repo.findBudget(db, ionId, '2026-11')?.id, ionBudget)
-    assert.equal(repo.previousBudget(db, ionId, '2026-12')?.id, ionBudget)
-    repo.deleteBudget(db, ionId, anaBudget)
-    assert.ok(repo.findBudget(db, anaId, '2026-11'))
+    assert.equal(repo.findBudget(db, own(anaId), '2026-11')?.id, anaBudget)
+    assert.equal(repo.findBudget(db, own(ionId), '2026-11')?.id, ionBudget)
+    assert.equal(repo.previousBudget(db, own(ionId), '2026-12')?.id, ionBudget)
+    repo.deleteBudget(db, own(ionId), anaBudget)
+    assert.ok(repo.findBudget(db, own(anaId), '2026-11'))
   })
 })
 
@@ -89,18 +91,18 @@ describe('sources', () => {
     addSource(ionId, anaBudget)
     assert.equal(count('food_sources'), before)
 
-    assert.deepEqual(repo.listSources(db, ionId, anaBudget), [])
-    repo.updateSource(db, ionId, { id: anaCard, budgetId: anaBudget, name: 'Mine', amountBani: 1, sortOrder: 0 })
-    repo.deleteSource(db, ionId, anaBudget, anaCard)
-    assert.deepEqual(repo.listSources(db, anaId, anaBudget)[0], { id: anaCard, name: 'Card', amountBani: 150000 })
+    assert.deepEqual(repo.listSources(db, own(ionId), anaBudget), [])
+    repo.updateSource(db, own(ionId), { id: anaCard, budgetId: anaBudget, name: 'Mine', amountBani: 1, sortOrder: 0 })
+    repo.deleteSource(db, own(ionId), anaBudget, anaCard)
+    assert.deepEqual(repo.listSources(db, own(anaId), anaBudget)[0], { id: anaCard, name: 'Card', amountBani: 150000 })
   })
 
   test('cannot be removed while they have purchases', () => {
     const source = addSource(anaId, anaBudget, { name: 'Cash' })
     addPurchase(anaId, anaBudget, source)
-    assert.equal(repo.sourceInUse(db, anaId, [anaCard, source]), source)
-    assert.equal(repo.sourceInUse(db, ionId, [anaCard, source]), null)
-    assert.throws(() => { repo.deleteSource(db, anaId, anaBudget, source) }, /FOREIGN KEY constraint failed/)
+    assert.equal(repo.sourceInUse(db, own(anaId), [anaCard, source]), source)
+    assert.equal(repo.sourceInUse(db, own(ionId), [anaCard, source]), null)
+    assert.throws(() => { repo.deleteSource(db, own(anaId), anaBudget, source) }, /FOREIGN KEY constraint failed/)
   })
 })
 
@@ -131,14 +133,14 @@ describe('purchases', () => {
     addPurchase(ionId, anaBudget, anaCard)
     assert.equal(count('food_purchases'), before)
 
-    assert.equal(repo.findPurchase(db, ionId, id), null)
-    assert.deepEqual(repo.listPurchases(db, ionId, anaBudget), [])
-    assert.equal(repo.countPurchases(db, ionId, anaBudget), 0)
-    repo.updatePurchase(db, ionId, id, { sourceId: anaCard, merchant: 'Ion', amountBani: 1, spentOn: '2026-11-01', note: null })
-    repo.deletePurchase(db, ionId, id)
-    assert.equal(repo.deletePurchases(db, ionId, anaBudget), 0)
+    assert.equal(repo.findPurchase(db, own(ionId), id), null)
+    assert.deepEqual(repo.listPurchases(db, own(ionId), anaBudget), [])
+    assert.equal(repo.countPurchases(db, own(ionId), anaBudget), 0)
+    repo.updatePurchase(db, own(ionId), id, { sourceId: anaCard, merchant: 'Ion', amountBani: 1, spentOn: '2026-11-01', note: null })
+    repo.deletePurchase(db, own(ionId), id)
+    assert.equal(repo.deletePurchases(db, own(ionId), anaBudget), 0)
 
-    const purchase = repo.findPurchase(db, anaId, id)
+    const purchase = repo.findPurchase(db, own(anaId), id)
     assert.equal(purchase?.merchant, 'Mega')
     assert.equal(purchase.monthKey, '2026-11')
   })
@@ -150,7 +152,7 @@ describe('purchases', () => {
     addPurchase(anaId, budget, source, { merchant: 'Later', spentOn: '2027-01-09' })
     addPurchase(anaId, budget, source, { merchant: 'Same day', spentOn: '2027-01-02' })
     assert.deepEqual(
-      repo.listPurchases(db, anaId, budget).map((p) => p.merchant),
+      repo.listPurchases(db, own(anaId), budget).map((p) => p.merchant),
       ['Later', 'Same day', 'First'],
     )
   })
@@ -159,7 +161,7 @@ describe('purchases', () => {
 test('deleting a budget takes its sources and purchases', () => {
   const budget = addBudget(anaId, '2027-02')
   addPurchase(anaId, budget, addSource(anaId, budget))
-  repo.deleteBudget(db, anaId, budget)
+  repo.deleteBudget(db, own(anaId), budget)
   for (const table of ['food_sources', 'food_purchases']) {
     assert.equal(db.prepare(`SELECT count(*) AS n FROM ${table} WHERE budget_id = ?`).get(budget)?.n, 0, table)
   }

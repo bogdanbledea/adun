@@ -49,6 +49,7 @@ describe('a month without a budget', () => {
     assert.deepEqual(await read('2026-02'), {
       monthKey: '2026-02',
       period: { start: '2026-02-01', end: '2026-02-28', ruleStart: '2026-02-01', rule: 'calendar' },
+      shared: false,
       exists: false,
       suggestedFrom: null,
       suggestedSources: [],

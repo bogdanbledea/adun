@@ -4,6 +4,7 @@ import { badRequest, conflict, forbidden } from '../../http/errors.ts'
 import { LIMITS, limitReached } from '../../lib/limits.ts'
 import { logActivity } from '../activity/service.ts'
 import { hashToken } from '../auth/session.ts'
+import * as food from '../food/family-repository.ts'
 import * as repo from './repository.ts'
 
 /* Families: the people who share food budgets.
@@ -15,11 +16,15 @@ import * as repo from './repository.ts'
      is shown once; a new code ends the family's unused one. A wrong, used
      or expired code all get the same answer. Joining is refused to someone
      already in a family, and past LIMITS.familyMembers members.
+   - A family's food month is kept by one current member: whoever made it,
+     or the owner once they leave. It stays with the family.
    - A member leaves freely. An owner with other members hands the role on
-     first. The last member to leave ends the family.
+     first. The last member to leave ends the family, and its food months
+     become theirs; a month in which they also have a personal one must be
+     settled first (food/sharing.ts).
    - Deleting an account never fails because of a family: an owner's role
-     passes to the member who joined first, and a last member's family goes
-     with them.
+     passes to the member who joined first, the food months stay with the
+     family, and a last member's family goes with them, food months too.
    - Each change and its activity entry are one transaction. */
 
 export const notInFamily = () => conflict('family_not_member', 'You are not in a family.')
@@ -127,11 +132,20 @@ export function leaveFamily(db: Database, userId: string): { dissolved: boolean 
     const others = repo.listMembers(db, familyId).filter((m) => m.userId !== userId)
 
     if (others.length === 0) {
+      if (food.clashingMonths(db, userId, familyId).length > 0) {
+        throw conflict(
+          'family_dissolve_conflicts',
+          'Some of your personal food months clash with the family’s. Choose which to keep first.',
+        )
+      }
+      food.makeFamilyBudgetsPersonal(db, familyId, userId)
       repo.deleteFamily(db, familyId)
     } else {
-      if (membership.role === 'owner') {
+      const owner = others.find((m) => m.role === 'owner')
+      if (!owner) {
         throw conflict('family_transfer_required', 'Hand the owner role to another member before you leave.')
       }
+      food.handOverFamilyBudgets(db, familyId, userId, owner.userId)
       repo.deleteMember(db, familyId, userId)
     }
     const dissolved = others.length === 0
@@ -146,7 +160,17 @@ export function departForAccountDeletion(db: Database, userId: string): void {
   const membership = repo.membershipOf(db, userId)
   if (!membership) return
   const { familyId } = membership
-  const successor = repo.listMembers(db, familyId).find((m) => m.userId !== userId)
-  if (!successor) repo.deleteFamily(db, familyId)
-  else if (membership.role === 'owner') repo.moveOwnership(db, familyId, userId, successor.userId)
+  const others = repo.listMembers(db, familyId).filter((m) => m.userId !== userId)
+  const successor = others[0]
+  if (!successor) {
+    food.deleteFamilyBudgets(db, familyId)
+    repo.deleteFamily(db, familyId)
+    return
+  }
+  let ownerId = others.find((m) => m.role === 'owner')?.userId
+  if (!ownerId) {
+    repo.moveOwnership(db, familyId, userId, successor.userId)
+    ownerId = successor.userId
+  }
+  food.handOverFamilyBudgets(db, familyId, userId, ownerId)
 }

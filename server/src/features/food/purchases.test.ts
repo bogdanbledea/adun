@@ -74,6 +74,7 @@ describe('adding a purchase', () => {
         sourceId: card,
         sourceName: 'Card',
         note: null,
+        addedBy: 'Ana Popescu',
       },
     )
     assert.deepEqual({ ...lastActivity() }, {

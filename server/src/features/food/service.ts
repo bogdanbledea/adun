@@ -3,6 +3,7 @@ import { transaction, type Database } from '../../db.ts'
 import { badRequest, conflict, notFound } from '../../http/errors.ts'
 import { addDays, addMonths } from '../../lib/dates.ts'
 import { logActivity } from '../activity/service.ts'
+import { membershipOf } from '../family/repository.ts'
 import { findUser } from '../user/repository.ts'
 import { checkStart, currentCandidates, currentFoodMonth, ruleStart, type PeriodRule } from './period.ts'
 import * as repo from './repository.ts'
@@ -28,6 +29,9 @@ import { planWeeks } from './weeks.ts'
      purchases. A month without a budget answers its period and
      the sources of the latest earlier budget, so a new month can start from
      them.
+   - In a family, every member sees and changes the family's months, and
+     their own personal months wait until they share them or leave. The pay
+     period rule and the calendar stay each user's own.
    - Every change and its activity entry are one transaction. */
 
 export const MAX_SOURCES = 10
@@ -42,6 +46,11 @@ export const budgetNotFound = () => notFound('food_budget_not_found', 'This mont
 /** "Kaufland" and "kaufland" are the same name. */
 export const sameName = (name: string) => name.toLocaleLowerCase('ro-RO')
 
+/** The budgets the user works with: their family's, or their own. */
+export function foodScope(db: Database, userId: string): repo.FoodScope {
+  return { userId, familyId: membershipOf(db, userId)?.familyId ?? null }
+}
+
 /** The user's pay-period rule, with their calendar corrections when it counts working days. */
 export function periodRule(db: Database, userId: string): PeriodRule {
   const user = findUser(db, userId)
@@ -55,43 +64,48 @@ export function periodRule(db: Database, userId: string): PeriodRule {
 }
 
 /** Each month's start: stored, else by the rule. */
-function startsOf(db: Database, userId: string, monthKeys: string[], rule: PeriodRule): Map<string, string> {
-  const stored = repo.storedStarts(db, userId, monthKeys)
+function startsOf(db: Database, scope: repo.FoodScope, monthKeys: string[], rule: PeriodRule): Map<string, string> {
+  const stored = repo.storedStarts(db, scope, monthKeys)
   return new Map(monthKeys.map((key) => [key, stored.get(key) ?? ruleStart(key, rule)]))
 }
 
-export function periodOf(db: Database, userId: string, monthKey: string, rule = periodRule(db, userId)): Period {
+export function periodOf(db: Database, scope: repo.FoodScope, monthKey: string, rule = periodRule(db, scope.userId)): Period {
   const next = addMonths(monthKey, 1)
-  const starts = startsOf(db, userId, [monthKey, next], rule)
+  const starts = startsOf(db, scope, [monthKey, next], rule)
   return { start: starts.get(monthKey) as string, end: addDays(starts.get(next) as string, -1) }
 }
 
 /** The month whose period holds `today`. */
 export function currentMonth(db: Database, userId: string, today: string): string {
-  return currentFoodMonth(today, startsOf(db, userId, currentCandidates(today), periodRule(db, userId)))
+  return currentFoodMonth(today, startsOf(db, foodScope(db, userId), currentCandidates(today), periodRule(db, userId)))
 }
 
 export function monthState(db: Database, userId: string, monthKey: string, today: string) {
+  const scope = foodScope(db, userId)
   const rule = periodRule(db, userId)
-  const period = periodOf(db, userId, monthKey, rule)
-  // The rule's start, which a start moved by hand can go back to.
-  const common = { monthKey, period: { ...period, ruleStart: ruleStart(monthKey, rule), rule: rule.rule } }
+  const period = periodOf(db, scope, monthKey, rule)
+  const common = {
+    monthKey,
+    // The rule's start, which a start moved by hand can go back to.
+    period: { ...period, ruleStart: ruleStart(monthKey, rule), rule: rule.rule },
+    shared: scope.familyId !== null,
+  }
 
-  const budget = repo.findBudget(db, userId, monthKey)
+  const budget = repo.findBudget(db, scope, monthKey)
   if (!budget) {
-    const previous = repo.previousBudget(db, userId, monthKey)
+    const previous = repo.previousBudget(db, scope, monthKey)
     return {
       ...common,
       exists: false as const,
       suggestedFrom: previous?.monthKey ?? null,
       suggestedSources: previous
-        ? repo.listSources(db, userId, previous.id).map(({ name, amountBani }) => ({ name, amountBani }))
+        ? repo.listSources(db, scope, previous.id).map(({ name, amountBani }) => ({ name, amountBani }))
         : [],
     }
   }
 
-  const sources = repo.listSources(db, userId, budget.id)
-  const purchases = repo.listPurchases(db, userId, budget.id)
+  const sources = repo.listSources(db, scope, budget.id)
+  const purchases = repo.listPurchases(db, scope, budget.id)
   const totalBani = sources.reduce((sum, s) => sum + s.amountBani, 0)
   const spentBani = purchases.reduce((sum, p) => sum + p.amountBani, 0)
 
@@ -157,20 +171,21 @@ export function saveSources(
 
   return transaction(db, () => {
     const now = new Date().toISOString()
+    const scope = foodScope(db, userId)
     const rule = periodRule(db, userId)
-    let budget = repo.findBudget(db, userId, monthKey)
-    const period = periodOf(db, userId, monthKey, rule)
+    let budget = repo.findBudget(db, scope, monthKey)
+    const period = periodOf(db, scope, monthKey, rule)
     const start = periodStart ?? period.start
 
     if (start !== period.start) {
       const previousMonthKey = addMonths(monthKey, -1)
       const problem = checkStart(monthKey, start, {
-        previousStart: startsOf(db, userId, [previousMonthKey], rule).get(previousMonthKey) as string,
+        previousStart: startsOf(db, scope, [previousMonthKey], rule).get(previousMonthKey) as string,
         nextStart: addDays(period.end, 1),
       })
       if (problem) throw START_PROBLEMS[problem]()
       // Moving a start also moves the previous month's end.
-      if (repo.hasPurchasesOutside(db, userId, { monthKey, previousMonthKey }, start)) {
+      if (repo.hasPurchasesOutside(db, scope, { monthKey, previousMonthKey }, start)) {
         throw conflict(
           'food_purchases_outside_period',
           'Some purchases would fall outside their period. Change their dates first.',
@@ -181,27 +196,27 @@ export function saveSources(
     if (!budget) {
       const planFrom = today >= start && today <= period.end ? today : start
       budget = { id: randomUUID(), monthKey, periodStart: start, planFrom }
-      repo.insertBudget(db, { ...budget, userId, now })
+      repo.insertBudget(db, scope, { ...budget, now })
     } else if (budget.periodStart !== start) {
-      repo.setPeriodStart(db, userId, budget.id, start)
+      repo.setPeriodStart(db, scope, budget.id, start)
     }
 
-    const existing = repo.listSources(db, userId, budget.id)
+    const existing = repo.listSources(db, scope, budget.id)
     const existingIds = new Set(existing.map((s) => s.id))
     if (ids.some((id) => !existingIds.has(id))) throw badRequest('food_unknown_source', 'Unknown source.')
 
     const removed = existing.filter((s) => !ids.includes(s.id))
-    const inUse = repo.sourceInUse(db, userId, removed.map((s) => s.id))
+    const inUse = repo.sourceInUse(db, scope, removed.map((s) => s.id))
     if (inUse) {
       const name = removed.find((s) => s.id === inUse)?.name ?? ''
       throw conflict('food_source_in_use', `“${name}” has purchases. Move them to another source before removing it.`)
     }
-    for (const source of removed) repo.deleteSource(db, userId, budget.id, source.id)
+    for (const source of removed) repo.deleteSource(db, scope, budget.id, source.id)
 
     for (const [sortOrder, source] of sources.entries()) {
       const fields = { budgetId: budget.id, name: source.name, amountBani: source.amountBani, sortOrder }
-      if (source.id) repo.updateSource(db, userId, { ...fields, id: source.id })
-      else repo.insertSource(db, userId, { ...fields, id: randomUUID(), now })
+      if (source.id) repo.updateSource(db, scope, { ...fields, id: source.id })
+      else repo.insertSource(db, scope, { ...fields, id: randomUUID(), now })
     }
 
     const totalBani = sources.reduce((sum, s) => sum + s.amountBani, 0)
@@ -213,9 +228,10 @@ export function saveSources(
 /** Deletes the month's budget with its sources and purchases. */
 export function deleteBudget(db: Database, userId: string, monthKey: string): void {
   transaction(db, () => {
-    const budget = repo.findBudget(db, userId, monthKey)
+    const scope = foodScope(db, userId)
+    const budget = repo.findBudget(db, scope, monthKey)
     if (!budget) throw budgetNotFound()
-    repo.deleteBudget(db, userId, budget.id)
+    repo.deleteBudget(db, scope, budget.id)
     logActivity(db, userId, 'food.budget_deleted', { monthKey })
   })
 }

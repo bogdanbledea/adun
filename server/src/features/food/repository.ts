@@ -2,9 +2,16 @@ import type { Database } from '../../db.ts'
 import type { CalendarOverrides } from './workdays.ts'
 
 /* SQL for food budgets, their sources and purchases, and the user's
-   corrections to the working calendar. Every function takes the user ID and
-   filters by it: budgets and corrections by their user_id, sources and
-   purchases by belonging to one of the user's budgets. */
+   corrections to the working calendar. Every budget lookup takes a FoodScope
+   and filters by it: in a family, the family's budgets; alone, the user's
+   personal ones. Sources and purchases are reached only through a budget in
+   the scope. Calendar corrections are always the user's own. */
+
+export interface FoodScope {
+  userId: string
+  /** Set while the user is in a family; it comes from their membership, never from a request. */
+  familyId: string | null
+}
 
 export interface BudgetRow {
   id: string
@@ -30,6 +37,8 @@ export interface PurchaseFields {
 export interface PurchaseRow extends PurchaseFields {
   id: string
   createdAt: string
+  /** The display name of whoever added it; null once their account is deleted. */
+  addedBy: string | null
 }
 
 /** A purchase with its budget and the budget's month. */
@@ -38,11 +47,18 @@ export interface FullPurchaseRow extends PurchaseRow {
   monthKey: string
 }
 
-// Matches a source or purchase row whose budget belongs to the user; binds the user ID.
-const OWN_BUDGET = 'budget_id IN (SELECT id FROM food_budgets WHERE user_id = ?)'
+/* A food_budgets row in the scope: the family's when familyId is set, else
+   the user's personal one. `family_id IS ?` matches null to null, so one
+   text serves both; bind scopeParams(scope) in its place. */
+const IN_SCOPE = 'family_id IS ? AND (family_id IS NOT NULL OR user_id = ?)'
+const scopeParams = (scope: FoodScope) => [scope.familyId, scope.userId] as const
+// The IDs of the budgets in the scope, for sources and purchases; binds scopeParams.
+const SCOPE_BUDGETS = `(SELECT id FROM food_budgets WHERE ${IN_SCOPE})`
 
 const BUDGET_COLUMNS = 'id, month_key, period_start, plan_from'
-const PURCHASE_COLUMNS = 'p.id, p.source_id, p.merchant, p.amount_bani, p.spent_on, p.note, p.created_at'
+const PURCHASE_COLUMNS =
+  'p.id, p.source_id, p.merchant, p.amount_bani, p.spent_on, p.note, p.created_at, u.display_name AS added_by'
+const PURCHASES = 'food_purchases p LEFT JOIN users u ON u.id = p.user_id'
 
 const toBudgetRow = (row: Record<string, unknown>): BudgetRow => ({
   id: row.id as string,
@@ -59,159 +75,180 @@ const toPurchaseRow = (row: Record<string, unknown>): PurchaseRow => ({
   spentOn: row.spent_on as string,
   note: row.note as string | null,
   createdAt: row.created_at as string,
+  addedBy: row.added_by as string | null,
 })
 
 // ── Budgets ──────────────────────────────────────────────────────────────────
 
-export function findBudget(db: Database, userId: string, monthKey: string): BudgetRow | null {
+export function findBudget(db: Database, scope: FoodScope, monthKey: string): BudgetRow | null {
   const row = db
-    .prepare(`SELECT ${BUDGET_COLUMNS} FROM food_budgets WHERE user_id = ? AND month_key = ?`)
-    .get(userId, monthKey)
+    .prepare(`SELECT ${BUDGET_COLUMNS} FROM food_budgets WHERE ${IN_SCOPE} AND month_key = ?`)
+    .get(...scopeParams(scope), monthKey)
   return row ? toBudgetRow(row) : null
 }
 
 /** The latest budget before `monthKey`, whose sources a new month starts from. */
-export function previousBudget(db: Database, userId: string, monthKey: string): BudgetRow | null {
+export function previousBudget(db: Database, scope: FoodScope, monthKey: string): BudgetRow | null {
   const row = db
     .prepare(
-      `SELECT ${BUDGET_COLUMNS} FROM food_budgets WHERE user_id = ? AND month_key < ? ORDER BY month_key DESC LIMIT 1`,
+      `SELECT ${BUDGET_COLUMNS} FROM food_budgets WHERE ${IN_SCOPE} AND month_key < ? ORDER BY month_key DESC LIMIT 1`,
     )
-    .get(userId, monthKey)
+    .get(...scopeParams(scope), monthKey)
   return row ? toBudgetRow(row) : null
 }
 
+/** In a family, the family's budget, kept by the user who makes it. */
 export function insertBudget(
   db: Database,
-  budget: { id: string; userId: string; monthKey: string; periodStart: string; planFrom: string; now: string },
+  scope: FoodScope,
+  budget: { id: string; monthKey: string; periodStart: string; planFrom: string; now: string },
 ): void {
   db.prepare(
-    'INSERT INTO food_budgets (id, user_id, month_key, period_start, plan_from, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(budget.id, budget.userId, budget.monthKey, budget.periodStart, budget.planFrom, budget.now)
+    `INSERT INTO food_budgets (id, user_id, family_id, month_key, period_start, plan_from, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(budget.id, scope.userId, scope.familyId, budget.monthKey, budget.periodStart, budget.planFrom, budget.now)
 }
 
 /** Stored starts of the given months; months without a budget are missing. */
-export function storedStarts(db: Database, userId: string, monthKeys: string[]): Map<string, string> {
+export function storedStarts(db: Database, scope: FoodScope, monthKeys: string[]): Map<string, string> {
   const rows = db
     .prepare(
       `SELECT month_key, period_start FROM food_budgets
-       WHERE user_id = ? AND month_key IN (SELECT value FROM json_each(?))`,
+       WHERE ${IN_SCOPE} AND month_key IN (SELECT value FROM json_each(?))`,
     )
-    .all(userId, JSON.stringify(monthKeys))
+    .all(...scopeParams(scope), JSON.stringify(monthKeys))
   return new Map(rows.map((row) => [row.month_key as string, row.period_start as string]))
 }
 
-export function setPeriodStart(db: Database, userId: string, budgetId: string, periodStart: string): void {
-  db.prepare('UPDATE food_budgets SET period_start = ? WHERE id = ? AND user_id = ?').run(periodStart, budgetId, userId)
+export function setPeriodStart(db: Database, scope: FoodScope, budgetId: string, periodStart: string): void {
+  db.prepare(`UPDATE food_budgets SET period_start = ? WHERE id = ? AND ${IN_SCOPE}`).run(
+    periodStart,
+    budgetId,
+    ...scopeParams(scope),
+  )
 }
 
 /** Its sources and purchases go with it (ON DELETE CASCADE). */
-export function deleteBudget(db: Database, userId: string, budgetId: string): void {
-  db.prepare('DELETE FROM food_budgets WHERE id = ? AND user_id = ?').run(budgetId, userId)
+export function deleteBudget(db: Database, scope: FoodScope, budgetId: string): void {
+  db.prepare(`DELETE FROM food_budgets WHERE id = ? AND ${IN_SCOPE}`).run(budgetId, ...scopeParams(scope))
 }
 
 // ── Sources ──────────────────────────────────────────────────────────────────
 
-export function listSources(db: Database, userId: string, budgetId: string): SourceRow[] {
+export function listSources(db: Database, scope: FoodScope, budgetId: string): SourceRow[] {
   return db
-    .prepare(`SELECT id, name, amount_bani FROM food_sources WHERE budget_id = ? AND ${OWN_BUDGET} ORDER BY sort_order, rowid`)
-    .all(budgetId, userId)
+    .prepare(
+      `SELECT id, name, amount_bani FROM food_sources
+       WHERE budget_id = ? AND budget_id IN ${SCOPE_BUDGETS} ORDER BY sort_order, rowid`,
+    )
+    .all(budgetId, ...scopeParams(scope))
     .map((row) => ({ id: row.id as string, name: row.name as string, amountBani: row.amount_bani as number }))
 }
 
 type SourceFields = { name: string; amountBani: number; sortOrder: number }
 
-/** Adds nothing unless the budget is the user's. */
+/** Adds nothing unless the budget is in the scope. */
 export function insertSource(
   db: Database,
-  userId: string,
+  scope: FoodScope,
   source: SourceFields & { id: string; budgetId: string; now: string },
 ): void {
   db.prepare(
     `INSERT INTO food_sources (id, budget_id, name, amount_bani, sort_order, created_at)
-     SELECT ?, id, ?, ?, ?, ? FROM food_budgets WHERE id = ? AND user_id = ?`,
-  ).run(source.id, source.name, source.amountBani, source.sortOrder, source.now, source.budgetId, userId)
+     SELECT ?, id, ?, ?, ?, ? FROM food_budgets WHERE id = ? AND ${IN_SCOPE}`,
+  ).run(source.id, source.name, source.amountBani, source.sortOrder, source.now, source.budgetId, ...scopeParams(scope))
 }
 
-export function updateSource(db: Database, userId: string, source: SourceFields & { id: string; budgetId: string }): void {
+export function updateSource(db: Database, scope: FoodScope, source: SourceFields & { id: string; budgetId: string }): void {
   db.prepare(
-    `UPDATE food_sources SET name = ?, amount_bani = ?, sort_order = ? WHERE id = ? AND budget_id = ? AND ${OWN_BUDGET}`,
-  ).run(source.name, source.amountBani, source.sortOrder, source.id, source.budgetId, userId)
+    `UPDATE food_sources SET name = ?, amount_bani = ?, sort_order = ?
+     WHERE id = ? AND budget_id = ? AND budget_id IN ${SCOPE_BUDGETS}`,
+  ).run(source.name, source.amountBani, source.sortOrder, source.id, source.budgetId, ...scopeParams(scope))
 }
 
-export function deleteSource(db: Database, userId: string, budgetId: string, sourceId: string): void {
-  db.prepare(`DELETE FROM food_sources WHERE id = ? AND budget_id = ? AND ${OWN_BUDGET}`).run(sourceId, budgetId, userId)
+export function deleteSource(db: Database, scope: FoodScope, budgetId: string, sourceId: string): void {
+  db.prepare(`DELETE FROM food_sources WHERE id = ? AND budget_id = ? AND budget_id IN ${SCOPE_BUDGETS}`).run(
+    sourceId,
+    budgetId,
+    ...scopeParams(scope),
+  )
 }
 
 /** Of the given sources, one that has purchases, if any. */
-export function sourceInUse(db: Database, userId: string, sourceIds: string[]): string | null {
+export function sourceInUse(db: Database, scope: FoodScope, sourceIds: string[]): string | null {
   const row = db
-    .prepare(`SELECT source_id FROM food_purchases WHERE source_id IN (SELECT value FROM json_each(?)) AND ${OWN_BUDGET} LIMIT 1`)
-    .get(JSON.stringify(sourceIds), userId)
+    .prepare(
+      `SELECT source_id FROM food_purchases
+       WHERE source_id IN (SELECT value FROM json_each(?)) AND budget_id IN ${SCOPE_BUDGETS} LIMIT 1`,
+    )
+    .get(JSON.stringify(sourceIds), ...scopeParams(scope))
   return row ? (row.source_id as string) : null
 }
 
 // ── Purchases ────────────────────────────────────────────────────────────────
 
 /** Newest day first and, within a day, the last added first. */
-export function listPurchases(db: Database, userId: string, budgetId: string): PurchaseRow[] {
+export function listPurchases(db: Database, scope: FoodScope, budgetId: string): PurchaseRow[] {
   return db
     .prepare(
-      `SELECT ${PURCHASE_COLUMNS} FROM food_purchases p
-       WHERE p.budget_id = ? AND ${OWN_BUDGET}
+      `SELECT ${PURCHASE_COLUMNS} FROM ${PURCHASES}
+       WHERE p.budget_id = ? AND p.budget_id IN ${SCOPE_BUDGETS}
        ORDER BY p.spent_on DESC, p.created_at DESC, p.rowid DESC`,
     )
-    .all(budgetId, userId)
+    .all(budgetId, ...scopeParams(scope))
     .map(toPurchaseRow)
 }
 
-export function findPurchase(db: Database, userId: string, id: string): FullPurchaseRow | null {
+export function findPurchase(db: Database, scope: FoodScope, id: string): FullPurchaseRow | null {
   const row = db
     .prepare(
-      `SELECT ${PURCHASE_COLUMNS}, b.id AS budget_id, b.month_key FROM food_purchases p
+      `SELECT ${PURCHASE_COLUMNS}, b.id AS budget_id, b.month_key FROM ${PURCHASES}
        JOIN food_budgets b ON b.id = p.budget_id
-       WHERE p.id = ? AND b.user_id = ?`,
+       WHERE p.id = ? AND b.id IN ${SCOPE_BUDGETS}`,
     )
-    .get(id, userId)
+    .get(id, ...scopeParams(scope))
   return row ? { ...toPurchaseRow(row), budgetId: row.budget_id as string, monthKey: row.month_key as string } : null
 }
 
-export function countPurchases(db: Database, userId: string, budgetId: string): number {
-  return db.prepare(`SELECT count(*) AS n FROM food_purchases WHERE budget_id = ? AND ${OWN_BUDGET}`).get(budgetId, userId)
-    ?.n as number
+export function countPurchases(db: Database, scope: FoodScope, budgetId: string): number {
+  return db
+    .prepare(`SELECT count(*) AS n FROM food_purchases WHERE budget_id = ? AND budget_id IN ${SCOPE_BUDGETS}`)
+    .get(budgetId, ...scopeParams(scope))?.n as number
 }
 
-/** Adds nothing unless the budget is the user's; the user is recorded as who added it. */
+/** Adds nothing unless the budget is in the scope; the user is recorded as who added it. */
 export function insertPurchase(
   db: Database,
-  userId: string,
+  scope: FoodScope,
   purchase: PurchaseFields & { id: string; budgetId: string; now: string },
 ): void {
   db.prepare(
     `INSERT INTO food_purchases (id, budget_id, source_id, user_id, merchant, amount_bani, spent_on, note, created_at)
-     SELECT ?, id, ?, user_id, ?, ?, ?, ?, ? FROM food_budgets WHERE id = ? AND user_id = ?`,
+     SELECT ?, id, ?, ?, ?, ?, ?, ?, ? FROM food_budgets WHERE id = ? AND ${IN_SCOPE}`,
   ).run(
     purchase.id,
     purchase.sourceId,
+    scope.userId,
     purchase.merchant,
     purchase.amountBani,
     purchase.spentOn,
     purchase.note,
     purchase.now,
     purchase.budgetId,
-    userId,
+    ...scopeParams(scope),
   )
 }
 
 /** Writes every field; the caller merges the changes into the current row. */
-export function updatePurchase(db: Database, userId: string, id: string, fields: PurchaseFields): void {
+export function updatePurchase(db: Database, scope: FoodScope, id: string, fields: PurchaseFields): void {
   db.prepare(
     `UPDATE food_purchases SET source_id = ?, merchant = ?, amount_bani = ?, spent_on = ?, note = ?
-     WHERE id = ? AND ${OWN_BUDGET}`,
-  ).run(fields.sourceId, fields.merchant, fields.amountBani, fields.spentOn, fields.note, id, userId)
+     WHERE id = ? AND budget_id IN ${SCOPE_BUDGETS}`,
+  ).run(fields.sourceId, fields.merchant, fields.amountBani, fields.spentOn, fields.note, id, ...scopeParams(scope))
 }
 
-export function deletePurchase(db: Database, userId: string, id: string): void {
-  db.prepare(`DELETE FROM food_purchases WHERE id = ? AND ${OWN_BUDGET}`).run(id, userId)
+export function deletePurchase(db: Database, scope: FoodScope, id: string): void {
+  db.prepare(`DELETE FROM food_purchases WHERE id = ? AND budget_id IN ${SCOPE_BUDGETS}`).run(id, ...scopeParams(scope))
 }
 
 /** Whether moving `monthKey`'s start to `start` would leave a purchase
@@ -219,24 +256,28 @@ export function deletePurchase(db: Database, userId: string, id: string): void {
     month's on or after it. */
 export function hasPurchasesOutside(
   db: Database,
-  userId: string,
+  scope: FoodScope,
   months: { monthKey: string; previousMonthKey: string },
   start: string,
 ): boolean {
   const row = db
     .prepare(
       `SELECT 1 FROM food_purchases p JOIN food_budgets b ON b.id = p.budget_id
-       WHERE b.user_id = ?
+       WHERE b.id IN ${SCOPE_BUDGETS}
          AND ((b.month_key = ? AND p.spent_on < ?) OR (b.month_key = ? AND p.spent_on >= ?))
        LIMIT 1`,
     )
-    .get(userId, months.monthKey, start, months.previousMonthKey, start)
+    .get(...scopeParams(scope), months.monthKey, start, months.previousMonthKey, start)
   return row !== undefined
 }
 
 /** Deletes every purchase of the budget and returns how many there were. */
-export function deletePurchases(db: Database, userId: string, budgetId: string): number {
-  return Number(db.prepare(`DELETE FROM food_purchases WHERE budget_id = ? AND ${OWN_BUDGET}`).run(budgetId, userId).changes)
+export function deletePurchases(db: Database, scope: FoodScope, budgetId: string): number {
+  return Number(
+    db
+      .prepare(`DELETE FROM food_purchases WHERE budget_id = ? AND budget_id IN ${SCOPE_BUDGETS}`)
+      .run(budgetId, ...scopeParams(scope)).changes,
+  )
 }
 
 // ── Working calendar ─────────────────────────────────────────────────────────
