@@ -15,8 +15,8 @@ import { cx } from './cx.ts'
    field is tapped. A click on the backdrop
    also closes, but only when the press started there too, so dragging a
    text selection out of a field does not throw the form away. A dialog
-   taller than the screen scrolls its body, with the title and the buttons
-   staying in view. */
+   taller than the screen scrolls its body up and down only, with the title
+   and the buttons staying in view. */
 
 interface DialogProps {
   open: boolean
@@ -88,7 +88,7 @@ export function Dialog({ open, onClose, title, children, footer }: DialogProps) 
               <X />
             </IconButton>
           </header>
-          <div ref={bodyRef} className="min-h-0 overflow-y-auto overscroll-contain px-5 py-5">
+          <div ref={bodyRef} className="min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain px-5 py-5">
             {children}
           </div>
           {footer && (
