@@ -26,7 +26,7 @@ export function SettingsPage() {
     <>
       <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} />
       {/* The history has a card of its own, beside the settings on a wide screen. */}
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="card">
           <AccountSection user={state.user} />
           <SecuritySection />
