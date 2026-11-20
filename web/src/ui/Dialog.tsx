@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { useT } from '../lib/i18n.tsx'
+import { isTouchScreen } from '../lib/touch.ts'
 import { Button, IconButton } from './Button.tsx'
 import { cx } from './cx.ts'
 
@@ -9,7 +10,9 @@ import { cx } from './cx.ts'
    onClose so the parent stays the owner of `open`. Two things are done by
    hand because browsers differ on them: focus moves to the element marked
    data-autofocus, else the first control in the body, else the first footer
-   button, and returns to whatever had it before. A click on the backdrop
+   button, and returns to whatever had it before. On a touch screen the
+   dialog itself takes focus instead, so no keyboard covers it before a
+   field is tapped. A click on the backdrop
    also closes, but only when the press started there too, so dragging a
    text selection out of a field does not throw the form away. A dialog
    taller than the screen scrolls its body, with the title and the buttons
@@ -39,10 +42,11 @@ export function Dialog({ open, onClose, title, children, footer }: DialogProps) 
     if (!open || !dialog) return
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     dialog.showModal()
-    const first =
-      dialog.querySelector<HTMLElement>('[data-autofocus]') ??
-      bodyRef.current?.querySelector<HTMLElement>(FOCUSABLE) ??
-      footerRef.current?.querySelector<HTMLElement>(FOCUSABLE)
+    const first = isTouchScreen()
+      ? dialog
+      : (dialog.querySelector<HTMLElement>('[data-autofocus]') ??
+        bodyRef.current?.querySelector<HTMLElement>(FOCUSABLE) ??
+        footerRef.current?.querySelector<HTMLElement>(FOCUSABLE))
     first?.focus()
     return () => {
       dialog.close()
@@ -54,6 +58,7 @@ export function Dialog({ open, onClose, title, children, footer }: DialogProps) 
     <dialog
       ref={ref}
       aria-labelledby={titleId}
+      tabIndex={-1}
       onCancel={(event) => {
         event.preventDefault()
         onClose()
@@ -66,7 +71,7 @@ export function Dialog({ open, onClose, title, children, footer }: DialogProps) 
         pressedOnBackdrop.current = false
       }}
       className={cx(
-        'max-h-[calc(100dvh-2rem)] overflow-hidden border-line bg-paper p-0 text-ink shadow-2xl',
+        'max-h-[calc(100dvh-2rem)] overflow-hidden border-line bg-paper p-0 text-ink shadow-2xl outline-none',
         // A sheet along the bottom edge on phones, within reach of the thumb;
         // a centred card from sm up.
         'mx-0 mt-auto mb-0 w-full max-w-none rounded-t-2xl border-t',
