@@ -20,7 +20,7 @@ interface ImportMenuProps {
   onFailed: (error: unknown) => void
 }
 
-const TRIGGER = 'min-h-9 px-3 py-1.5'
+const TRIGGER = 'min-h-9 w-full px-3 py-1.5 sm:w-auto'
 
 export function ImportMenu({ monthKey, previousMonth, hasTemplate, onImported, onFailed }: ImportMenuProps) {
   const { t, language } = useI18n()

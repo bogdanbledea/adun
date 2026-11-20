@@ -191,8 +191,9 @@ export function MonthView({
       )}
 
       <section aria-labelledby="budget-entries" className="mt-5 card">
-        {/* On phones the filter gets a full-width row under the title and
-            the buttons; from sm up it is one row. */}
+        {/* On phones the title and the month menu share the first row, the
+            two buttons the second and the filter the third; from sm up it is
+            one row. */}
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5 sm:px-4">
           <h2 id="budget-entries" className="mr-auto text-lg font-semibold">
             {t('budget.transactions')}
@@ -211,20 +212,22 @@ export function MonthView({
               </button>
             ))}
           </div>
-          <ImportMenu
-            monthKey={monthKey}
-            previousMonth={previousMonth}
-            hasTemplate={hasTemplate}
-            onImported={(count) => {
-              setMessage({ tone: 'imported', count })
-              void load()
-            }}
-            onFailed={(error) => { setMessage({ tone: 'error', error, lead: t('budget.importFailed') }) }}
-          />
-          <Button className="min-h-9 px-3 py-1.5" onClick={() => { setOpen({ dialog: 'add' }) }}>
-            <Plus />
-            {t('budget.add')}
-          </Button>
+          <div className="order-1 grid w-full auto-cols-fr grid-flow-col gap-2 sm:order-none sm:flex sm:w-auto">
+            <ImportMenu
+              monthKey={monthKey}
+              previousMonth={previousMonth}
+              hasTemplate={hasTemplate}
+              onImported={(count) => {
+                setMessage({ tone: 'imported', count })
+                void load()
+              }}
+              onFailed={(error) => { setMessage({ tone: 'error', error, lead: t('budget.importFailed') }) }}
+            />
+            <Button className="min-h-9 px-3 py-1.5" onClick={() => { setOpen({ dialog: 'add' }) }}>
+              <Plus />
+              {t('budget.add')}
+            </Button>
+          </div>
           <Menu
             label={t('budget.monthActions')}
             trigger={<EllipsisVertical className="size-5" />}
