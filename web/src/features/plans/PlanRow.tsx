@@ -2,6 +2,7 @@ import { Check, ChevronDown, ChevronUp, CreditCard, Pencil, Trash2 } from 'lucid
 import { useEffect, useId, useState, type SubmitEvent } from 'react'
 import { errorText } from '../../lib/api.ts'
 import { useI18n } from '../../lib/i18n.tsx'
+import { isTouchScreen } from '../../lib/touch.ts'
 import { Button } from '../../ui/Button.tsx'
 import { cx } from '../../ui/cx.ts'
 import { Field } from '../../ui/Field.tsx'
@@ -155,7 +156,7 @@ function PurchaseDate({ plan, onChanged }: { plan: Plan; onChanged: (plan: Plan)
               type="date"
               label={t('plans.purchaseDate')}
               value={value}
-              autoFocus
+              autoFocus={!isTouchScreen()}
               onChange={(event) => { setValue(event.target.value) }}
             />
           </div>
