@@ -5,9 +5,13 @@
 #            built web files; no npm, runs as the unprivileged `node` user
 #
 # The server runs its TypeScript directly, so it has no build step. The base
-# image is pinned by digest, and Dependabot keeps it current.
+# image is pinned by digest, Dependabot keeps it current, and its Alpine
+# packages are upgraded when the image is built.
 
 FROM node:26.13.1-alpine3.24@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS base
+# Alpine publishes security fixes before the Node image is rebuilt with them,
+# so the image takes them at build time.
+RUN apk upgrade --no-cache
 
 # The built files are the same for every platform, so the web app is built
 # once on the build machine's own, even when the image is for another one.
