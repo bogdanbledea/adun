@@ -135,7 +135,7 @@ function CategoryBlock({ category, entries, onReorder, onAdd, onEdit, onDelete, 
   return (
     <li
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cx('px-2 py-3 sm:px-3', isDragging && 'relative z-10 bg-paper opacity-80')}
     >
       <div className="flex items-center justify-between gap-2">

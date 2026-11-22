@@ -40,7 +40,7 @@ export function EntryRow({ entry, onEdit, onDelete, onViewPlan }: EntryRowProps)
   return (
     <li
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
       onClick={() => { if (viewPlan) viewPlan(); else onEdit(entry) }}
       className={cx(
         'group flex min-h-11 pointer-fine:min-h-9 cursor-pointer items-center justify-between gap-2 border-t border-line py-1 pr-1 first:border-t-0 hover:bg-hover',
