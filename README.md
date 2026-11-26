@@ -238,7 +238,7 @@ an hour later.
 | `BACKUP_KEEP`           | `7`                | Scheduled copies kept, from 1 to 1000    |
 
 A copy in the data folder is lost with the disk it is on, so point
-`BACKUP_DIR` at another disk or copy backups somewhere else as well.
+`BACKUP_DIR` at another disk, or have the server upload each copy as well.
 
 To go back to a backup, stop the server and run
 `npm run restore -- <backup file>`. It refuses while the server has the
@@ -247,6 +247,46 @@ or comes from a newer version. The database it replaces is kept as
 `backups/pre-restore-<UTC time>.sqlite`. Migrations the backup does not have
 yet run when the server starts. With `-` for the file, the backup is read
 from standard input.
+
+#### Uploading backups
+
+Setting `BACKUP_S3_BUCKET` makes the server upload each scheduled copy to an
+S3-compatible store (Cloudflare R2, Backblaze B2, MinIO, AWS S3), encrypted
+first with [age](https://age-encryption.org) to a public key. Only the
+matching private key can read the copies, so keep it away from the server,
+in a password manager for example. The image includes `age`; outside Docker,
+install it (`brew install age`, `apt install age`).
+
+```sh
+age-keygen -o adun-backup-key.txt   # on your own computer; prints the public key
+```
+
+| Variable                      | Default | Meaning                                                        |
+| ----------------------------- | ------- | -------------------------------------------------------------- |
+| `BACKUP_S3_BUCKET`            |         | Bucket; setting it turns uploads on                            |
+| `BACKUP_S3_ENDPOINT`          |         | The store's S3 API origin, without the bucket                  |
+| `BACKUP_S3_REGION`            | `auto`  | `auto` for R2; the bucket's region elsewhere (`eu-central-1`)  |
+| `BACKUP_S3_PREFIX`            |         | Folder in the bucket, such as `adun`                           |
+| `BACKUP_S3_ACCESS_KEY_ID`     |         | Access key, required with the bucket                           |
+| `BACKUP_S3_SECRET_ACCESS_KEY` |         | Its secret, required with the bucket                           |
+| `BACKUP_AGE_RECIPIENT`        |         | age public key (`age1…`), required with the bucket             |
+
+With R2 the endpoint is `https://<account ID>.r2.cloudflarestorage.com`
+(`.eu.r2…` for a bucket in the EU jurisdiction). Give the server a key
+that can only read and write objects in that one bucket, and let the store
+delete old copies with a lifecycle rule, and keep them from being deleted
+early with object lock, if it has one: the server never deletes anything
+it uploaded.
+
+Each copy goes up as `<prefix>/auto-<UTC time>.sqlite.age`. A copy that did
+not go up (`backup.upload_failed` in the log) is tried again every hour,
+and is not deleted from `BACKUP_DIR` until it has. The server will not start
+if `age` is missing or refuses the public key, or with a bucket and no key.
+To bring a copy back, download it, decrypt it, and restore the result as above:
+
+```sh
+age -d -i adun-backup-key.txt auto-….sqlite.age > adun-backup.sqlite
+```
 
 ### A user's own data
 

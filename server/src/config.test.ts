@@ -10,6 +10,8 @@ function rejects(env: Record<string, string>, variable: string) {
   )
 }
 
+const RECIPIENT = 'age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p'
+
 test('development defaults', () => {
   assert.deepEqual(loadConfig({}), {
     production: false,
@@ -19,7 +21,7 @@ test('development defaults', () => {
     trustProxyHops: 0,
     registrationsEnabled: true,
     email: null,
-    backup: { dir: path.resolve('data', 'backups'), intervalHours: 24, keep: 7 },
+    backup: { dir: path.resolve('data', 'backups'), intervalHours: 24, keep: 7, offsite: null },
     timeZone: 'Europe/Bucharest',
     logLevel: 'info',
   })
@@ -42,6 +44,13 @@ test('reads every variable', () => {
     BACKUP_DIR: '/backups',
     BACKUP_INTERVAL_HOURS: '6',
     BACKUP_KEEP: '28',
+    BACKUP_S3_ENDPOINT: 'https://s3.example.com',
+    BACKUP_S3_REGION: 'eu-central-1',
+    BACKUP_S3_BUCKET: 'adun-backups',
+    BACKUP_S3_PREFIX: '/home/',
+    BACKUP_S3_ACCESS_KEY_ID: 'key-id',
+    BACKUP_S3_SECRET_ACCESS_KEY: 'key-secret',
+    BACKUP_AGE_RECIPIENT: RECIPIENT,
     TIME_ZONE: 'America/New_York',
     LOG_LEVEL: 'warn',
   })
@@ -60,7 +69,22 @@ test('reads every variable', () => {
       fromAddress: 'adun@example.com',
       fromName: 'Adun',
     },
-    backup: { dir: '/backups', intervalHours: 6, keep: 28 },
+    backup: {
+      dir: '/backups',
+      intervalHours: 6,
+      keep: 28,
+      offsite: {
+        target: {
+          endpoint: 'https://s3.example.com',
+          region: 'eu-central-1',
+          bucket: 'adun-backups',
+          accessKeyId: 'key-id',
+          secretAccessKey: 'key-secret',
+        },
+        prefix: 'home',
+        ageRecipient: RECIPIENT,
+      },
+    },
     timeZone: 'America/New_York',
     logLevel: 'warn',
   })
@@ -117,4 +141,26 @@ test('email: half a setup stops startup', () => {
   rejects({ SMTP_HOST: 'smtp.example.com', EMAIL_FROM: 'nobody' }, 'EMAIL_FROM')
   rejects({ SMTP_HOST: 'smtp.example.com', EMAIL_FROM: 'adun@example.com', SMTP_USER: 'adun' }, 'SMTP_PASSWORD')
   rejects({ SMTP_HOST: 'smtp.example.com', EMAIL_FROM: 'adun@example.com', SMTP_PORT: 'smtp' }, 'SMTP_PORT')
+})
+
+test('backups: uploads need the bucket, the keys and an age recipient', () => {
+  const s3 = {
+    BACKUP_S3_ENDPOINT: 'https://s3.example.com',
+    BACKUP_S3_BUCKET: 'adun-backups',
+    BACKUP_S3_ACCESS_KEY_ID: 'key-id',
+    BACKUP_S3_SECRET_ACCESS_KEY: 'key-secret',
+    BACKUP_AGE_RECIPIENT: RECIPIENT,
+  }
+  const offsite = loadConfig(s3).backup?.offsite
+  assert.equal(offsite?.target.region, 'auto')
+  assert.equal(offsite.prefix, '')
+
+  rejects({ BACKUP_S3_ENDPOINT: 'https://s3.example.com' }, 'BACKUP_S3_BUCKET')
+  rejects({ BACKUP_AGE_RECIPIENT: RECIPIENT }, 'BACKUP_S3_BUCKET')
+  rejects({ ...s3, BACKUP_S3_ENDPOINT: '' }, 'BACKUP_S3_ENDPOINT')
+  rejects({ ...s3, BACKUP_S3_ENDPOINT: 'https://s3.example.com/adun-backups' }, 'BACKUP_S3_ENDPOINT')
+  rejects({ ...s3, NODE_ENV: 'production', APP_URL: 'https://adun.example.com', BACKUP_S3_ENDPOINT: 'http://s3.example.com' }, 'BACKUP_S3_ENDPOINT')
+  rejects({ ...s3, BACKUP_S3_SECRET_ACCESS_KEY: '' }, 'BACKUP_S3_SECRET_ACCESS_KEY')
+  rejects({ ...s3, BACKUP_AGE_RECIPIENT: '' }, 'BACKUP_AGE_RECIPIENT')
+  rejects({ ...s3, BACKUP_AGE_RECIPIENT: 'AGE-SECRET-KEY-1QQQ' }, 'BACKUP_AGE_RECIPIENT')
 })

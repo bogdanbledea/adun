@@ -92,7 +92,7 @@ export function listBackups(dir: string, prefix: string): string[] {
 }
 
 /** Deletes all but the newest `keep` copies with this prefix; returns how many went. */
-export function pruneBackups(dir: string, prefix: string, keep: number): number {
+function pruneBackups(dir: string, prefix: string, keep: number): number {
   const old = listBackups(dir, prefix).slice(0, -keep)
   for (const name of old) fs.rmSync(path.join(dir, name))
   return old.length

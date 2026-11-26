@@ -3,7 +3,7 @@ import { createApp } from './app.ts'
 import { ConfigError, loadConfig } from './config.ts'
 import { migrate, MigrationError, openDatabase } from './db.ts'
 import { createMailer } from './email/mailer.ts'
-import { prepareBackupDir, startScheduledBackups } from './jobs/backups.ts'
+import { prepareBackups, startScheduledBackups } from './jobs/backups.ts'
 import { startDailyCleanup } from './jobs/cleanup.ts'
 import { startReminderSweep } from './jobs/reminders.ts'
 import { createLogger } from './lib/log.ts'
@@ -15,7 +15,7 @@ import { shutdown } from './shutdown.ts'
 let config
 try {
   config = loadConfig(process.env)
-  if (config.backup) prepareBackupDir(config.backup.dir)
+  if (config.backup) prepareBackups(config.backup)
 } catch (error) {
   if (!(error instanceof ConfigError)) throw error
   console.error(`Configuration error: ${error.message}`)

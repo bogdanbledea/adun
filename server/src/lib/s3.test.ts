@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
-import http from 'node:http'
-import { after, describe, test } from 'node:test'
+import { describe, test } from 'node:test'
+import { fakeStore } from '../../test/s3.ts'
 import { objectExists, putObject, S3Error, signRequest, type S3Target } from './s3.ts'
 
 const sha256 = (data: string | Buffer) => crypto.createHash('sha256').update(data).digest('hex')
@@ -51,43 +51,6 @@ describe('signRequest', () => {
   })
 })
 
-interface Received {
-  method: string
-  url: string
-  headers: http.IncomingHttpHeaders
-  body: Buffer
-}
-
-// A stand-in for the store: records each request and answers with the next
-// status (and body) the test queued, 200 when none is queued.
-async function fakeStore() {
-  const received: Received[] = []
-  const answers: { status: number; body?: string }[] = []
-  const server = http.createServer((req, res) => {
-    const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => chunks.push(chunk))
-    req.on('end', () => {
-      received.push({ method: req.method ?? '', url: req.url ?? '', headers: req.headers, body: Buffer.concat(chunks) })
-      const answer = answers.shift() ?? { status: 200 }
-      res.writeHead(answer.status, { 'content-type': 'application/xml' })
-      res.end(req.method === 'HEAD' ? undefined : answer.body)
-    })
-  })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  after(() => {
-    server.close()
-  })
-  const { port } = server.address() as { port: number }
-  const target: S3Target = {
-    endpoint: `http://127.0.0.1:${String(port)}`,
-    region: 'auto',
-    bucket: 'backups',
-    accessKeyId: 'test-key-id',
-    secretAccessKey: 'test-secret',
-  }
-  return { target, received, answers }
-}
-
 const NOW = new Date('2026-11-26T12:00:00Z')
 
 describe('putObject', () => {
@@ -130,19 +93,20 @@ describe('putObject', () => {
 
 describe('objectExists', () => {
   test('true for 200, false for 404, and an error for anything else', async () => {
-    const { target, received, answers } = await fakeStore()
-    answers.push({ status: 200 }, { status: 404 }, { status: 403 })
+    const { target, received, objects, answers } = await fakeStore()
+    objects.set('/backups/adun/a.age', Buffer.from('a'))
+    answers.push({ status: 403 })
 
+    await assert.rejects(objectExists(target, 'adun/c.age', NOW), /HEAD adun\/c\.age failed: HTTP 403$/)
     assert.equal(await objectExists(target, 'adun/a.age', NOW), true)
     assert.equal(await objectExists(target, 'adun/b.age', NOW), false)
-    await assert.rejects(objectExists(target, 'adun/c.age', NOW), /HEAD adun\/c\.age failed: HTTP 403$/)
 
     assert.deepEqual(
       received.map((request) => [request.method, request.url, request.headers['x-amz-content-sha256']]),
       [
+        ['HEAD', '/backups/adun/c.age', sha256('')],
         ['HEAD', '/backups/adun/a.age', sha256('')],
         ['HEAD', '/backups/adun/b.age', sha256('')],
-        ['HEAD', '/backups/adun/c.age', sha256('')],
       ],
     )
   })

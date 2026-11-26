@@ -32,8 +32,10 @@ COPY server/package.json server/package-lock.json server/.npmrc ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
 FROM base AS runtime
-# Package managers are only needed to build; leave none behind.
-RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx \
+# age encrypts the backups the server uploads. Package managers are only
+# needed to build; leave none behind.
+RUN apk add --no-cache age \
+  && rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx \
       /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-* \
   && mkdir -p /data /backups && chown node:node /data /backups && chmod 0700 /data /backups
 

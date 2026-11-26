@@ -1,4 +1,5 @@
 import path from 'node:path'
+import type { S3Target } from './lib/s3.ts'
 import { LOG_LEVELS, type LogLevel } from './lib/log.ts'
 
 /* Every environment variable the server reads, parsed once at startup. An
@@ -14,12 +15,22 @@ export interface EmailConfig {
   fromName: string
 }
 
+export interface OffsiteConfig {
+  target: S3Target
+  // Keys are <prefix>/auto-<UTC time>.sqlite.age, or no prefix and slash.
+  prefix: string
+  // age public key (age1…) each copy is encrypted to before it leaves.
+  ageRecipient: string
+}
+
 export interface BackupConfig {
   // Absolute path of the folder the scheduled copies go to.
   dir: string
   intervalHours: number
   // Scheduled copies kept; older ones are deleted.
   keep: number
+  // null means the copies stay on this machine only.
+  offsite: OffsiteConfig | null
 }
 
 export interface Config {
@@ -130,14 +141,61 @@ function email(env: Env): EmailConfig | null {
   }
 }
 
+const OFFSITE_VARIABLES = [
+  'BACKUP_S3_ENDPOINT',
+  'BACKUP_S3_REGION',
+  'BACKUP_S3_PREFIX',
+  'BACKUP_S3_ACCESS_KEY_ID',
+  'BACKUP_S3_SECRET_ACCESS_KEY',
+  'BACKUP_AGE_RECIPIENT',
+]
+
+// BACKUP_S3_BUCKET turns uploads on, as SMTP_HOST does email. A copy never
+// leaves unencrypted, so the age recipient is required with it.
+function offsite(env: Env, production: boolean): OffsiteConfig | null {
+  const bucket = read(env, 'BACKUP_S3_BUCKET')
+  if (bucket === undefined) {
+    const stray = OFFSITE_VARIABLES.filter((name) => read(env, name) !== undefined)
+    if (stray.length > 0) throw new ConfigError(`${stray.join(', ')} set without BACKUP_S3_BUCKET; set it to upload backups`)
+    return null
+  }
+
+  const raw = read(env, 'BACKUP_S3_ENDPOINT')
+  let endpoint: URL | undefined
+  try {
+    endpoint = raw === undefined ? undefined : new URL(raw)
+  } catch {
+    endpoint = undefined
+  }
+  const protocols = production ? ['https:'] : ['https:', 'http:']
+  if (endpoint === undefined || !protocols.includes(endpoint.protocol) || endpoint.pathname !== '/' || endpoint.search !== '') {
+    throw new ConfigError(`BACKUP_S3_ENDPOINT must be the store's ${production ? 'https://' : ''}origin, without the bucket`)
+  }
+  const accessKeyId = read(env, 'BACKUP_S3_ACCESS_KEY_ID')
+  const secretAccessKey = read(env, 'BACKUP_S3_SECRET_ACCESS_KEY')
+  if (accessKeyId === undefined || secretAccessKey === undefined) {
+    throw new ConfigError('BACKUP_S3_ACCESS_KEY_ID and BACKUP_S3_SECRET_ACCESS_KEY are required with BACKUP_S3_BUCKET')
+  }
+  const ageRecipient = read(env, 'BACKUP_AGE_RECIPIENT')
+  if (ageRecipient === undefined || !/^age1[0-9a-z]+$/.test(ageRecipient)) {
+    throw new ConfigError('BACKUP_AGE_RECIPIENT must be an age public key (age1…) with BACKUP_S3_BUCKET')
+  }
+  return {
+    target: { endpoint: endpoint.origin, region: read(env, 'BACKUP_S3_REGION') ?? 'auto', bucket, accessKeyId, secretAccessKey },
+    prefix: (read(env, 'BACKUP_S3_PREFIX') ?? '').replace(/^\/+|\/+$/g, ''),
+    ageRecipient,
+  }
+}
+
 // Leaving the other variables set while turning backups off is fine: they are
 // ready for when they are turned back on.
-function backup(env: Env, dataDir: string): BackupConfig | null {
+function backup(env: Env, dataDir: string, production: boolean): BackupConfig | null {
   if (!boolean(env, 'BACKUPS_ENABLED', true)) return null
   return {
     dir: path.resolve(read(env, 'BACKUP_DIR') ?? path.join(dataDir, 'backups')),
     intervalHours: integer(env, 'BACKUP_INTERVAL_HOURS', 24, 1, 168),
     keep: integer(env, 'BACKUP_KEEP', 7, 1, 1000),
+    offsite: offsite(env, production),
   }
 }
 
@@ -170,7 +228,7 @@ export function loadConfig(env: Env): Config {
     trustProxyHops: integer(env, 'TRUST_PROXY_HOPS', 0, 0, 10),
     registrationsEnabled: boolean(env, 'REGISTRATIONS_ENABLED', true),
     email: email(env),
-    backup: backup(env, dataDir),
+    backup: backup(env, dataDir, production),
     timeZone: timeZone(env),
     logLevel: logLevel(env),
   }
