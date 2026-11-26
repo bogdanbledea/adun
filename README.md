@@ -88,9 +88,10 @@ the `/data` volume and listens on port 8080. Its health check calls
 `/health`.
 
 `compose.yaml` runs it with a read-only file system, every Linux capability
-dropped, `no-new-privileges`, and limits on memory and processes. The app
-listens on `127.0.0.1:8080` of the host, for a reverse proxy on the same
-machine that serves it over HTTPS (Caddy, nginx, a tunnel connector).
+dropped, `no-new-privileges`, limits on memory and processes, and rotated
+logs. The app listens on `127.0.0.1:8080` of the host (`ADUN_PORT` in `.env`
+changes the port), for a reverse proxy on the same machine that serves it
+over HTTPS (Caddy, nginx, a tunnel connector).
 
 ```sh
 cp .env.example .env            # then set APP_URL and, if wanted, email
@@ -98,21 +99,29 @@ docker compose up -d            # the published image
 docker compose up -d --build    # or one built from this checkout
 ```
 
+Scheduled backups go to the `adun-backups` volume. To have them in a folder
+on the host instead, create it, give it to uid 1000 (the container's user),
+and name it in `.env`:
+
+```sh
+sudo install -d -o 1000 -g 1000 -m 700 /srv/adun-backups
+echo ADUN_BACKUPS=/srv/adun-backups >> .env
+```
+
 The commands from the Email and Data sections run inside the container:
 
 ```sh
 docker compose exec app node src/cli/backup.ts
 docker compose exec app node src/cli/reset-password.ts user@example.com
-docker compose cp app:/data/backups ./backups   # a copy off the volume
+docker compose cp app:/backups ./backups   # a copy off the volume
 
 docker compose stop app
 docker compose run --rm -T --no-deps app node src/cli/restore.ts - < adun-backup.sqlite
 docker compose start app
 ```
 
-A backup already in the volume restores with its path instead of `-`, such
-as `/data/backups/pre-migration-0020-….sqlite`. A daily backup can run from
-the host's cron, followed by copying the file somewhere else.
+A backup already in a volume restores with its path instead of `-`, such
+as `/data/backups/pre-migration-0020-….sqlite` or `/backups/auto-….sqlite`.
 
 `scripts/container-test.sh <image>` checks a built image: data survives
 removing the container, an upgrade backs up before it migrates, and a backup

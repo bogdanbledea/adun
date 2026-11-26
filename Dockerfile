@@ -35,7 +35,7 @@ FROM base AS runtime
 # Package managers are only needed to build; leave none behind.
 RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx \
       /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-* \
-  && mkdir -p /data && chown node:node /data && chmod 0700 /data
+  && mkdir -p /data /backups && chown node:node /data /backups && chmod 0700 /data /backups
 
 ENV NODE_ENV=production \
     ADUN_DATA_DIR=/data \

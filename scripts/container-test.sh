@@ -2,7 +2,8 @@
 # Tests a built image the way compose.yaml runs it:
 #   1. data survives `docker rm` + `docker run` with the same volume;
 #   2. an image with a new migration applies it after a backup;
-#   3. a backup restores into a new volume, and an older image refuses it.
+#   3. a backup restores into a new volume, and an older image refuses it;
+#   4. scheduled backups go to a volume at /backups.
 #
 # Usage: scripts/container-test.sh [image]        (default adun:dev)
 # Needs docker and curl. Uses port 18181 on 127.0.0.1 (ADUN_TEST_PORT).
@@ -13,13 +14,14 @@ port=${ADUN_TEST_PORT:-18181}
 name=adun-container-test-$$
 volume=$name-data
 restored=$name-restored
+backups=$name-backups
 upgraded=$name:upgraded
 work=$(mktemp -d)
 base=http://localhost:$port
 
 cleanup() {
   docker rm -f "$name" >/dev/null 2>&1 || true
-  docker volume rm "$volume" "$restored" >/dev/null 2>&1 || true
+  docker volume rm "$volume" "$restored" "$backups" >/dev/null 2>&1 || true
   docker image rm "$upgraded" >/dev/null 2>&1 || true
   rm -rf "$work"
 }
@@ -34,13 +36,14 @@ pass() { echo "ok - $*"; }
 
 hardened=(--read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true)
 
-# Runs the image on a volume and waits for the image's own health check.
+# Runs the image on a volume, with any further docker run options, and waits
+# for the image's own health check.
 start() {
   docker run --detach --name "$name" "${hardened[@]}" \
     --env APP_URL="https://localhost:$port" \
     --publish "127.0.0.1:$port:8080" \
     --volume "$2:/data" \
-    "$1" >/dev/null
+    "${@:3}" "$1" >/dev/null
   for _ in $(seq 1 60); do
     case $(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$name") in
       healthy) return ;;
@@ -123,3 +126,10 @@ start "$upgraded" "$restored"
 [ "$(api GET /api/user/me)" = 200 ] || fail "session lost in the restored volume"
 [ "$(api GET /api/months)" = 200 ] && grep -q '2026-11' "$work/body" || fail "month lost in the restored volume"
 pass "a backup restores into a new volume, and an older image refuses it"
+stop_and_remove
+
+# ── 4. Scheduled backups go to a volume at /backups, as in compose.yaml ─────
+docker volume create "$backups" >/dev/null
+start "$upgraded" "$restored" --env BACKUP_DIR=/backups --volume "$backups:/backups"
+docker exec "$name" sh -c 'ls /backups/auto-*.sqlite' >/dev/null || fail "no scheduled backup in /backups"
+pass "a scheduled backup was written to the /backups volume"

@@ -1,6 +1,8 @@
 # Runs the image with a hardened container. Settings go in .env next to this
 # file (copy .env.example). The app listens on 127.0.0.1:8080 of the host
-# only, for a reverse proxy on the same machine that serves it over HTTPS.
+# (ADUN_PORT) only, for a reverse proxy on the same machine that serves it
+# over HTTPS. Scheduled backups go to a volume, or to the host folder named
+# by ADUN_BACKUPS.
 #
 #   docker compose up -d            pulls the published image
 #   docker compose up -d --build    builds it from this checkout instead
@@ -15,11 +17,13 @@ services:
     env_file: .env
     environment:
       ADUN_DATA_DIR: /data
+      BACKUP_DIR: /backups
       PORT: "8080"
     ports:
-      - 127.0.0.1:8080:8080
+      - 127.0.0.1:${ADUN_PORT:-8080}:8080
     volumes:
       - adun-data:/data
+      - ${ADUN_BACKUPS:-adun-backups}:/backups
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
@@ -29,6 +33,10 @@ services:
     pids_limit: 128
     # Longer than the app's own 10-second deadline for requests in flight.
     stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
 
 volumes:
   adun-data:
+  adun-backups:
