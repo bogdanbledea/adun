@@ -19,6 +19,7 @@ test('development defaults', () => {
     trustProxyHops: 0,
     registrationsEnabled: true,
     email: null,
+    backup: { dir: path.resolve('data', 'backups'), intervalHours: 24, keep: 7 },
     timeZone: 'Europe/Bucharest',
     logLevel: 'info',
   })
@@ -38,6 +39,9 @@ test('reads every variable', () => {
     SMTP_PASSWORD: 'secret',
     EMAIL_FROM: 'adun@example.com',
     EMAIL_FROM_NAME: 'Adun',
+    BACKUP_DIR: '/backups',
+    BACKUP_INTERVAL_HOURS: '6',
+    BACKUP_KEEP: '28',
     TIME_ZONE: 'America/New_York',
     LOG_LEVEL: 'warn',
   })
@@ -56,6 +60,7 @@ test('reads every variable', () => {
       fromAddress: 'adun@example.com',
       fromName: 'Adun',
     },
+    backup: { dir: '/backups', intervalHours: 6, keep: 28 },
     timeZone: 'America/New_York',
     logLevel: 'warn',
   })
@@ -83,6 +88,15 @@ test('refuses invalid values and names the variable', () => {
   rejects({ REGISTRATIONS_ENABLED: 'yes' }, 'REGISTRATIONS_ENABLED')
   rejects({ LOG_LEVEL: 'verbose' }, 'LOG_LEVEL')
   rejects({ TIME_ZONE: 'Europe/Nowhere' }, 'TIME_ZONE')
+  rejects({ BACKUPS_ENABLED: 'no' }, 'BACKUPS_ENABLED')
+  rejects({ BACKUP_INTERVAL_HOURS: '0' }, 'BACKUP_INTERVAL_HOURS')
+  rejects({ BACKUP_INTERVAL_HOURS: '169' }, 'BACKUP_INTERVAL_HOURS')
+  rejects({ BACKUP_KEEP: '0' }, 'BACKUP_KEEP')
+})
+
+test('backups: the default folder follows the data folder, and false turns them off', () => {
+  assert.equal(loadConfig({ ADUN_DATA_DIR: '/data' }).backup?.dir, path.join('/data', 'backups'))
+  assert.equal(loadConfig({ BACKUPS_ENABLED: 'false', BACKUP_KEEP: '3' }).backup, null)
 })
 
 test('email: a relay without sign-in, on the default port, with the default name', () => {

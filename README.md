@@ -214,8 +214,22 @@ data, the server writes `backups/pre-migration-NNNN-<UTC time>.sqlite`; if
 that copy fails, it does not start. The five newest pre-migration copies are
 kept; the server never deletes the ones made with `npm run backup`.
 
-A copy in the data folder is lost with the disk it is on, so copy backups
-somewhere else as well.
+The server also takes copies on its own, `auto-<UTC time>.sqlite` in
+`BACKUP_DIR`: one at startup when the newest is older than the interval,
+then one every interval, keeping the newest `BACKUP_KEEP`. Other files in the
+folder are left alone. The server will not start if it cannot write to the
+folder; a copy that fails later is logged as `backup.failed` and tried again
+an hour later.
+
+| Variable                | Default            | Meaning                                  |
+| ----------------------- | ------------------ | ---------------------------------------- |
+| `BACKUPS_ENABLED`       | `true`             | `false` turns the scheduled copies off   |
+| `BACKUP_DIR`            | `<data>/backups`   | Folder for the scheduled copies          |
+| `BACKUP_INTERVAL_HOURS` | `24`               | Hours between copies, from 1 to 168      |
+| `BACKUP_KEEP`           | `7`                | Scheduled copies kept, from 1 to 1000    |
+
+A copy in the data folder is lost with the disk it is on, so point
+`BACKUP_DIR` at another disk or copy backups somewhere else as well.
 
 To go back to a backup, stop the server and run
 `npm run restore -- <backup file>`. It refuses while the server has the

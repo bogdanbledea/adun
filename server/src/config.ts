@@ -14,6 +14,14 @@ export interface EmailConfig {
   fromName: string
 }
 
+export interface BackupConfig {
+  // Absolute path of the folder the scheduled copies go to.
+  dir: string
+  intervalHours: number
+  // Scheduled copies kept; older ones are deleted.
+  keep: number
+}
+
 export interface Config {
   production: boolean
   // Origin only, without a trailing slash, e.g. https://adun.example.com.
@@ -27,6 +35,8 @@ export interface Config {
   registrationsEnabled: boolean
   // null means email is off.
   email: EmailConfig | null
+  // null means no scheduled backups.
+  backup: BackupConfig | null
   // IANA name, such as Europe/Bucharest: decides which day it is for the
   // reminder emails, and the hour they go out.
   timeZone: string
@@ -120,6 +130,17 @@ function email(env: Env): EmailConfig | null {
   }
 }
 
+// Leaving the other variables set while turning backups off is fine: they are
+// ready for when they are turned back on.
+function backup(env: Env, dataDir: string): BackupConfig | null {
+  if (!boolean(env, 'BACKUPS_ENABLED', true)) return null
+  return {
+    dir: path.resolve(read(env, 'BACKUP_DIR') ?? path.join(dataDir, 'backups')),
+    intervalHours: integer(env, 'BACKUP_INTERVAL_HOURS', 24, 1, 168),
+    keep: integer(env, 'BACKUP_KEEP', 7, 1, 1000),
+  }
+}
+
 function timeZone(env: Env): string {
   const raw = read(env, 'TIME_ZONE') ?? 'Europe/Bucharest'
   try {
@@ -140,14 +161,16 @@ function logLevel(env: Env): LogLevel {
 
 export function loadConfig(env: Env): Config {
   const production = env.NODE_ENV === 'production'
+  const dataDir = path.resolve(read(env, 'ADUN_DATA_DIR') ?? 'data')
   return {
     production,
     appUrl: appUrl(env, production),
-    dataDir: path.resolve(read(env, 'ADUN_DATA_DIR') ?? 'data'),
+    dataDir,
     port: integer(env, 'PORT', 8080, 1, 65535),
     trustProxyHops: integer(env, 'TRUST_PROXY_HOPS', 0, 0, 10),
     registrationsEnabled: boolean(env, 'REGISTRATIONS_ENABLED', true),
     email: email(env),
+    backup: backup(env, dataDir),
     timeZone: timeZone(env),
     logLevel: logLevel(env),
   }

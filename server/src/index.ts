@@ -3,17 +3,19 @@ import { createApp } from './app.ts'
 import { ConfigError, loadConfig } from './config.ts'
 import { migrate, MigrationError, openDatabase } from './db.ts'
 import { createMailer } from './email/mailer.ts'
+import { prepareBackupDir, startScheduledBackups } from './jobs/backups.ts'
 import { startDailyCleanup } from './jobs/cleanup.ts'
 import { startReminderSweep } from './jobs/reminders.ts'
 import { createLogger } from './lib/log.ts'
 import { shutdown } from './shutdown.ts'
 
-// Read config → open db → migrate → start the daily cleanup and the hourly
-// reminder emails → build app → listen. On SIGTERM or SIGINT, shut down gracefully (shutdown.ts).
+// Read config → open db → migrate → start the daily cleanup, the scheduled
+// backups and the hourly reminder emails → build app → listen. On SIGTERM or SIGINT, shut down gracefully (shutdown.ts).
 
 let config
 try {
   config = loadConfig(process.env)
+  if (config.backup) prepareBackupDir(config.backup.dir)
 } catch (error) {
   if (!(error instanceof ConfigError)) throw error
   console.error(`Configuration error: ${error.message}`)
@@ -35,6 +37,7 @@ try {
 }
 
 const stopCleanup = startDailyCleanup(db, log)
+const stopBackups = config.backup ? startScheduledBackups(db, config.backup, log) : () => {}
 const mailer = createMailer(config.email, log)
 const stopReminders = startReminderSweep(db, mailer, config, log)
 
@@ -54,6 +57,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     stopping = true
     log.info({ signal }, 'server.stopping')
     stopCleanup()
+    stopBackups()
     // A sweep waiting on the mail server finishes before the database closes.
     stopReminders()
       .then(() => shutdown({ server, db, log }))

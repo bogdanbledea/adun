@@ -51,7 +51,8 @@ export function transaction<T>(db: Database, fn: () => T): T {
 //
 // Copies go to <dataDir>/backups as <prefix>-<UTC time>.sqlite, so the names
 // sort in the order they were taken. `npm run backup` writes adun-…; the
-// server writes pre-migration-NNNN-… before it changes the schema.
+// server writes pre-migration-NNNN-… before it changes the schema, and its
+// scheduled copies, auto-…, to BACKUP_DIR (jobs/backups.ts).
 
 export const BACKUPS_DIR = 'backups'
 
@@ -65,28 +66,36 @@ function fileTimestamp(date: Date): string {
 /* Writes a consistent copy of the database and returns its path. VACUUM INTO
    reads one snapshot, so the server can keep writing meanwhile, and the copy
    is compacted and needs no WAL file next to it. */
-export function backupDatabase(db: Database, prefix: string, now = new Date()): string {
-  const location = db.location()
-  if (location === null) throw new Error('An in-memory database has no backups')
-  const dir = path.join(path.dirname(location), BACKUPS_DIR)
+export function backupDatabase(db: Database, prefix: string, now = new Date(), dir = backupsDir(db)): string {
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
   const file = path.join(dir, `${prefix}-${fileTimestamp(now)}.sqlite`)
   db.prepare('VACUUM INTO ?').run(file)
   fs.chmodSync(file, 0o600)
-  if (prefix.startsWith('pre-migration-')) prune(dir, 'pre-migration-', KEEP_PRE_MIGRATION)
+  if (prefix.startsWith('pre-migration-')) pruneBackups(dir, 'pre-migration-', KEEP_PRE_MIGRATION)
   return file
 }
 
-// Sorted by the time at the end of the name, since the migration number before
-// it can go back down after a restore.
-function prune(dir: string, prefix: string, keep: number): void {
+function backupsDir(db: Database): string {
+  const location = db.location()
+  if (location === null) throw new Error('An in-memory database has no backups')
+  return path.join(path.dirname(location), BACKUPS_DIR)
+}
+
+// The copies with this prefix, oldest first. Sorted by the time at the end of
+// the name, since the migration number before it can go back down after a restore.
+export function listBackups(dir: string, prefix: string): string[] {
   const time = (name: string) => name.slice(-'20261119-143005Z.sqlite'.length)
-  const old = fs
+  return fs
     .readdirSync(dir)
     .filter((name) => name.startsWith(prefix) && name.endsWith('.sqlite'))
     .sort((a, b) => time(a).localeCompare(time(b)))
-    .slice(0, -keep)
+}
+
+/** Deletes all but the newest `keep` copies with this prefix; returns how many went. */
+export function pruneBackups(dir: string, prefix: string, keep: number): number {
+  const old = listBackups(dir, prefix).slice(0, -keep)
   for (const name of old) fs.rmSync(path.join(dir, name))
+  return old.length
 }
 
 // ── Migrations ───────────────────────────────────────────────────────────────
